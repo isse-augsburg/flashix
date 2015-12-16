@@ -13,7 +13,7 @@ esac
 
 if [ -z "$1" ]
 then
-    echo "mount   with: ./run.sh <mountpoint> [-d]"
+    echo "mount   with: ./run.sh [-odebug] [-obig_writes] <mountpoint>"
     echo "unmount with: fusermount -u <mountpoint>"
 else
     export LD_LIBRARY_PATH

@@ -89,7 +89,8 @@ object Mount {
       System.exit(1)
 
     val filesystem = new fuse.FilesystemAdapter(vfs, journal, persistence)
-    FuseMount.mount(Array("-s", "-odebug", "-obig_writes", args(0)), filesystem, null)
+    val syncargs = Array("-s") ++ args
+    FuseMount.mount(syncargs, filesystem, null)
 
     mtd.close
     System.exit(0)

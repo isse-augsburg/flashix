@@ -18,6 +18,23 @@ Storage is either a plain file or an [MTD](http://www.linux-mtd.infradead.org/)-
 See the [technical documentation](https://swt.informatik.uni-augsburg.de/swt/projects/flash.html)
 for an overview of the concepts realized and a list of [publications](http://isse.de/flashix/publications).
 
+## Quick Start
+
+Mount flashix (on a 64-bit system) as follows:
+
+    ./run.sh [-odebug] [-obig_writes] <mountpoint>
+
+Options
+
+- `-odebug`: dump a lot of debug information and don't fork to background
+- `-obig_writes`: instruct FUSE to write in large chunks instead of the default of 4K
+  (should improve write performance)
+- See `man /etc/fuse.conf` for further options.
+
+Umount with
+
+    fusermount -u <mountpoint>
+
 ## Installation
 
 Dependencies
@@ -30,7 +47,8 @@ Dependencies
 
 Pre-built binaries for the latter two are included in the `lib` folder.
 
-The native component of FUSE-J, `libjavafs.so` is provided for x68-64.
+The native component of FUSE-J, `libjavafs.so` is provided for x68-64 in `lib64`,
+on 32 bit systems it must be in `lib`.
 It is linked against `/usr/lib/libjvm.so` which means that you have to provide
 this file at this location if you want to use the prebuilt binary.
 You can for example link the file as follows:
