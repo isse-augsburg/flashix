@@ -49,6 +49,10 @@ To compile flashix on your machine, simply type
 
     ./build.sh
 
+Alternatively, you can import the code as an eclipse project,
+provided that the [Scala IDE](http://scala-ide.org) plugin has been installed.
+The main file is `integration.Mount`.
+
 Dependencies
 
 - [Scala](http://scala-lang.org)
@@ -117,6 +121,9 @@ Please contact Gidon Ernst <ernst@isse.de> or Jörg Pfähler <pfaehler@isse.de> 
 - The support for symbolic links is flaky and relies on the Linux VFS/FUSE
   to resolve these. They're implemented in the glue layer (unverified)
   simply as files with a special attribute.
+- Some glue code will move to the models, in particular, chaining recovery
+  (the meta-theory says it's fine the way it is implemented),
+  and the decision when to invoke on flash garbage collection.
 
 ## Test Runs with SibylFS
 
