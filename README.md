@@ -101,8 +101,8 @@ existing mount. It is thus easy to run test these suites on Flashix.
 Note that a couple of tests will fail due to the open issues outlined above.
 This is expected and will be fixed.
 
-"WARNING!!! Executing test scripts directly on your machine has the potential to
-destroy your data." Read the SibylFS documentation first, in particular this
+**"WARNING!!! Executing test scripts directly on your machine has the potential to
+destroy your data."** Read the SibylFS documentation first, in particular this
 page, before you run the commands below.
 
 In particular, the authors of SibylFS recommend to run test (in particular with
@@ -123,7 +123,7 @@ Then exectue the following commands
 
 The first line runs a preconfigured test suite from `test-suite` against Flashix
 (the suite is avaliable from the SibylFS website). It will collect a bunch of
-traces as results in a subfolder *<date>-XYZ* for some random *XYZ*.
+traces as results in a subfolder *date-XYZ* for some random *XYZ*.
 The second line compares the generated traces against a specification shipped
 with SibylFS (`linux_spec` in this case, there is also `posix_spec` and some others).
 Results of the conformance check will go to the same output folder.
