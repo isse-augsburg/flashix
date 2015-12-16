@@ -11,10 +11,14 @@ The work is part of the project [*Verifcation of Flash File Systems*](http://iss
 
 This repository contains the [Scala](http://scala-lang.org) code automatically
 derived from the [KIV](http://isse.de/kiv) specifications.
-It provides a fully working prototype and simulation of the file system that can
+It provides a working prototype and simulation of the file system that can
 be mounted into the Linux directory tree via [FUSE](http://fuse.sourceforge.net/).
 Storage is either a plain file
 (or an [MTD](http://www.linux-mtd.infradead.org/)-device in the future).
+
+**DISCLAIMER: no claim about the correctness of the generated Scala code is made.
+Please read the documentation provided below and make sure you understand the
+background of this work and its assumptions.**
 
 See the [technical documentation](https://swt.informatik.uni-augsburg.de/swt/projects/flash.html)
 for an overview of the concepts realized and a list of [publications](http://isse.de/flashix/publications).
