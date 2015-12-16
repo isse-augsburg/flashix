@@ -35,7 +35,11 @@ Umount with
 
     fusermount -u <mountpoint>
 
-## Installation
+## Compiling
+
+To compile flashix on your machine, simply type
+
+    ./build.sh
 
 Dependencies
 
@@ -74,5 +78,5 @@ Please contact Gidon Ernst <ernst@isse.de> or Jörg Pfähler <pfaehler@isse.de> 
 
 ## Open Issues
 
-- Support command line options
 - File permissions are not integrated with FUSE and won't work
+- The `nlink`s for directories are not correct at the moment
