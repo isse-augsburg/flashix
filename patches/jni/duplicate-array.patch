@@ -1,0 +1,10 @@
+--- jni/javafs_bindings.h	2012-06-14 14:21:22.807005642 +0200
++++ jni/javafs_bindings.patched.h	2012-06-14 14:21:40.447005720 +0200
+@@ -494,7 +494,6 @@
+       jmethodID putDouble__D;
+       jmethodID putDouble__ID;
+       jmethodID array;
+-      jmethodID array;
+       jmethodID arrayOffset;
+       jmethodID hasArray;
+       jmethodID isDirect;

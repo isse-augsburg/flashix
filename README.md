@@ -18,6 +18,43 @@ Storage is either a plain file or an [MTD](http://www.linux-mtd.infradead.org/)-
 See the [technical documentation](https://swt.informatik.uni-augsburg.de/swt/projects/flash.html)
 for an overview of the concepts realized and a list of [publications](http://isse.de/flashix/publications).
 
-## Usage
+## Installation
 
-*TODO*
+Dependencies
+
+- [Scala](http://scala-lang.org)
+- [FUSE](http://fuse.sourceforge.net)
+- [FUSE-J](http://sourceforge.net/projects/fuse-j/)
+- [Apache Commons Logging](https://commons.apache.org/proper/commons-logging/)
+  (used by FUSE-j)
+
+Pre-built binaries for the latter two are included in the `lib` folder.
+
+The native component of FUSE-J, `libjavafs.so` is provided for x68-64.
+It is linked against `/usr/lib/libjvm.so` which means that you have to provide
+this file at this location if you want to use the prebuilt binary.
+You can for example link the file as follows:
+
+    $ locate libjvm.so
+    /usr/lib/jvm/java-7-openjdk/jre/lib/amd64/libjava.so
+    ...
+
+    $ ln -s /usr/lib/jvm/java-7-openjdk/jre/lib/amd64/libjava.so /usr/lib/libjvm.so
+
+The respective licenses apply:
+FUSE-J is distributed under the LGPL.
+Apache Commons Logging is distributed under the Apache License v2.0.
+
+`fuse-j-2.4-prerelease1` has a compile bug with Java 7. You can copy the updated
+build script files in folder `patches` and the patch to the `jni` subfolder of
+FUSE-J to work around this issue.
+
+- `patches/jni/duplicate-array.patch` removes a duplicate line in the JNI bindings
+- `patches/jni/build.xml` applies this patch automatically during build time
+
+Please contact Gidon Ernst <ernst@isse.de> or Jörg Pfähler <pfaehler@isse.de> us if you have any trouble.
+
+## Open Issues
+
+- Support command line options
+- File permissions are not integrated with FUSE and won't work
