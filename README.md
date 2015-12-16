@@ -84,11 +84,39 @@ FUSE-J to work around this issue.
 
 Please contact Gidon Ernst <ernst@isse.de> or Jörg Pfähler <pfaehler@isse.de> us if you have any trouble.
 
+## Code Structure
+
+### Generated Code
+
+- `algebraic/Algebraic.scala` contains definitions of algebraic functions.
+  In case they have been left abstract in the formal model,
+  or if the code generator was unable to translate them,
+  they are abstract here as well. These are implemented in
+  `integration/Algebraic.scala`.
+
+- `asm` contains the executable formal models derived from the
+  Abstract State Machine specifications in KIV.
+  Some are interface specifications, for which we currently don't provide the code.
+
+- `encoding` contains encoding/decoding functions between data structures and
+  their representations as byte sequences.
+
+- `types` contains definitions of all free data types that are used in the case study.
+
+### Manually Implemented Code
+
+- `integration` contains all the glue code.
+- `integration/fuse` contains the wrappers for FUSE
+- `helpers` contains predefined data structures such as lists and sets
+
 ## Open Issues
 
 - File permissions are not integrated with FUSE and won't work
 - The `nlink`s for directories are not correct at the moment
 - Missing option to turn of flushing of the write cache at the end of operations
+- The support for symbolic links is flaky and relies on the Linux VFS/FUSE
+  to resolve these. They're implemented in the glue layer (unverified)
+  simply as files with a special attribute.
 
 ## Test Runs with SibylFS
 
