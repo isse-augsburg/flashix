@@ -2,6 +2,7 @@
 
 CP=lib/commons-logging-1.0.4.jar:lib/fuse-j.jar
 JAR=lib/flashix.jar
+MAIN=integration.Mount
 
 mkdir -p bin bin/META-INF
 
@@ -13,7 +14,7 @@ echo "writing manifest"
 cat > bin/META-INF/MANIFEST.MF <<EOF
 Manifest-Version: 1.0"
 Class-Path: lib/fuse-j.jar lib/commons-logging-1.0.4.jar
-Main-Class: de.uniaugsburg.flashix.fuse.Mount
+Main-Class: $MAIN
 EOF
 
 echo "creating jar"

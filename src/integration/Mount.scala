@@ -16,25 +16,12 @@ object Mount {
 
   def printHelp {
     println("usage:")
-    println("  flashix <mountpoint>")
+    println("  flashix [-odebug] [-obig_writes] <mountpoint>")
   }
 
   def main(args: Array[String]) {
 
-    // Check arguments
-    if (args.size != 1) {
-      println("error: invalid number of arguments")
-      printHelp
-      System.exit(1)
-    }
-    val fuseMountpoint = new File(args(0))
-    if (! fuseMountpoint.exists()) {
-      println(s"error: mountpoint ${args(0)} does not exist")
-      printHelp
-      System.exit(1)
-    }
-    if (! fuseMountpoint.isDirectory()) {
-      println(s"error: mountpoint ${args(1)} is not a directory")
+    if (args.size <= 0) {
       printHelp
       System.exit(1)
     }
