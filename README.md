@@ -86,7 +86,7 @@ FUSE-J to work around this issue.
 - `patches/jni/duplicate-array.patch` removes a duplicate line in the JNI bindings
 - `patches/jni/build.xml` applies this patch automatically during build time
 
-Please contact Gidon Ernst <ernst@isse.de> or Jörg Pfähler <pfaehler@isse.de> us if you have any trouble.
+Please contact Gidon Ernst <ernst@isse.de> or Jörg Pfähler <pfaehler@isse.de> if you have any trouble.
 
 ## Code Structure
 
@@ -121,9 +121,8 @@ Please contact Gidon Ernst <ernst@isse.de> or Jörg Pfähler <pfaehler@isse.de> 
 - The support for symbolic links is flaky and relies on the Linux VFS/FUSE
   to resolve these. They're implemented in the glue layer (unverified)
   simply as files with a special attribute.
-- Some glue code will move to the models, in particular, chaining recovery
-  (the meta-theory says it's fine the way it is implemented),
-  and the decision when to invoke on flash garbage collection.
+- Some glue code will move to the models, in particular, the decision when to
+  invoke on flash garbage collection.
 
 ## Test Runs with SibylFS
 

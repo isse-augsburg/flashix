@@ -1,10 +1,12 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package types
 
 import helpers.scala._
+import helpers.scala.Encoding._
+import helpers.scala.Random._
 
 sealed abstract class key {
   def ino : Int = throw new InvalidSelector("ino undefined")
@@ -16,10 +18,6 @@ sealed abstract class key {
 }
 
 object key {
-  implicit object Randomizer extends helpers.scala.Randomizer[key] {
-    def random() : key = inodekey(helpers.scala.Random[Int])
-  }
-
   /**
    * case-classes and objects for constructors
    */
@@ -36,4 +34,12 @@ object key {
   }
 
   def uninit = inodekey(0)
+
+  implicit object Randomizer extends helpers.scala.Randomizer[key] {
+    override def random(): key = helpers.scala.Random.generator.nextInt(3) match {
+      case 0 => inodekey(helpers.scala.Random[Int])
+      case 1 => datakey(helpers.scala.Random[Int], helpers.scala.Random[Int])
+      case 2 => dentrykey(helpers.scala.Random[Int], helpers.scala.Random[String])
+    }
+  }
 }

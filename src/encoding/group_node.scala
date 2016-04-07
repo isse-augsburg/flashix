@@ -1,34 +1,79 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package encoding
 
+import encoding.node._
 import helpers.scala._
+import helpers.scala.Encoding._
+import helpers.scala.Random._
 import types._
+import types.error.error
+import types.file_mode.file_mode
+import types.lpropflags.lpropflags
+import types.seekflag.seekflag
+import types.wlstatus.wlstatus
 
-package object group_node {
-  def flashsize(x: group_node)(implicit _implicit_algebraic: algebraic.Algebraic): Int = {
-    import _implicit_algebraic._
-    helpers.scala.Encoding.alignUp(encoding.node.flashsize(x.nd) + helpers.scala.Encoding.flashsize(x.sqnum) + helpers.scala.Encoding.flashsize(x.start) + helpers.scala.Encoding.flashsize(x.end), 2 * NODE_HEADER_SIZE)
-}
-
-  def encode(x: group_node, buf: Array[Byte], index: Int)(implicit _implicit_algebraic: algebraic.Algebraic): Int = {
-    import _implicit_algebraic._
-    var curindex = index
-    curindex = encoding.node.encode(x.nd, buf, curindex)
-    curindex = helpers.scala.Encoding.encode(x.sqnum, buf, curindex)
-    curindex = helpers.scala.Encoding.encode(x.start, buf, curindex)
-    curindex = helpers.scala.Encoding.encode(x.end, buf, curindex)
-    (index) + helpers.scala.Encoding.alignUp(curindex - (index), 2 * NODE_HEADER_SIZE)
+object group_node {
+  def group_node_size_headerless(elem: group_node)(implicit _algebraic_implicit: algebraic.Algebraic): Int = {
+    return ((flashsize_node(elem.nd) + ENCODED_NAT_SIZE) + ENCODED_BOOL_SIZE) + ENCODED_BOOL_SIZE
   }
 
-  def decode(buf: Array[Byte], index: Int)(implicit _implicit_algebraic: algebraic.Algebraic): (group_node, Int) = {
-    import _implicit_algebraic._
-    val x0 = encoding.node.decode(buf, index)
-    val x1 = helpers.scala.Encoding.decodeNat(buf, x0._2)
-    val x2 = helpers.scala.Encoding.decodeBoolean(buf, x1._2)
-    val x3 = helpers.scala.Encoding.decodeBoolean(buf, x2._2)
-    (types.group_node.mkgnode(x0._1, x1._1, x2._1, x3._1), index + helpers.scala.Encoding.alignUp(x3._2 - index, 2 * NODE_HEADER_SIZE))
+  def encode_group_node_headerless(elem: group_node, index: Int, buf: buffer, nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    nbytes := 0
+    val tmpsize = new Ref[Int](0)
+    err := types.error.ESUCCESS
+    if (err.get == types.error.ESUCCESS) {
+      encode_node(elem.nd, index + nbytes.get, buf, tmpsize, err)
+      assert(tmpsize.get == flashsize_node(elem.nd), """encoding has invalid size""")
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      encode_nat(elem.sqnum, index + nbytes.get, buf, tmpsize, err)
+      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      encode_bool(elem.start, index + nbytes.get, buf, tmpsize, err)
+      assert(tmpsize.get == ENCODED_BOOL_SIZE, """encoding has invalid size""")
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      encode_bool(elem.end, index + nbytes.get, buf, tmpsize, err)
+      assert(tmpsize.get == ENCODED_BOOL_SIZE, """encoding has invalid size""")
+      nbytes := nbytes.get + tmpsize.get
+    }
+  }
+
+  def decode_group_node_headerless(index: Int, buf: buffer, elem: Ref[group_node], nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    nbytes := 0
+    err := types.error.ESUCCESS
+    val tmpsize = new Ref[Int](0)
+    val nd = new Ref[node](types.node.uninit)
+    val sqnum = new Ref[Int](0)
+    val start = new Ref[Boolean](helpers.scala.Boolean.uninit)
+    val end = new Ref[Boolean](helpers.scala.Boolean.uninit)
+    if (err.get == types.error.ESUCCESS) {
+      decode_node(index + nbytes.get, buf, nd, tmpsize, err)
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      decode_nat(index + nbytes.get, buf, sqnum, tmpsize, err)
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      decode_bool(index + nbytes.get, buf, start, tmpsize, err)
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      decode_bool(index + nbytes.get, buf, end, tmpsize, err)
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS)
+      elem := types.group_node.mkgnode(nd.get, sqnum.get, start.get, end.get).deepCopy
+    
   }
 }

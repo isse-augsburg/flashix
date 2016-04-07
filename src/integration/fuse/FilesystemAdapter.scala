@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package integration.fuse
@@ -33,16 +33,12 @@ object OpenMode {
 
 case class FH(fd: Int, isAppend: Boolean)
 
-/*
-case class User(uid: Int, gid: Int, umask: Int)
-*/
-
 object Metadata {
   val DEFAULT_DIR_PERM = 0x1ED // 0755
   val DEFAULT_FILE_PERM = 0x1A4 // 0644
   val DEFAULT_SYMLINK_PERM = 0x1FF // 0777
 
-  /*
+/*
   val GID = 0
   val UID = 0
   val UMASK = 0x1FF // 0777
@@ -96,13 +92,12 @@ object SymlinkMetadata {
   }
 }
 
-// object DefaultUser extends User(Metadata.UID, Metadata.GID, Metadata.UMASK)
-
-class FilesystemAdapter(posix: POSIX, journal: UBIFSJournal, persistence: Persistence)(implicit _algebraic_implicit: algebraic.Algebraic) extends Filesystem3 {
+class FilesystemAdapter(posix: posix_interface, journal: gjournal_asm, persistence: persistence_asm, persistence_io: persistence_io_asm)(implicit _algebraic_implicit: algebraic.Algebraic, _procedures_implicit: proc.Procedures) extends Filesystem3 {
   import _algebraic_implicit._
+  import _procedures_implicit._
   import Metadata._
 
-  val user: sorts.user = 0 // TODO: DefaultUser
+  val user: Byte = 0 // TODO: DefaultUser
 
   def errorToErrno(err: error): Int = err match {
     case error.ESUCCESS =>
@@ -134,7 +129,7 @@ class FilesystemAdapter(posix: POSIX, journal: UBIFSJournal, persistence: Persis
   }
 
   def throwLog(e: Throwable) = {
-    println("Error in the file system: " + e)
+    debug("Error in the file system: " + e)
     throw e
   }
 
@@ -143,24 +138,22 @@ class FilesystemAdapter(posix: POSIX, journal: UBIFSJournal, persistence: Persis
   def mainAreaLEBs = {
     val _total = persistence.LPT.length
     val _free = persistence.FREELIST.length
-    val _main = _total - MAINLNUM
-    val reserved = percentOf(10, _main)
+    val reserved = percentOf(10, _total)
 
-    val start = MAINLNUM
-    val total = _main - reserved
+    val total = _total - reserved
     val free = if (reserved <= _free) _free - reserved else 0
-    val log = persistence.LOGOFFSET / EB_PAGE_SIZE
+    val log = persistence_io.LOGOFF / EB_PAGE_SIZE
 
-    (start, total, free, log)
+    (total, free, log)
   }
 
   def isBlockEligibleForGC(lp: lprops) = {
     lp.ref_size < LEB_SIZE - 2 * VFS_PAGE_SIZE
   }
 
-  def computeStats(debug: Boolean = false) = {
+  def computeStats(dbg: Boolean = false) = {
     var used_bytes = 0
-    val (start, avail, free, log) = mainAreaLEBs
+    val (avail, free, log) = mainAreaLEBs
     val total = persistence.LPT.length
 
     for (i <- 0 until total) {
@@ -181,50 +174,51 @@ class FilesystemAdapter(posix: POSIX, journal: UBIFSJournal, persistence: Persis
     val total_bytes = avail * LEB_SIZE
     val free_bytes = total_bytes - used_bytes
 
-    if (debug) try {
-      println("BLOCKS")
+    if (dbg) try {
+      debug("BLOCKS")
       for (i <- 0 until total) {
         val lp = persistence.LPT(i)
 
         if (lp.ref_size > 0)
-          println(lp)
+          debug(lp.toString)
       }
-      println()
+      debug("")
 
+/* TODO
       val (ri, is) = journal.index()
 
-      println("RAM INDEX")
+      debug("RAM INDEX")
       for ((key, adr) <- ri) {
-        println(key + " -> " + adr)
+        debug(key + " -> " + adr)
       }
-      println()
+      debug()
 
-      println("INDEX NODES")
+      debug("INDEX NODES")
       for ((znd, adr) <- is) {
         val isleaf = if (znd.leaf) "leaf" else "internal"
         val isdirty = if (znd.dirty) "dirty" else "clean"
-        println("znode(" + isleaf + ", " + isdirty + ", usedsize=" + znd.usedsize + ")" + " -> " + adr)
+        debug("znode(" + isleaf + ", " + isdirty + ", usedsize=" + znd.usedsize + ")" + " -> " + adr)
       }
-      println()
+      debug()
 
       import Debug.Refsizes
       val ri_refsizes = ri.values.refsizes
       val is_refsizes = is.filterNot(_._1.dirty).values.refsizes
 
-      println("REFSIZE CHECK")
+      debug("REFSIZE CHECK")
       for (i <- 0 until total) {
         val lp = persistence.LPT(i)
 
         lp.flags match {
           case lpropflags.LP_INDEX_NODES if (is_refsizes contains i) && (is_refsizes(i) != lp.ref_size) =>
-            println("index block " + i + " has invalid refsize " + lp.ref_size + ", expected " + is_refsizes(i))
+            debug("index block " + i + " has invalid refsize " + lp.ref_size + ", expected " + is_refsizes(i))
           case lpropflags.LP_GROUP_NODES if (ri_refsizes contains i) && (ri_refsizes(i) != lp.ref_size) =>
-            println("group block " + i + " has invalid refsize " + lp.ref_size + ", expected " + ri_refsizes(i))
+            debug("group block " + i + " has invalid refsize " + lp.ref_size + ", expected " + ri_refsizes(i))
           case _ =>
         }
       }
-
-      println("DEBUG END")
+*/
+      debug("DEBUG END")
     } finally {
     }
 
@@ -232,18 +226,13 @@ class FilesystemAdapter(posix: POSIX, journal: UBIFSJournal, persistence: Persis
   }
 
   def doGC(reason: String, ERR: Ref[error], free_lebs: Int) = {
-    println(s"flashix: attempting garbage collection with ${free_lebs} LEBs (${reason})")
+    debug(s"flashix: attempting garbage collection with ${free_lebs} LEBs (${reason})")
     journal.aubifs_internal_check_commit(ERR)
 
     if (ERR.get == error.ESUCCESS) {
-      journal.journal_gc(ERR)
-
-      if (ERR.get == error.ESUCCESS)
-        println(s"flashix: garbage collection successfull")
-      else
-        println(s"flashix: garbage collection failed with error ${ERR.get}")
+      journal.journal_gc()
     } else {
-      println(s"flashix: garbage collection impossible")
+      debug(s"flashix: garbage collection impossible")
     }
   }
 
@@ -252,22 +241,22 @@ class FilesystemAdapter(posix: POSIX, journal: UBIFSJournal, persistence: Persis
       val (total_bytes, free_bytes) = computeStats(false)
 
       if (free_bytes > LEB_SIZE * (4 + free)) {
-        println(s"flashix: attempting to free ${free_bytes} bytes from the log")
+        debug(s"flashix: attempting to free ${free_bytes} bytes from the log")
         journal.aubifs_commit(ERR)
 
         GCloop(tryCommit, ERR)
       }
     } else {
-      println(s"flashix: no blocks available for garbage collection")
+      debug(s"flashix: no blocks available for garbage collection")
     }
   }
 
   def GCloop(tryCommit: Boolean, ERR: Ref[error]): Unit = {
-    val (start, total, free, log) = mainAreaLEBs
+    val (total, free, log) = mainAreaLEBs
     val isCritical = free < percentOf(10, total)
 
     val N = new Ref[Int](0)
-    persistence.persistence_get_gc_block(N, ERR)
+    persistence.apersistence_get_gc_block(N, ERR)
 
     if (ERR.get == error.ESUCCESS) {
       val lp = persistence.LPT(N.get)
@@ -293,7 +282,7 @@ class FilesystemAdapter(posix: POSIX, journal: UBIFSJournal, persistence: Persis
   }
 
   def isFull: Boolean = {
-    val (_, _, free, _) = mainAreaLEBs
+    val (_, free, _) = mainAreaLEBs
     free == 0
   }
 
@@ -306,9 +295,9 @@ class FilesystemAdapter(posix: POSIX, journal: UBIFSJournal, persistence: Persis
       case e: NotImplementedError =>
         e.printStackTrace(System.out)
         throwLog { new FuseException(e).initErrno(Errno.ENOSYS) }
-      case e: Exception =>
+      case e: Throwable =>
         e.printStackTrace(System.out)
-        throwLog { new FuseException(e).initErrno(Errno.EFAULT) }
+        throwLog { new FuseException(e).initErrno(Errno.ENOSYS) }
     }
     if (err.get != error.ESUCCESS)
       throw new FuseException("Unsuccessful operation: " + err.get).initErrno(errorToErrno(err.get))
@@ -316,7 +305,12 @@ class FilesystemAdapter(posix: POSIX, journal: UBIFSJournal, persistence: Persis
   }
 
   def _run(force: Boolean, operation: Ref[error] => Unit): Int = {
-    checkGC()
+    try {
+      checkGC()
+    } catch {
+      case e: Throwable =>
+        e.printStackTrace(System.out)
+    }
 
     if (isFull && !force) {
       throw new FuseException().initErrno(Errno.ENOSPC)
@@ -433,7 +427,7 @@ class FilesystemAdapter(posix: POSIX, journal: UBIFSJournal, persistence: Persis
     val buf = new buffer(n.get)
 
     runAlways { posix.posix_open(path, file_mode.MODE_R, user, fd, _) }
-    run /* */ { posix.posix_read(fd.get, user, n, buf, _) }
+    run /* */ { posix.posix_read(fd.get, user, buf, n, _) }
     runAlways { posix.posix_close(fd.get, user, _) }
 
     link.append(new String(buf.array))
@@ -525,7 +519,7 @@ class FilesystemAdapter(posix: POSIX, journal: UBIFSJournal, persistence: Persis
     }
 
     runAlways {
-      posix.posix_read(fd, user, n, buf, _)
+      posix.posix_read(fd, user, buf, n, _)
     }
 
     bbuf.put(buf.array)
@@ -542,9 +536,7 @@ class FilesystemAdapter(posix: POSIX, journal: UBIFSJournal, persistence: Persis
       posix.posix_seek(fd, if (isAppend) seekflag.SEEK_END else seekflag.SEEK_SET, user, new Ref(if (isAppend) 0 else offset.toInt), _)
     }
 
-    run {
-      posix.posix_write(fd, buf, user, n, _)
-    }
+    run { posix.posix_write(fd, buf, user, n, _) }
   }
 
   def flush(path: String, fh: AnyRef): Int = {

@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package debug
@@ -7,7 +7,7 @@ package debug
 import types._
 import types.error.error
 import helpers.scala.Ref
-import asm.UBIFSJournal
+import asm._
 
 import scala.collection.mutable
 
@@ -22,8 +22,9 @@ object Debug {
   }
 }
 
+/* TODO
 trait DebugUBIFSJournal {
-  this: UBIFSJournal =>
+  this: btree_asm =>
 
   def index(): (Map[key, address], Map[znode, address]) = {
     val ERR = new Ref[error](error.ESUCCESS)
@@ -55,3 +56,4 @@ trait DebugUBIFSJournal {
     }
   }
 }
+*/

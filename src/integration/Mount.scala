@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package integration
@@ -28,7 +28,7 @@ object Mount {
 
     // Implicit configuration options
     val deviceFile = new File("flash-device")
-    val pebs = 2048
+    val pebs = 2 * 2048
     val pages_per_peb = 64
     val page_size = 2048
     val spare_pebs = 5
@@ -37,13 +37,20 @@ object Mount {
     // Create MTD simulation
     val mtd = MTDSimulation(deviceFile, pebs, pages_per_peb, page_size)
     implicit val algebraic = new Algebraic(mtd)
-    val ubiio = UBIIO(mtd) 
-    val ubi = UBI(new nat_set(), new wlarray(), 0, new queue(), new volumes(), 0, ubiio)
-    val wbuf = WBUF(new wbuf_store(), 0, ubi)
-    val persistence = Persistence(new nat_list(), true, superblock(address(0, 0, 0), 0, 0, 0, 0, 0), 0, binheap(new key_array(), 0), new lp_array(), new nat_list(), wbuf)
-    val journal = UBIFSJournal(false, address(0, 0, 0), new key_set(), 0, 0, 0, null, persistence)
-    val aubifs = AUBIFS(journal)
-    val vfs = VFS(new open_files(), aubifs)
+    implicit val procedures = new Procedures()
+
+    // Check axioms
+    procedures.flashix_check_axioms
+
+    val ubiio = new ubi_io_asm(mtd)
+    val ubi = new ubi_asm(new volumes(), new queue(), 0, new wlarray(), new nat_set(), 0, ubiio)
+    val wbuf = new wbuf_asm(0, new wbuf_store(), ubi)
+    val persistence_io = new persistence_io_asm(superblock.uninit, 0, wbuf)
+    val persistence = new persistence_asm(binheap(new key_array(), 0), new nat_list(), new nat_list(), new lp_array(), persistence_io)
+    val btree = new btree_asm(znode.uninit, address(0, 0, 0), persistence)
+    val journal = new gjournal_asm(0, false, new nat_set(), 0, true, 0, btree) // TODO: sync option
+    val aubifs = new aubifs_asm(journal)
+    val vfs = new vfs_asm(new open_files(), 0, aubifs)
 
     val err = new Ref(error.uninit)
     if (format) {
@@ -52,30 +59,15 @@ object Mount {
       if (err != ESUCCESS)
         println(s"vfs: format failed with error code ${err.get}")
     } else {
-      ubi.ubi_recover(err)
+      vfs.posix_recover(err)
       if (err != ESUCCESS)
-        println(s"ubi: recovery failed with error code ${err.get}")
-      else {
-        wbuf.wbuf_recover(err)
-        if (err != ESUCCESS)
-          println(s"wbuf: recovery failed with error code ${err.get}")
-        else {
-          persistence.ubifs_persistence_recover(err)
-          if (err != ESUCCESS)
-            println(s"persistence: recovery failed with error code ${err.get}")
-          else {
-            aubifs.aubifs_replay(err)
-            if (err != ESUCCESS)
-              println(s"aubifs: recovery failed with error code ${err.get}")
-          }
-        }
-      }
+        println(s"vfs: recovery failed with error code ${err.get}")
     }
 
     if (err != ESUCCESS)
       System.exit(1)
 
-    val filesystem = new fuse.FilesystemAdapter(vfs, journal, persistence)
+    val filesystem = new fuse.FilesystemAdapter(vfs, journal, persistence, persistence_io)
     val syncargs = Array("-s") ++ args
     FuseMount.mount(syncargs, filesystem, null)
 

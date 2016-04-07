@@ -1,10 +1,12 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package types
 
 import helpers.scala._
+import helpers.scala.Encoding._
+import helpers.scala.Random._
 
 sealed abstract class branch {
   def key : key = throw new InvalidSelector("key undefined")
@@ -14,10 +16,6 @@ sealed abstract class branch {
 }
 
 object branch {
-  implicit object Randomizer extends helpers.scala.Randomizer[branch] {
-    def random() : branch = mkbranch(helpers.scala.Random[key], helpers.scala.Random[address])
-  }
-
   /**
    * case-classes and objects for constructors
    */
@@ -33,5 +31,13 @@ object branch {
     override def updated_key(__x : key) : mkchecked = copy(key = __x)
   }
 
-  def uninit = mkbranch(key.uninit, address.uninit)
+  def uninit = mkbranch(types.key.uninit, types.address.uninit)
+
+  implicit object Randomizer extends helpers.scala.Randomizer[branch] {
+    override def random(): branch = helpers.scala.Random.generator.nextInt(3) match {
+      case 0 => mkbranch(helpers.scala.Random[key], helpers.scala.Random[address])
+      case 1 => mkentry(helpers.scala.Random[key], helpers.scala.Random[address])
+      case 2 => mkchecked(helpers.scala.Random[key])
+    }
+  }
 }

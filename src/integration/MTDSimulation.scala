@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package integration
@@ -10,10 +10,14 @@ import types._
 import types.error._
 import java.util.Arrays
 
-class MTDSimulation private(val file: RandomAccessFile, val PEBS: Int, val PAGES_PER_PEB: Int, val EB_PAGE_SIZE: Int) extends asm.MTD {
+class MTDSimulation private(val file: RandomAccessFile, val PEBS: Int, val PAGES_PER_PEB: Int, val EB_PAGE_SIZE: Int) extends asm.mtd_interface {
 
   val empty: Byte = 0xFF.toByte
   val PEB_SIZE: Int = PAGES_PER_PEB * EB_PAGE_SIZE
+
+  final override def mtd_init(ERR: Ref[error]) {
+    ERR := ESUCCESS
+  }
 
   final override def mtd_erase(PNUM: Int, ERR: Ref[error]) {
     val empty_peb = new Array[Byte](PEB_SIZE)

@@ -1,10 +1,12 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package types
 
 import helpers.scala._
+import helpers.scala.Encoding._
+import helpers.scala.Random._
 
 sealed abstract class ebaentry {
   def pnum : Int = throw new InvalidSelector("pnum undefined")
@@ -12,10 +14,6 @@ sealed abstract class ebaentry {
 }
 
 object ebaentry {
-  implicit object Randomizer extends helpers.scala.Randomizer[ebaentry] {
-    def random() : ebaentry = unmapped
-  }
-
   /**
    * case-classes and objects for constructors
    */
@@ -25,4 +23,11 @@ object ebaentry {
   final object unmapped extends ebaentry
 
   def uninit = unmapped
+
+  implicit object Randomizer extends helpers.scala.Randomizer[ebaentry] {
+    override def random(): ebaentry = helpers.scala.Random.generator.nextInt(2) match {
+      case 0 => unmapped
+      case 1 => embed(helpers.scala.Random[Int])
+    }
+  }
 }

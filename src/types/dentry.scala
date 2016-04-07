@@ -1,10 +1,12 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package types
 
 import helpers.scala._
+import helpers.scala.Encoding._
+import helpers.scala.Random._
 
 sealed abstract class dentry {
   def name : String = throw new InvalidSelector("name undefined")
@@ -14,10 +16,6 @@ sealed abstract class dentry {
 }
 
 object dentry {
-  implicit object Randomizer extends helpers.scala.Randomizer[dentry] {
-    def random() : dentry = mkdentry(helpers.scala.Random[String], helpers.scala.Random[Int])
-  }
-
   /**
    * case-classes and objects for constructors
    */
@@ -30,4 +28,11 @@ object dentry {
   }
 
   def uninit = mkdentry("", 0)
+
+  implicit object Randomizer extends helpers.scala.Randomizer[dentry] {
+    override def random(): dentry = helpers.scala.Random.generator.nextInt(2) match {
+      case 0 => mkdentry(helpers.scala.Random[String], helpers.scala.Random[Int])
+      case 1 => negdentry(helpers.scala.Random[String])
+    }
+  }
 }

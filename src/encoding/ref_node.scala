@@ -1,30 +1,48 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package encoding
 
 import helpers.scala._
+import helpers.scala.Encoding._
+import helpers.scala.Random._
 import types._
+import types.error.error
+import types.file_mode.file_mode
+import types.lpropflags.lpropflags
+import types.seekflag.seekflag
+import types.wlstatus.wlstatus
 
-package object ref_node {
-  def flashsize(x: ref_node)(implicit _implicit_algebraic: algebraic.Algebraic): Int = {
-    import _implicit_algebraic._
-    EB_PAGE_SIZE
-}
-
-  def encode(x: ref_node, buf: Array[Byte], index: Int)(implicit _implicit_algebraic: algebraic.Algebraic): Int = {
-    import _implicit_algebraic._
-    var curindex = index
-    curindex = helpers.scala.Encoding.encode(x.lnum, buf, curindex)
-    assert(curindex - (index) <= EB_PAGE_SIZE)
-    return index + EB_PAGE_SIZE
+object ref_node {
+  def ENCODED_REF_NODE_SIZE(implicit _algebraic_implicit: algebraic.Algebraic): Int = {
+    return ENCODED_NAT_SIZE
   }
 
-  def decode(buf: Array[Byte], index: Int)(implicit _implicit_algebraic: algebraic.Algebraic): (ref_node, Int) = {
-    import _implicit_algebraic._
-    val x0 = helpers.scala.Encoding.decodeNat(buf, index)
-    assert(x0._2 - index <= EB_PAGE_SIZE)
-    (types.ref_node.rnode(x0._1), index + EB_PAGE_SIZE)
+  def encode_ref_node_empty(elem: ref_node, index: Int, buf: buffer, nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    nbytes := 0
+    val tmpsize = new Ref[Int](0)
+    err := types.error.ESUCCESS
+    if (err.get == types.error.ESUCCESS) {
+      encode_nat(elem.leb, index + nbytes.get, buf, tmpsize, err)
+      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
+      nbytes := nbytes.get + tmpsize.get
+    }
+  }
+
+  def decode_ref_node_empty(index: Int, buf: buffer, elem: Ref[ref_node], nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    nbytes := 0
+    err := types.error.ESUCCESS
+    val tmpsize = new Ref[Int](0)
+    val leb = new Ref[Int](0)
+    if (err.get == types.error.ESUCCESS) {
+      decode_nat(index + nbytes.get, buf, leb, tmpsize, err)
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS)
+      elem := types.ref_node.rnode(leb.get)
+    
   }
 }

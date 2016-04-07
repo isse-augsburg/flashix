@@ -1,26 +1,26 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package types
 
 import helpers.scala._
+import helpers.scala.Encoding._
+import helpers.scala.Random._
 
-final case class vidheader(var vol: Byte, var leb: Int, var sqn: Int, var size: Int, var checksum: Int) extends DeepCopyable[vidheader] {
-  override def deepCopy(): vidheader = vidheader(vol, leb, sqn, size, checksum)
-}
+final case class vidheader(vol: Byte, leb: Int, sqn: Int, size: Int, checksum: Int) {}
 
 object vidheader {
   /**
    * Functions for constructors
    */
-  def vidhdr(vol: Byte, leb: Int, sqn: Int, size: Int, checksum: Int) : vidheader = {
+  def vidhdr(vol: Byte, leb: Int, sqn: Int, size: Int, checksum: Int): vidheader = {
     vidheader(vol, leb, sqn, size, checksum)
   }
 
   def uninit = vidhdr(0.toByte, 0, 0, 0, 0)
 
   implicit object Randomizer extends helpers.scala.Randomizer[vidheader] {
-    def random() : vidheader = vidheader(helpers.scala.Random[Byte], helpers.scala.Random[Int], helpers.scala.Random[Int], helpers.scala.Random[Int], helpers.scala.Random[Int])
+    override def random(): vidheader = vidheader(helpers.scala.Random[Byte], helpers.scala.Random[Int], helpers.scala.Random[Int], helpers.scala.Random[Int], helpers.scala.Random[Int])
   }
 }

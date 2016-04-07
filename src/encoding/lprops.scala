@@ -1,34 +1,79 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package encoding
 
+import encoding.lpropflags._
 import helpers.scala._
+import helpers.scala.Encoding._
+import helpers.scala.Random._
 import types._
+import types.error.error
+import types.file_mode.file_mode
+import types.lpropflags.lpropflags
+import types.seekflag.seekflag
+import types.wlstatus.wlstatus
 
-package object lprops {
-  def flashsize(x: lprops)(implicit _implicit_algebraic: algebraic.Algebraic): Int = {
-    import _implicit_algebraic._
-    helpers.scala.Encoding.flashsize(x.ref_size) + helpers.scala.Encoding.flashsize(x.size) + encoding.lpropflags.flashsize(x.flags) + helpers.scala.Encoding.flashsize(x.gcheapidx)
-}
-
-  def encode(x: lprops, buf: Array[Byte], index: Int)(implicit _implicit_algebraic: algebraic.Algebraic): Int = {
-    import _implicit_algebraic._
-    var curindex = index
-    curindex = helpers.scala.Encoding.encode(x.ref_size, buf, curindex)
-    curindex = helpers.scala.Encoding.encode(x.size, buf, curindex)
-    curindex = encoding.lpropflags.encode(x.flags, buf, curindex)
-    curindex = helpers.scala.Encoding.encode(x.gcheapidx, buf, curindex)
-    curindex
+object lprops {
+  def ENCODED_LPROPS_SIZE(implicit _algebraic_implicit: algebraic.Algebraic): Int = {
+    return ((ENCODED_NAT_SIZE + ENCODED_NAT_SIZE) + ENCODED_LPROPFLAGS_SIZE) + ENCODED_NAT_SIZE
   }
 
-  def decode(buf: Array[Byte], index: Int)(implicit _implicit_algebraic: algebraic.Algebraic): (lprops, Int) = {
-    import _implicit_algebraic._
-    val x0 = helpers.scala.Encoding.decodeNat(buf, index)
-    val x1 = helpers.scala.Encoding.decodeNat(buf, x0._2)
-    val x2 = encoding.lpropflags.decode(buf, x1._2)
-    val x3 = helpers.scala.Encoding.decodeNat(buf, x2._2)
-    (types.lprops.mklp(x0._1, x1._1, x2._1, x3._1), x3._2)
+  def encode_lprops(elem: lprops, index: Int, buf: buffer, nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    nbytes := 0
+    val tmpsize = new Ref[Int](0)
+    err := types.error.ESUCCESS
+    if (err.get == types.error.ESUCCESS) {
+      encode_nat(elem.ref_size, index + nbytes.get, buf, tmpsize, err)
+      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      encode_nat(elem.size, index + nbytes.get, buf, tmpsize, err)
+      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      encode_lpropflags(elem.flags, index + nbytes.get, buf, tmpsize, err)
+      assert(tmpsize.get == ENCODED_LPROPFLAGS_SIZE, """encoding has invalid size""")
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      encode_nat(elem.gcheapidx, index + nbytes.get, buf, tmpsize, err)
+      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
+      nbytes := nbytes.get + tmpsize.get
+    }
+  }
+
+  def decode_lprops(index: Int, buf: buffer, elem: lprops, nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    nbytes := 0
+    err := types.error.ESUCCESS
+    val tmpsize = new Ref[Int](0)
+    val ref_size = new Ref[Int](0)
+    val size = new Ref[Int](0)
+    val flags = new Ref[lpropflags](types.lpropflags.uninit)
+    val gcheapidx = new Ref[Int](0)
+    if (err.get == types.error.ESUCCESS) {
+      decode_nat(index + nbytes.get, buf, ref_size, tmpsize, err)
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      decode_nat(index + nbytes.get, buf, size, tmpsize, err)
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      decode_lpropflags(index + nbytes.get, buf, flags, tmpsize, err)
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      decode_nat(index + nbytes.get, buf, gcheapidx, tmpsize, err)
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS)
+      elem := types.lprops.mklp(ref_size.get, size.get, flags.get, gcheapidx.get)
+    
   }
 }

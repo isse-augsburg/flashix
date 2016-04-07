@@ -1,10 +1,12 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package types
 
 import helpers.scala._
+import helpers.scala.Encoding._
+import helpers.scala.Random._
 
 sealed abstract class zbranch extends DeepCopyable[zbranch] {
   def key : key = throw new InvalidSelector("key undefined")
@@ -18,10 +20,6 @@ sealed abstract class zbranch extends DeepCopyable[zbranch] {
 }
 
 object zbranch {
-  implicit object Randomizer extends helpers.scala.Randomizer[zbranch] {
-    def random() : zbranch = mkzbranch(helpers.scala.Random[key], helpers.scala.Random[address], helpers.scala.Random[znode])
-  }
-
   /**
    * case-classes and objects for constructors
    */
@@ -42,5 +40,13 @@ object zbranch {
     override def deepCopy(): zbranch = mkzchecked(key)
   }
 
-  def uninit = mkzbranch(key.uninit, address.uninit, null)
+  def uninit = mkzbranch(types.key.uninit, types.address.uninit, null)
+
+  implicit object Randomizer extends helpers.scala.Randomizer[zbranch] {
+    override def random(): zbranch = helpers.scala.Random.generator.nextInt(3) match {
+      case 0 => mkzbranch(helpers.scala.Random[key], helpers.scala.Random[address], helpers.scala.Random[znode])
+      case 1 => mkzentry(helpers.scala.Random[key], helpers.scala.Random[address], helpers.scala.Random[node_option])
+      case 2 => mkzchecked(helpers.scala.Random[key])
+    }
+  }
 }

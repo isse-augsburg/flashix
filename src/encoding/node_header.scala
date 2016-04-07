@@ -1,32 +1,58 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package encoding
 
 import helpers.scala._
+import helpers.scala.Encoding._
+import helpers.scala.Random._
 import types._
+import types.error.error
+import types.file_mode.file_mode
+import types.lpropflags.lpropflags
+import types.seekflag.seekflag
+import types.wlstatus.wlstatus
 
-package object node_header {
-  def flashsize(x: node_header)(implicit _implicit_algebraic: algebraic.Algebraic): Int = {
-    import _implicit_algebraic._
-    NODE_HEADER_SIZE
-}
-
-  def encode(x: node_header, buf: Array[Byte], index: Int)(implicit _implicit_algebraic: algebraic.Algebraic): Int = {
-    import _implicit_algebraic._
-    var curindex = index
-    curindex = helpers.scala.Encoding.encode(x.size, buf, curindex)
-    curindex = helpers.scala.Encoding.encode(x.ispadding, buf, curindex)
-    assert(curindex - (index) <= NODE_HEADER_SIZE)
-    return index + NODE_HEADER_SIZE
+object node_header {
+  def NODE_HEADER_SIZE(implicit _algebraic_implicit: algebraic.Algebraic): Int = {
+    return ENCODED_NAT_SIZE + ENCODED_BOOL_SIZE
   }
 
-  def decode(buf: Array[Byte], index: Int)(implicit _implicit_algebraic: algebraic.Algebraic): (node_header, Int) = {
-    import _implicit_algebraic._
-    val x0 = helpers.scala.Encoding.decodeNat(buf, index)
-    val x1 = helpers.scala.Encoding.decodeBoolean(buf, x0._2)
-    assert(x1._2 - index <= NODE_HEADER_SIZE)
-    (types.node_header.nodeheader(x0._1, x1._1), index + NODE_HEADER_SIZE)
+  def encode_header_empty(elem: node_header, index: Int, buf: buffer, nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    nbytes := 0
+    val tmpsize = new Ref[Int](0)
+    err := types.error.ESUCCESS
+    if (err.get == types.error.ESUCCESS) {
+      encode_nat(elem.size, index + nbytes.get, buf, tmpsize, err)
+      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      encode_bool(elem.ispadding, index + nbytes.get, buf, tmpsize, err)
+      assert(tmpsize.get == ENCODED_BOOL_SIZE, """encoding has invalid size""")
+      nbytes := nbytes.get + tmpsize.get
+    }
+  }
+
+  def decode_header_empty(index: Int, buf: buffer, elem: Ref[node_header], nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    nbytes := 0
+    err := types.error.ESUCCESS
+    val tmpsize = new Ref[Int](0)
+    val size = new Ref[Int](0)
+    val ispadding = new Ref[Boolean](helpers.scala.Boolean.uninit)
+    if (err.get == types.error.ESUCCESS) {
+      decode_nat(index + nbytes.get, buf, size, tmpsize, err)
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      decode_bool(index + nbytes.get, buf, ispadding, tmpsize, err)
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS)
+      elem := types.node_header.nodeheader(size.get, ispadding.get)
+    
   }
 }

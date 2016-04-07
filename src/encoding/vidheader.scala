@@ -1,38 +1,89 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package encoding
 
+import encoding.volid._
 import helpers.scala._
+import helpers.scala.Encoding._
+import helpers.scala.Random._
 import types._
+import types.error.error
+import types.file_mode.file_mode
+import types.lpropflags.lpropflags
+import types.seekflag.seekflag
+import types.wlstatus.wlstatus
 
-package object vidheader {
-  def flashsize(x: vidheader)(implicit _implicit_algebraic: algebraic.Algebraic): Int = {
-    import _implicit_algebraic._
-    EB_PAGE_SIZE
-}
-
-  def encode(x: vidheader, buf: Array[Byte], index: Int)(implicit _implicit_algebraic: algebraic.Algebraic): Int = {
-    import _implicit_algebraic._
-    var curindex = index
-    curindex = helpers.scala.Encoding.encode(x.vol, buf, curindex)
-    curindex = helpers.scala.Encoding.encode(x.leb, buf, curindex)
-    curindex = helpers.scala.Encoding.encode(x.sqn, buf, curindex)
-    curindex = helpers.scala.Encoding.encode(x.size, buf, curindex)
-    curindex = helpers.scala.Encoding.encode(x.checksum, buf, curindex)
-    assert(curindex - (index) <= EB_PAGE_SIZE)
-    return index + EB_PAGE_SIZE
+object vidheader {
+  def ENCODED_VIDHEADER_SIZE(implicit _algebraic_implicit: algebraic.Algebraic): Int = {
+    return (((ENCODED_VOLID_SIZE + ENCODED_NAT_SIZE) + ENCODED_NAT_SIZE) + ENCODED_NAT_SIZE) + ENCODED_NAT_SIZE
   }
 
-  def decode(buf: Array[Byte], index: Int)(implicit _implicit_algebraic: algebraic.Algebraic): (vidheader, Int) = {
-    import _implicit_algebraic._
-    val x0 = helpers.scala.Encoding.decodeByte(buf, index)
-    val x1 = helpers.scala.Encoding.decodeNat(buf, x0._2)
-    val x2 = helpers.scala.Encoding.decodeNat(buf, x1._2)
-    val x3 = helpers.scala.Encoding.decodeNat(buf, x2._2)
-    val x4 = helpers.scala.Encoding.decodeNat(buf, x3._2)
-    assert(x4._2 - index <= EB_PAGE_SIZE)
-    (types.vidheader.vidhdr(x0._1, x1._1, x2._1, x3._1, x4._1), index + EB_PAGE_SIZE)
+  def encode_vidheader_empty(elem: vidheader, index: Int, buf: buffer, nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    nbytes := 0
+    val tmpsize = new Ref[Int](0)
+    err := types.error.ESUCCESS
+    if (err.get == types.error.ESUCCESS) {
+      encode_volid(elem.vol, index + nbytes.get, buf, tmpsize, err)
+      assert(tmpsize.get == ENCODED_VOLID_SIZE, """encoding has invalid size""")
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      encode_nat(elem.leb, index + nbytes.get, buf, tmpsize, err)
+      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      encode_nat(elem.sqn, index + nbytes.get, buf, tmpsize, err)
+      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      encode_nat(elem.size, index + nbytes.get, buf, tmpsize, err)
+      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      encode_nat(elem.checksum, index + nbytes.get, buf, tmpsize, err)
+      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
+      nbytes := nbytes.get + tmpsize.get
+    }
+  }
+
+  def decode_vidheader_empty(index: Int, buf: buffer, elem: Ref[vidheader], nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    nbytes := 0
+    err := types.error.ESUCCESS
+    val tmpsize = new Ref[Int](0)
+    val vol = new Ref[Byte](0.toByte)
+    val leb = new Ref[Int](0)
+    val sqn = new Ref[Int](0)
+    val size = new Ref[Int](0)
+    val checksum = new Ref[Int](0)
+    if (err.get == types.error.ESUCCESS) {
+      decode_volid(index + nbytes.get, buf, vol, tmpsize, err)
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      decode_nat(index + nbytes.get, buf, leb, tmpsize, err)
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      decode_nat(index + nbytes.get, buf, sqn, tmpsize, err)
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      decode_nat(index + nbytes.get, buf, size, tmpsize, err)
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      decode_nat(index + nbytes.get, buf, checksum, tmpsize, err)
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS)
+      elem := types.vidheader.vidhdr(vol.get, leb.get, sqn.get, size.get, checksum.get)
+    
   }
 }

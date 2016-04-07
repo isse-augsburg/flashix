@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package helpers.scala
@@ -12,9 +12,6 @@ import scala.reflect.ClassTag
  *        actual object is not possible (e.g. because the size could/would change)
  */
 sealed abstract class ArrayWrapperBase[T] protected (var array: Array[T]) {
-  final def allocate(length: Int)(implicit tag: ClassTag[T]) = {
-    array = new Array[T](length)
-  }
   final def length: Int = array.length
   final def apply(idx: Int): T = array(idx)
   final def update(idx: Int, value: T): Unit = array(idx) = value
@@ -30,6 +27,11 @@ final class ArrayWrapper[T : ClassTag](_array: Array[T]) extends ArrayWrapperBas
 
   def this(length: Int) = this(new Array[T](length))
   def this() = this(0)
+
+  def allocate(length: Int, elem: T) = {
+    array = new Array[T](length)
+    fill(elem)
+  }
 
   def fill(elem: T): ArrayWrapper[T] = {
     var i = 0
@@ -48,6 +50,8 @@ final class ArrayWrapper[T : ClassTag](_array: Array[T]) extends ArrayWrapperBas
     }
   }
 
+  def slice(from: Int, until: Int) = new ArrayWrapper[T](_array.slice(from, until))
+
   def copy(src: ArrayWrapper[T], srcPos: Int, destPos: Int, length: Int): Unit = {
     System.arraycopy(src.array, srcPos, array, destPos, length)
   }
@@ -65,6 +69,11 @@ final class ArrayWrapperDeep[T <: DeepCopyable[T] : ClassTag](_array: Array[T]) 
   def this(length: Int) = this(new Array[T](length))
   def this() = this(0)
 
+  def allocate(length: Int, elem: T) = {
+    array = new Array[T](length)
+    fill(elem)
+  }
+
   /** @note we have to perform a deep copy on every element individually, otherwise
    *        the array elements itself would share */
   def fill(elem: T): ArrayWrapperDeep[T] = {
@@ -76,6 +85,24 @@ final class ArrayWrapperDeep[T <: DeepCopyable[T] : ClassTag](_array: Array[T]) 
     this // NOTE: return this to be able to default-init in every expression
   }
 
+  def slice(from: Int, until: Int) = {
+    val newArray = new Array[T](until - from)
+    var index = from
+    while (index < until) {
+      newArray(index - from) = _array(index).deepCopy
+      index += 1
+    }
+    new ArrayWrapperDeep[T](newArray)
+  }
+
+  def copy(src: ArrayWrapperDeep[T], srcPos: Int, destPos : Int, length: Int) {
+    var copied = 0
+    while (copied < length) {
+      _array(destPos + copied) = src(srcPos + copied).deepCopy
+      copied += 1
+    }
+  }
+
   override def deepCopy(): ArrayWrapperDeep[T] = {
     val newArray = new Array[T](array.length)
     for (i <- 0 until array.length)
@@ -84,38 +111,4 @@ final class ArrayWrapperDeep[T <: DeepCopyable[T] : ClassTag](_array: Array[T]) 
   }
 
   override def equals(x: Any) = x.isInstanceOf[ArrayWrapperDeep[T]] && x.asInstanceOf[ArrayWrapperDeep[T]].array.deep == this.array.deep
-}
-
-/**
- * Immutable functions on arrays, i.e., copy
- */
-object ArrayWrapper {
-  def updated[T : ClassTag](wrapper: ArrayWrapper[T], idx: Int, value: T): ArrayWrapper[T] = {
-    val newArray = wrapper.array.clone()
-    newArray(idx) = value
-    new ArrayWrapper(newArray)
-  }
-
-  def subarray[T : ClassTag](wrapper: ArrayWrapper[T], begin: Int, size: Int): ArrayWrapper[T] = {
-    val newArray = wrapper.array.slice(begin, begin + size)
-    new ArrayWrapper(newArray)
-  }
-
-  def copy[T : ClassTag](src: ArrayWrapper[T], srcPos: Int, dst : ArrayWrapper[T], destPos : Int, length: Int): ArrayWrapper[T] = {
-    val newArray = dst.array.clone()
-    System.arraycopy(src.array, srcPos, newArray, destPos, length)
-    new ArrayWrapper(newArray)
-  }
-
-  def fill[T : ClassTag](wrapper: ArrayWrapper[T], elem : T) : ArrayWrapper[T] = {
-    val result = new ArrayWrapper(wrapper.length)
-    result.fill(elem)
-    result
-  }
-
-  def fill[T <: DeepCopyable[T] : ClassTag](wrapper: ArrayWrapperDeep[T], elem : T) : ArrayWrapperDeep[T] = {
-    val result = new ArrayWrapperDeep(wrapper.length)
-    result.fill(elem)
-    result
-  }
 }

@@ -1,10 +1,12 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package types
 
 import helpers.scala._
+import helpers.scala.Encoding._
+import helpers.scala.Random._
 
 sealed abstract class modification extends DeepCopyable[modification] {
   def key : key = throw new InvalidSelector("key undefined")
@@ -13,10 +15,6 @@ sealed abstract class modification extends DeepCopyable[modification] {
 }
 
 object modification {
-  implicit object Randomizer extends helpers.scala.Randomizer[modification] {
-    def random() : modification = contains(helpers.scala.Random[key])
-  }
-
   /**
    * case-classes and objects for constructors
    */
@@ -36,5 +34,15 @@ object modification {
     override def deepCopy(): modification = remove(key)
   }
 
-  def uninit = contains(key.uninit)
+  def uninit = contains(types.key.uninit)
+
+  implicit object Randomizer extends helpers.scala.Randomizer[modification] {
+    override def random(): modification = helpers.scala.Random.generator.nextInt(5) match {
+      case 0 => contains(helpers.scala.Random[key])
+      case 1 => lookup(helpers.scala.Random[key])
+      case 2 => check(helpers.scala.Random[key])
+      case 3 => store(helpers.scala.Random[key], helpers.scala.Random[address], helpers.scala.Random[node])
+      case 4 => remove(helpers.scala.Random[key])
+    }
+  }
 }

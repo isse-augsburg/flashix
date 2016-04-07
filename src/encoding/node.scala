@@ -1,88 +1,206 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package encoding
 
+import encoding.buffer._
+import encoding.key._
+import encoding.metadata._
 import helpers.scala._
+import helpers.scala.Encoding._
+import helpers.scala.Random._
 import types._
+import types.error.error
+import types.file_mode.file_mode
+import types.lpropflags.lpropflags
+import types.seekflag.seekflag
+import types.wlstatus.wlstatus
 
-package object node {
-  def flashsize(x: node)(implicit _implicit_algebraic: algebraic.Algebraic): Int = {
-    import _implicit_algebraic._
-    val size = 1 + (x match {
-      case _ : types.node.inodenode => 
-        encoding.key.flashsize(x.key) + encoding.metadata.flashsize(x.meta) + helpers.scala.Encoding.flashsize(x.directory) + helpers.scala.Encoding.flashsize(x.nlink) + helpers.scala.Encoding.flashsize(x.size)
-      case _ : types.node.dentrynode => 
-        encoding.key.flashsize(x.key) + helpers.scala.Encoding.flashsize(x.ino)
-      case _ : types.node.datanode => 
-        encoding.key.flashsize(x.key) + (helpers.scala.Encoding.flashsizeArrayWrapper[Byte](_: buffer, helpers.scala.Encoding.flashsize))(x.data)
-      case _ : types.node.truncnode => 
-        encoding.key.flashsize(x.key) + helpers.scala.Encoding.flashsize(x.size)
-    })
-    size
+object node {
+  def flashsize_node(elem: node)(implicit _algebraic_implicit: algebraic.Algebraic): Int = {
+    if (elem.isInstanceOf[types.node.inodenode])
+      return 1 + (((((flashsize_key(elem.key) + ENCODED_METADATA_SIZE) + ENCODED_BOOL_SIZE) + ENCODED_NAT_SIZE) + ENCODED_NAT_SIZE) + ENCODED_NAT_SIZE)
+    else     if (! elem.isInstanceOf[types.node.inodenode] && elem.isInstanceOf[types.node.dentrynode])
+      return 1 + (flashsize_key(elem.key) + ENCODED_NAT_SIZE)
+    else     if (! elem.isInstanceOf[types.node.inodenode] && (! elem.isInstanceOf[types.node.dentrynode] && elem.isInstanceOf[types.node.datanode]))
+      return 1 + (flashsize_key(elem.key) + flashsize_buffer(elem.data))
+    else     if (! elem.isInstanceOf[types.node.inodenode] && (! elem.isInstanceOf[types.node.dentrynode] && (! elem.isInstanceOf[types.node.datanode] && elem.isInstanceOf[types.node.truncnode])))
+      return 1 + (flashsize_key(elem.key) + ENCODED_NAT_SIZE)
+    else
+      return 1 + 0
   }
 
-  def encode(x: node, buf: Array[Byte], index: Int)(implicit _implicit_algebraic: algebraic.Algebraic): Int = {
-    import _implicit_algebraic._
-    val newIndex = x match {
-      case _ : types.node.inodenode =>
-        buf(index) = 0
-      var curindex = index + 1
-      curindex = encoding.key.encode(x.key, buf, curindex)
-      curindex = encoding.metadata.encode(x.meta, buf, curindex)
-      curindex = helpers.scala.Encoding.encode(x.directory, buf, curindex)
-      curindex = helpers.scala.Encoding.encode(x.nlink, buf, curindex)
-      curindex = helpers.scala.Encoding.encode(x.size, buf, curindex)
-      curindex
-      case _ : types.node.dentrynode =>
-        buf(index) = 1
-      var curindex = index + 1
-      curindex = encoding.key.encode(x.key, buf, curindex)
-      curindex = helpers.scala.Encoding.encode(x.ino, buf, curindex)
-      curindex
-      case _ : types.node.datanode =>
-        buf(index) = 2
-      var curindex = index + 1
-      curindex = encoding.key.encode(x.key, buf, curindex)
-      curindex = (helpers.scala.Encoding.encodeArrayWrapper[Byte](_: buffer, _: Array[Byte], _: Int, helpers.scala.Encoding.encode))(x.data, buf, curindex)
-      curindex
-      case _ : types.node.truncnode =>
-        buf(index) = 3
-      var curindex = index + 1
-      curindex = encoding.key.encode(x.key, buf, curindex)
-      curindex = helpers.scala.Encoding.encode(x.size, buf, curindex)
-      curindex
-    }
-    newIndex
+  def encode_node(elem: node, index: Int, buf: buffer, nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    nbytes := 1
+    val tmpsize: Int = 0
+    if (elem.isInstanceOf[types.node.inodenode]) {
+      buf(index) = 0
+      val tmpsize = new Ref[Int](0)
+      err := types.error.ESUCCESS
+      if (err.get == types.error.ESUCCESS) {
+        encode_key(elem.key, index + nbytes.get, buf, tmpsize, err)
+        assert(tmpsize.get == flashsize_key(elem.key), """encoding has invalid size""")
+        nbytes := nbytes.get + tmpsize.get
+      }
+      if (err.get == types.error.ESUCCESS) {
+        encode_metadata(elem.meta, index + nbytes.get, buf, tmpsize, err)
+        assert(tmpsize.get == ENCODED_METADATA_SIZE, """encoding has invalid size""")
+        nbytes := nbytes.get + tmpsize.get
+      }
+      if (err.get == types.error.ESUCCESS) {
+        encode_bool(elem.directory, index + nbytes.get, buf, tmpsize, err)
+        assert(tmpsize.get == ENCODED_BOOL_SIZE, """encoding has invalid size""")
+        nbytes := nbytes.get + tmpsize.get
+      }
+      if (err.get == types.error.ESUCCESS) {
+        encode_nat(elem.nlink, index + nbytes.get, buf, tmpsize, err)
+        assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
+        nbytes := nbytes.get + tmpsize.get
+      }
+      if (err.get == types.error.ESUCCESS) {
+        encode_nat(elem.nsubdirs, index + nbytes.get, buf, tmpsize, err)
+        assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
+        nbytes := nbytes.get + tmpsize.get
+      }
+      if (err.get == types.error.ESUCCESS) {
+        encode_nat(elem.size, index + nbytes.get, buf, tmpsize, err)
+        assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
+        nbytes := nbytes.get + tmpsize.get
+      }
+    } else     if (elem.isInstanceOf[types.node.dentrynode]) {
+      buf(index) = 1
+      val tmpsize = new Ref[Int](0)
+      err := types.error.ESUCCESS
+      if (err.get == types.error.ESUCCESS) {
+        encode_key(elem.key, index + nbytes.get, buf, tmpsize, err)
+        assert(tmpsize.get == flashsize_key(elem.key), """encoding has invalid size""")
+        nbytes := nbytes.get + tmpsize.get
+      }
+      if (err.get == types.error.ESUCCESS) {
+        encode_nat(elem.ino, index + nbytes.get, buf, tmpsize, err)
+        assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
+        nbytes := nbytes.get + tmpsize.get
+      }
+    } else     if (elem.isInstanceOf[types.node.datanode]) {
+      buf(index) = 2
+      val tmpsize = new Ref[Int](0)
+      err := types.error.ESUCCESS
+      if (err.get == types.error.ESUCCESS) {
+        encode_key(elem.key, index + nbytes.get, buf, tmpsize, err)
+        assert(tmpsize.get == flashsize_key(elem.key), """encoding has invalid size""")
+        nbytes := nbytes.get + tmpsize.get
+      }
+      if (err.get == types.error.ESUCCESS) {
+        encode_buffer(elem.data, index + nbytes.get, buf, tmpsize, err)
+        assert(tmpsize.get == flashsize_buffer(elem.data), """encoding has invalid size""")
+        nbytes := nbytes.get + tmpsize.get
+      }
+    } else     if (elem.isInstanceOf[types.node.truncnode]) {
+      buf(index) = 3
+      val tmpsize = new Ref[Int](0)
+      err := types.error.ESUCCESS
+      if (err.get == types.error.ESUCCESS) {
+        encode_key(elem.key, index + nbytes.get, buf, tmpsize, err)
+        assert(tmpsize.get == flashsize_key(elem.key), """encoding has invalid size""")
+        nbytes := nbytes.get + tmpsize.get
+      }
+      if (err.get == types.error.ESUCCESS) {
+        encode_nat(elem.size, index + nbytes.get, buf, tmpsize, err)
+        assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
+        nbytes := nbytes.get + tmpsize.get
+      }
+    } else
+      assert(false)
+    assert(nbytes.get == flashsize_node(elem), """encoding has invalid size""")
   }
 
-  def decode(buf: Array[Byte], index: Int)(implicit _implicit_algebraic: algebraic.Algebraic): (node, Int) = {
-    import _implicit_algebraic._
-    val (constructorIndex, newIndex) = helpers.scala.Encoding.decodeByte(buf, index)
-    val (obj, curIndex) = constructorIndex match {
-      case 0 =>
-      val x0 = encoding.key.decode(buf, newIndex)
-      val x1 = encoding.metadata.decode(buf, x0._2)
-      val x2 = helpers.scala.Encoding.decodeBoolean(buf, x1._2)
-      val x3 = helpers.scala.Encoding.decodeNat(buf, x2._2)
-      val x4 = helpers.scala.Encoding.decodeNat(buf, x3._2)
-      (types.node.inodenode(x0._1, x1._1, x2._1, x3._1, x4._1), x4._2)
-      case 1 =>
-      val x0 = encoding.key.decode(buf, newIndex)
-      val x1 = helpers.scala.Encoding.decodeNat(buf, x0._2)
-      (types.node.dentrynode(x0._1, x1._1), x1._2)
-      case 2 =>
-      val x0 = encoding.key.decode(buf, newIndex)
-      val x1 = (helpers.scala.Encoding.decodeArrayWrapper[Byte](_: Array[Byte], _: Int, helpers.scala.Encoding.decodeByte))(buf, x0._2)
-      (types.node.datanode(x0._1, x1._1), x1._2)
-      case 3 =>
-      val x0 = encoding.key.decode(buf, newIndex)
-      val x1 = helpers.scala.Encoding.decodeNat(buf, x0._2)
-      (types.node.truncnode(x0._1, x1._1), x1._2)
-      case _ =>
-        throw helpers.scala.DecodeFailure()
-    }
-    (obj, curIndex)
-}
+  def decode_node(index: Int, buf: buffer, elem: Ref[node], nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    nbytes := 1
+    err := types.error.ESUCCESS
+    if (buf(index) == 0) {
+      val tmpsize = new Ref[Int](0)
+      val key = new Ref[key](types.key.uninit)
+      val meta = new Ref[metadata](types.metadata.uninit)
+      val directory = new Ref[Boolean](helpers.scala.Boolean.uninit)
+      val nlink = new Ref[Int](0)
+      val nsubdirs = new Ref[Int](0)
+      val size = new Ref[Int](0)
+      if (err.get == types.error.ESUCCESS) {
+        decode_key(index + nbytes.get, buf, key, tmpsize, err)
+        nbytes := nbytes.get + tmpsize.get
+      }
+      if (err.get == types.error.ESUCCESS) {
+        decode_metadata(index + nbytes.get, buf, meta, tmpsize, err)
+        nbytes := nbytes.get + tmpsize.get
+      }
+      if (err.get == types.error.ESUCCESS) {
+        decode_bool(index + nbytes.get, buf, directory, tmpsize, err)
+        nbytes := nbytes.get + tmpsize.get
+      }
+      if (err.get == types.error.ESUCCESS) {
+        decode_nat(index + nbytes.get, buf, nlink, tmpsize, err)
+        nbytes := nbytes.get + tmpsize.get
+      }
+      if (err.get == types.error.ESUCCESS) {
+        decode_nat(index + nbytes.get, buf, nsubdirs, tmpsize, err)
+        nbytes := nbytes.get + tmpsize.get
+      }
+      if (err.get == types.error.ESUCCESS) {
+        decode_nat(index + nbytes.get, buf, size, tmpsize, err)
+        nbytes := nbytes.get + tmpsize.get
+      }
+      if (err.get == types.error.ESUCCESS)
+        elem := types.node.inodenode(key.get, meta.get, directory.get, nlink.get, nsubdirs.get, size.get)
+      
+    } else     if (buf(index) == 1) {
+      val tmpsize = new Ref[Int](0)
+      val key = new Ref[key](types.key.uninit)
+      val ino = new Ref[Int](0)
+      if (err.get == types.error.ESUCCESS) {
+        decode_key(index + nbytes.get, buf, key, tmpsize, err)
+        nbytes := nbytes.get + tmpsize.get
+      }
+      if (err.get == types.error.ESUCCESS) {
+        decode_nat(index + nbytes.get, buf, ino, tmpsize, err)
+        nbytes := nbytes.get + tmpsize.get
+      }
+      if (err.get == types.error.ESUCCESS)
+        elem := types.node.dentrynode(key.get, ino.get)
+      
+    } else     if (buf(index) == 2) {
+      val tmpsize = new Ref[Int](0)
+      val key = new Ref[key](types.key.uninit)
+      val data: buffer = new buffer()
+      if (err.get == types.error.ESUCCESS) {
+        decode_key(index + nbytes.get, buf, key, tmpsize, err)
+        nbytes := nbytes.get + tmpsize.get
+      }
+      if (err.get == types.error.ESUCCESS) {
+        decode_buffer(index + nbytes.get, buf, data, tmpsize, err)
+        nbytes := nbytes.get + tmpsize.get
+      }
+      if (err.get == types.error.ESUCCESS)
+        elem := types.node.datanode(key.get, data).deepCopy
+      
+    } else     if (buf(index) == 3) {
+      val tmpsize = new Ref[Int](0)
+      val key = new Ref[key](types.key.uninit)
+      val size = new Ref[Int](0)
+      if (err.get == types.error.ESUCCESS) {
+        decode_key(index + nbytes.get, buf, key, tmpsize, err)
+        nbytes := nbytes.get + tmpsize.get
+      }
+      if (err.get == types.error.ESUCCESS) {
+        decode_nat(index + nbytes.get, buf, size, tmpsize, err)
+        nbytes := nbytes.get + tmpsize.get
+      }
+      if (err.get == types.error.ESUCCESS)
+        elem := types.node.truncnode(key.get, size.get)
+      
+    } else
+      err := types.error.EINVAL
+  }
 }

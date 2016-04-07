@@ -1,32 +1,68 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package encoding
 
 import helpers.scala._
+import helpers.scala.Encoding._
+import helpers.scala.Random._
 import types._
+import types.error.error
+import types.file_mode.file_mode
+import types.lpropflags.lpropflags
+import types.seekflag.seekflag
+import types.wlstatus.wlstatus
 
-package object address {
-  def flashsize(x: address)(implicit _implicit_algebraic: algebraic.Algebraic): Int = {
-    import _implicit_algebraic._
-    helpers.scala.Encoding.flashsize(x.lnum) + helpers.scala.Encoding.flashsize(x.pos) + helpers.scala.Encoding.flashsize(x.size)
-}
-
-  def encode(x: address, buf: Array[Byte], index: Int)(implicit _implicit_algebraic: algebraic.Algebraic): Int = {
-    import _implicit_algebraic._
-    var curindex = index
-    curindex = helpers.scala.Encoding.encode(x.lnum, buf, curindex)
-    curindex = helpers.scala.Encoding.encode(x.pos, buf, curindex)
-    curindex = helpers.scala.Encoding.encode(x.size, buf, curindex)
-    curindex
+object address {
+  def ENCODED_ADDRESS_SIZE(implicit _algebraic_implicit: algebraic.Algebraic): Int = {
+    return (ENCODED_NAT_SIZE + ENCODED_NAT_SIZE) + ENCODED_NAT_SIZE
   }
 
-  def decode(buf: Array[Byte], index: Int)(implicit _implicit_algebraic: algebraic.Algebraic): (address, Int) = {
-    import _implicit_algebraic._
-    val x0 = helpers.scala.Encoding.decodeNat(buf, index)
-    val x1 = helpers.scala.Encoding.decodeNat(buf, x0._2)
-    val x2 = helpers.scala.Encoding.decodeNat(buf, x1._2)
-    (types.address.at(x0._1, x1._1, x2._1), x2._2)
+  def encode_address(elem: address, index: Int, buf: buffer, nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    nbytes := 0
+    val tmpsize = new Ref[Int](0)
+    err := types.error.ESUCCESS
+    if (err.get == types.error.ESUCCESS) {
+      encode_nat(elem.lnum, index + nbytes.get, buf, tmpsize, err)
+      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      encode_nat(elem.pos, index + nbytes.get, buf, tmpsize, err)
+      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      encode_nat(elem.size, index + nbytes.get, buf, tmpsize, err)
+      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
+      nbytes := nbytes.get + tmpsize.get
+    }
+  }
+
+  def decode_address(index: Int, buf: buffer, elem: Ref[address], nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    nbytes := 0
+    err := types.error.ESUCCESS
+    val tmpsize = new Ref[Int](0)
+    val lnum = new Ref[Int](0)
+    val pos = new Ref[Int](0)
+    val size = new Ref[Int](0)
+    if (err.get == types.error.ESUCCESS) {
+      decode_nat(index + nbytes.get, buf, lnum, tmpsize, err)
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      decode_nat(index + nbytes.get, buf, pos, tmpsize, err)
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      decode_nat(index + nbytes.get, buf, size, tmpsize, err)
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS)
+      elem := types.address.at(lnum.get, pos.get, size.get)
+    
   }
 }

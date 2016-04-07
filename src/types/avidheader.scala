@@ -1,10 +1,12 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package types
 
 import helpers.scala._
+import helpers.scala.Encoding._
+import helpers.scala.Random._
 
 sealed abstract class avidheader {
   def vol : Byte = throw new InvalidSelector("vol undefined")
@@ -20,10 +22,6 @@ sealed abstract class avidheader {
 }
 
 object avidheader {
-  implicit object Randomizer extends helpers.scala.Randomizer[avidheader] {
-    def random() : avidheader = empty
-  }
-
   /**
    * case-classes and objects for constructors
    */
@@ -38,4 +36,12 @@ object avidheader {
   final object garbage extends avidheader
 
   def uninit = empty
+
+  implicit object Randomizer extends helpers.scala.Randomizer[avidheader] {
+    override def random(): avidheader = helpers.scala.Random.generator.nextInt(3) match {
+      case 0 => empty
+      case 1 => garbage
+      case 2 => avidhdr(helpers.scala.Random[Byte], helpers.scala.Random[Int], helpers.scala.Random[Int], helpers.scala.Random[Int], helpers.scala.Random[Int])
+    }
+  }
 }

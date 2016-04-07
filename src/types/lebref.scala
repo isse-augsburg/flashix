@@ -1,10 +1,12 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package types
 
 import helpers.scala._
+import helpers.scala.Encoding._
+import helpers.scala.Random._
 
 sealed abstract class lebref {
   def vol : Byte = throw new InvalidSelector("vol undefined")
@@ -14,10 +16,6 @@ sealed abstract class lebref {
 }
 
 object lebref {
-  implicit object Randomizer extends helpers.scala.Randomizer[lebref] {
-    def random() : lebref = none
-  }
-
   /**
    * case-classes and objects for constructors
    */
@@ -28,4 +26,11 @@ object lebref {
   final object none extends lebref
 
   def uninit = none
+
+  implicit object Randomizer extends helpers.scala.Randomizer[lebref] {
+    override def random(): lebref = helpers.scala.Random.generator.nextInt(2) match {
+      case 0 => none
+      case 1 => ×(helpers.scala.Random[Byte], helpers.scala.Random[Int])
+    }
+  }
 }

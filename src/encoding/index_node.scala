@@ -1,32 +1,69 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package encoding
 
+import encoding.branch_array._
 import helpers.scala._
+import helpers.scala.Encoding._
+import helpers.scala.Random._
 import types._
+import types.error.error
+import types.file_mode.file_mode
+import types.lpropflags.lpropflags
+import types.seekflag.seekflag
+import types.wlstatus.wlstatus
 
-package object index_node {
-  def flashsize(x: index_node)(implicit _implicit_algebraic: algebraic.Algebraic): Int = {
-    import _implicit_algebraic._
-    helpers.scala.Encoding.alignUp((helpers.scala.Encoding.flashsizeArrayWrapper[branch](_: branch_array, encoding.branch.flashsize))(x.branches) + helpers.scala.Encoding.flashsize(x.leaf) + helpers.scala.Encoding.flashsize(x.usedsize), 2 * NODE_HEADER_SIZE)
-}
-
-  def encode(x: index_node, buf: Array[Byte], index: Int)(implicit _implicit_algebraic: algebraic.Algebraic): Int = {
-    import _implicit_algebraic._
-    var curindex = index
-    curindex = (helpers.scala.Encoding.encodeArrayWrapper[branch](_: branch_array, _: Array[Byte], _: Int, encoding.branch.encode))(x.branches, buf, curindex)
-    curindex = helpers.scala.Encoding.encode(x.leaf, buf, curindex)
-    curindex = helpers.scala.Encoding.encode(x.usedsize, buf, curindex)
-    (index) + helpers.scala.Encoding.alignUp(curindex - (index), 2 * NODE_HEADER_SIZE)
+object index_node {
+  def index_node_size_headerless(elem: index_node)(implicit _algebraic_implicit: algebraic.Algebraic): Int = {
+    return (flashsize_branch_array(elem.branches) + ENCODED_BOOL_SIZE) + ENCODED_NAT_SIZE
   }
 
-  def decode(buf: Array[Byte], index: Int)(implicit _implicit_algebraic: algebraic.Algebraic): (index_node, Int) = {
-    import _implicit_algebraic._
-    val x0 = (helpers.scala.Encoding.decodeArrayWrapper[branch](_: Array[Byte], _: Int, encoding.branch.decode))(buf, index)
-    val x1 = helpers.scala.Encoding.decodeBoolean(buf, x0._2)
-    val x2 = helpers.scala.Encoding.decodeNat(buf, x1._2)
-    (types.index_node.indexnode(x0._1, x1._1, x2._1), index + helpers.scala.Encoding.alignUp(x2._2 - index, 2 * NODE_HEADER_SIZE))
+  def encode_index_node_headerless(elem: index_node, index: Int, buf: buffer, nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    nbytes := 0
+    val tmpsize = new Ref[Int](0)
+    err := types.error.ESUCCESS
+    if (err.get == types.error.ESUCCESS) {
+      encode_branch_array(elem.branches, index + nbytes.get, buf, tmpsize, err)
+      assert(tmpsize.get == flashsize_branch_array(elem.branches), """encoding has invalid size""")
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      encode_bool(elem.leaf, index + nbytes.get, buf, tmpsize, err)
+      assert(tmpsize.get == ENCODED_BOOL_SIZE, """encoding has invalid size""")
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      encode_nat(elem.usedsize, index + nbytes.get, buf, tmpsize, err)
+      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
+      nbytes := nbytes.get + tmpsize.get
+    }
+  }
+
+  def decode_index_node_headerless(index: Int, buf: buffer, elem: index_node, nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    nbytes := 0
+    err := types.error.ESUCCESS
+    val tmpsize = new Ref[Int](0)
+    val branches: branch_array = new branch_array()
+    val leaf = new Ref[Boolean](helpers.scala.Boolean.uninit)
+    val usedsize = new Ref[Int](0)
+    if (err.get == types.error.ESUCCESS) {
+      decode_branch_array(index + nbytes.get, buf, branches, tmpsize, err)
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      decode_bool(index + nbytes.get, buf, leaf, tmpsize, err)
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS) {
+      decode_nat(index + nbytes.get, buf, usedsize, tmpsize, err)
+      nbytes := nbytes.get + tmpsize.get
+    }
+    if (err.get == types.error.ESUCCESS)
+      elem := types.index_node.indexnode(branches, leaf.get, usedsize.get).deepCopy
+    
   }
 }
