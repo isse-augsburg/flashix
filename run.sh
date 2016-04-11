@@ -14,8 +14,7 @@ esac
 
 if [ -z "$1" ]
 then
-    echo "mount   with: ./run.sh [-odebug] [-obig_writes] <mountpoint>"
-    echo "unmount with: fusermount -u <mountpoint>"
+    ./usage.sh
 else
     export LD_LIBRARY_PATH
     echo "native lib in " $LD_LIBRARY_PATH
