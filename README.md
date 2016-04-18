@@ -3,7 +3,7 @@
 The Flashix project aims at the construction and verification of a
 state-of-the-art file system for flash memory.
 
-(c) 2015 Institute for Software & Systems Engineering <http://isse.de>.
+(c) 2016 Institute for Software & Systems Engineering <http://isse.de>.
 This code is licensed under MIT license (see LICENSE for details).
 
 The work is part of the project [*Verifcation of Flash File Systems*](http://isse.de/flashix)
