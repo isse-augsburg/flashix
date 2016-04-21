@@ -8,44 +8,43 @@ import scala.swing.TabbedPane.Page
 object Toolkit {
   implicit def toComponent(c: JComponent) = Component.wrap(c)
 
-  def frame(t: String, c: Component, close: => Unit): Frame = {
+  def frame(t: String, c: Component, k: => Unit) = {
     new MainFrame {
       title = t
       contents = c
       visible = true
 
-      reactions += {
-        case WindowClosing(_) => close
-      }
+      override def closeOperation() { k }
     }
   }
 
-  def hbox(cs: Component*): Component = {
+  def hbox(cs: Component*) = {
     new BoxPanel(Orientation.Horizontal) {
       contents ++= cs
     }
   }
 
-  def vbox(cs: Component*): Component = {
+  def vbox(cs: Component*) = {
     new BoxPanel(Orientation.Vertical) {
       contents ++= cs
     }
   }
-  
-  def label(text: String): Component = {
+
+  def label(text: String) = {
     new Label(text) {
     }
   }
 
-  def button(label: String, click: => Unit): Component = {
+  def button(label: String, k: => Unit) = {
     new Button(label) {
       reactions += {
-        case ButtonClicked(_) => click
+        case ButtonClicked(_) => k
       }
+      maximumSize_=(new Dimension(200, 0))
     }
   }
 
-  def check(label: String, s: Boolean, toggle: Boolean => Unit): Component = {
+  def check(label: String, s: Boolean, toggle: Boolean => Unit) = {
     new CheckBox(label) {
       this.selected = s
       reactions += {
@@ -54,11 +53,11 @@ object Toolkit {
     }
   }
 
-  def tab(label: String, c: Component): Page = {
+  def tab(label: String, c: Component) = {
     new Page(label, c)
   }
 
-  def tabs(ps: Page*): Component = {
+  def tabs(ps: Page*) = {
     new TabbedPane {
       pages ++= ps
     }

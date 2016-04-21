@@ -16,6 +16,7 @@ import scala.swing._
 import visualization.Toolkit._
 import visualization.models._
 import scala.swing.TabbedPane.Page
+import java.awt.GridLayout
 
 trait Tab extends Observer[Flashix] {
   def page: Page
@@ -63,19 +64,21 @@ object Visualization {
         println(s"vfs: recovery failed with error code ${err.get}")
     }
 
-    if (doFormat) {
-      format()
-    } else {
-      recover()
+    def commit() {
+      flashix.journal.aubifs_commit(err)
+      if (err != ESUCCESS)
+        println(s"vfs: recovery failed with error code ${err.get}")
     }
 
-    if (err != ESUCCESS)
-      System.exit(1)
+    def dogc() {
+      flashix.journal.journal_gc()
+    }
 
     object observable extends Observable[Flashix]
 
-    def unmount {
+    def unmount() {
       Unmount.main(Array("-z", args.last))
+      mtd.close
       System.exit(0)
     }
 
@@ -85,29 +88,41 @@ object Visualization {
 
     val vis = List(Space, Index)
 
-    val refresh = check("Refresh", true, s => ())
+    val refresh = check("Refresh", true, { if (_) update() })
     val fmt = button("Format", { format(); update() })
     val rec = button("Recover", { recover(); update() })
-    val quit = button("Quit", unmount)
+    val cm = button("Commit", { commit(); update() })
+    val gc = button("GC", { dogc(); update() })
+    val quit = button("Quit", { unmount() })
 
     val about = tab("About", label("Flashix File System"))
 
     val pages = about :: vis.map(_.page)
     val main = tabs(pages: _*)
-    val side = vbox(refresh, fmt, rec, quit, Swing.VGlue)
+    val side = vbox(refresh, cm, gc, rec, fmt, quit, Swing.VGlue)
+    // side.peer.setLayout(new GridLayout(0,1))
 
     val window = frame("Flashix",
       hbox(main, side),
-      unmount)
+      { unmount() })
 
     window.size = new Dimension(600, 400)
 
     vis foreach (observable += _)
 
+    if (doFormat) {
+      format()
+    } else {
+      recover()
+    }
+
+    if (err != ESUCCESS)
+      System.exit(1)
+
     val filesystem = new fuse.FilesystemAdapter(flashix) {
       override def _run(force: Boolean, operation: Ref[error] => Unit): Int = {
         val res = super._run(force, operation)
-        if (refresh.enabled) update()
+        if (refresh.selected) update()
         res
       }
     }
