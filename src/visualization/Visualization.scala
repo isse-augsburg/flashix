@@ -72,12 +72,14 @@ object Visualization {
       flashix.vfs.posix_format(pebs - spare_pebs, rootmeta, err)
       if (err != ESUCCESS)
         println(s"vfs: format failed with error code ${err.get}")
+      flashix.journal.SYNC = false // TODO: option
     }
 
     def recover() {
       flashix.vfs.posix_recover(err)
       if (err != ESUCCESS)
         println(s"vfs: recovery failed with error code ${err.get}")
+      flashix.journal.SYNC = false // TODO: option
     }
 
     def commit() {
@@ -89,8 +91,6 @@ object Visualization {
     def dogc() {
       filesystem.doGC("user", err, -1)
     }
-
-    flashix.journal.SYNC = false // TODO: option
 
     def unmount() {
       Unmount.main(Array("-z", args.last))
