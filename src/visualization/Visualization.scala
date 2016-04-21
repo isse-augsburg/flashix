@@ -78,14 +78,18 @@ object Visualization {
     }
 
     val quit = button("Quit", unmount)
+    val refresh = check("Refresh", true, s => ())
+
     val about = tab("About", label("Flashix File System"))
 
     val main = tabs(about)
-    val side = vbox(quit, Swing.VGlue)
+    val side = vbox(refresh, quit, Swing.VGlue)
 
     val window = frame("Flashix",
       hbox(main, side),
       unmount)
+
+    window.size = new Dimension(600, 400)
 
     val syncargs = Array("-s") ++ args
     FuseMount.mount(syncargs, filesystem, null)
