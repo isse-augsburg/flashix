@@ -113,6 +113,7 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     apersistence_io.apersistence_io_unmap(N)
     LPT(N).flags = types.lpropflags.LP_FREE
     LPT(N).ref_size = 0
+    LPT(N).size = 0
     FREELIST += N
     gc_heap_remove(LPT(N).gcheapidx, GCHEAP, LPT)
     ERR := types.error.ESUCCESS
