@@ -26,11 +26,13 @@ object LPT extends Tab {
     import flashix.ops._
 
     val lpt = flashix.persistence.LPT
+    dataset.setNotify(false)
     for (i <- 0 until lpt.length) {
       dataset.setValue(lpt(i).ref_size, "referenced", i)
       dataset.setValue(lpt(i).size - lpt(i).ref_size, "unreferenced", i)
       dataset.setValue(LEB_SIZE - lpt(i).size, "unused", i)
     }
+    dataset.setNotify(true)
   }
 
   val page = tab("Blocks", chartPanel)
