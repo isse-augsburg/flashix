@@ -37,7 +37,7 @@ object Visualization {
 
     // Implicit configuration options
     val deviceFile = new File("flash-device")
-    val pebs = 2 * 2048
+    val pebs = 512
     val pages_per_peb = 64
     val page_size = 2048
     val spare_pebs = 5
@@ -83,7 +83,7 @@ object Visualization {
       observable update flashix
     }
 
-    val vis = List(Space, Index)
+    val vis = List(Space, LPT, Index)
 
     val refresh = check("Refresh", true, s => ())
     val fmt = button("Format", { format(); update() })
