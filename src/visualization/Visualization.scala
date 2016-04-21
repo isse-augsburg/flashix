@@ -14,7 +14,7 @@ import _root_.fuse._
 import scala.swing.event._
 import scala.swing._
 import visualization.Toolkit._
-import visualization.models.Index
+import visualization.models._
 import scala.swing.TabbedPane.Page
 
 trait Tab extends Observer[Flashix] {
@@ -83,7 +83,7 @@ object Visualization {
       observable update flashix
     }
 
-    val vis = List(Index)
+    val vis = List(Space, Index)
 
     val refresh = check("Refresh", true, s => ())
     val fmt = button("Format", { format(); update() })

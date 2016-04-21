@@ -22,7 +22,6 @@ object Debug {
   }
 }
 
-/* TODO
 trait DebugUBIFSJournal {
   this: btree_asm =>
 
@@ -56,4 +55,3 @@ trait DebugUBIFSJournal {
     }
   }
 }
-*/
