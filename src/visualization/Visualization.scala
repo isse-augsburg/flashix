@@ -13,6 +13,7 @@ import java.io._
 import _root_.fuse._
 import scala.swing.event._
 import scala.swing._
+import visualization.Toolkit._
 
 object Visualization {
   def native = true
@@ -66,47 +67,25 @@ object Visualization {
       }
     }
 
+    /*
     val model = new GraphModel(Graph.empty[String])
     val view = new GraphView(model)
+*/
 
-    val refresh = new CheckBox("Refresh?") {
-      selected = true
-
-      reactions += {
-        case ButtonClicked(_) =>
-        // adapter.enabled = selected
-        // adapter.updateDirectoryTree()
-      }
+    def unmount {
+      Unmount.main(Array("-z", args.last))
+      System.exit(0)
     }
 
-    val quit = new Button("Quit") {
-      reactions += {
-        case ButtonClicked(_) => {
-          Unmount.main(Array("-z", args.last))
-          System.exit(0)
-        }
-      }
-    }
+    val quit = button("Quit", unmount)
+    val about = tab("About", label("Flashix File System"))
 
-    val buttons = new BoxPanel(Orientation.Vertical) {
-      contents += refresh
-      contents += quit
-      contents += Swing.VGlue
-    }
+    val main = tabs(about)
+    val side = vbox(quit, Swing.VGlue)
 
-    val box = new BoxPanel(Orientation.Horizontal) {
-      contents += view
-      contents += buttons
-    }
-
-    MainWindow.reactions += {
-      case WindowClosing(_) =>
-        Unmount.main(Array("-z", args.last))
-        System.exit(0)
-    }
-
-    MainWindow.addPage("Filesystem", box)
-    MainWindow.show
+    val window = frame("Flashix",
+      hbox(main, side),
+      unmount)
 
     val syncargs = Array("-s") ++ args
     FuseMount.mount(syncargs, filesystem, null)
