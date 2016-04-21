@@ -51,6 +51,22 @@ object Visualization {
 
     val flashix = new Flashix(mtd)
 
+    object observable extends Observable[Flashix]
+
+    def update() {
+      observable update flashix
+    }
+
+    val refresh = check("Refresh", true, { if (_) update() })
+
+    val filesystem = new fuse.FilesystemAdapter(flashix) {
+      override def _run(force: Boolean, operation: Ref[error] => Unit): Int = {
+        val res = super._run(force, operation)
+        if (refresh.selected) update()
+        res
+      }
+    }
+
     def format() {
       val rootmeta = fuse.DirMetadata()
       flashix.vfs.posix_format(pebs - spare_pebs, rootmeta, err)
@@ -71,10 +87,8 @@ object Visualization {
     }
 
     def dogc() {
-      flashix.journal.journal_gc()
+      filesystem.doGC("user", err, -1)
     }
-
-    object observable extends Observable[Flashix]
 
     def unmount() {
       Unmount.main(Array("-z", args.last))
@@ -82,13 +96,8 @@ object Visualization {
       System.exit(0)
     }
 
-    def update() {
-      observable update flashix
-    }
-
     val vis = List(Space, LPT, Index)
 
-    val refresh = check("Refresh", true, { if (_) update() })
     val fmt = button("Format", { format(); update() })
     val rec = button("Recover", { recover(); update() })
     val cm = button("Commit", { commit(); update() })
@@ -107,9 +116,7 @@ object Visualization {
       { unmount() })
 
     window.size = new Dimension(600, 400)
-
-    vis foreach (observable += _)
-
+    
     if (doFormat) {
       format()
     } else {
@@ -119,13 +126,7 @@ object Visualization {
     if (err != ESUCCESS)
       System.exit(1)
 
-    val filesystem = new fuse.FilesystemAdapter(flashix) {
-      override def _run(force: Boolean, operation: Ref[error] => Unit): Int = {
-        val res = super._run(force, operation)
-        if (refresh.selected) update()
-        res
-      }
-    }
+    vis foreach (observable += _)
 
     update()
 

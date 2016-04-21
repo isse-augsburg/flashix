@@ -15,7 +15,7 @@ import debug.Debug
 import integration.Flashix
 
 import scala.annotation.tailrec
-import scala.language.implicitConversions 
+import scala.language.implicitConversions
 
 object OpenMode {
   // <fcntl.h>
@@ -234,7 +234,9 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
   }
 
   def doGC(reason: String, ERR: Ref[error], free_lebs: Int) = {
-    debug(s"flashix: attempting garbage collection with ${free_lebs} LEBs (${reason})")
+    if (free_lebs >= 0)
+      debug(s"flashix: attempting garbage collection with ${free_lebs} LEBs (${reason})")
+
     journal.aubifs_internal_check_commit(ERR)
 
     if (ERR.get == error.ESUCCESS) {
