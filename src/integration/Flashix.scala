@@ -5,9 +5,9 @@ import types._
 import types.error._
 import helpers.scala._
 
-class Flashix(mtd: mtd_interface)(implicit _algebraic_implicit: algebraic.Algebraic, _procedures_implicit: proc.Procedures) {
+class Flashix(mtd: mtd_interface)(implicit val ops: algebraic.Algebraic, val procs: proc.Procedures) {
   // Check axioms
-  _procedures_implicit.flashix_check_axioms
+  procs.flashix_check_axioms
 
   val ubiio = new ubi_io_asm(mtd)
   val ubi = new ubi_asm(new volumes(), new queue(), 0, new wlarray(), new nat_set(), 0, ubiio)

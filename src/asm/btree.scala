@@ -71,7 +71,7 @@ class btree_asm(var RT : znode, var ADRT : address, val apersistence : apersiste
     }
   }
 
-  private def btree_io_load(R: znode, ADR: address, RN: Ref[znode], ERR: Ref[error]): Unit = {
+  def btree_io_load(R: znode, ADR: address, RN: Ref[znode], ERR: Ref[error]): Unit = {
     if (RN.get == null) {
       val IND: index_node = types.index_node.uninit
       apersistence.apersistence_read_ind(ADR, IND, ERR)
