@@ -2,24 +2,26 @@
 // (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
-package integration
+package visualization
 
 import asm._
 import types._
 import types.error._
 import helpers.scala._
+import integration._
 import java.io._
 import _root_.fuse._
-import visualization.Visualization
+import scala.swing.event._
+import scala.swing._
 
-object Mount {
+object Visualization {
   def native = true
 
   def printHelp {
     println("usage:")
     println("  flashix [-odebug] [-obig_writes] <mountpoint>")
   }
-  
+
   def main(args: Array[String]) {
 
     if (args.size <= 0) {
@@ -57,7 +59,54 @@ object Mount {
     if (err != ESUCCESS)
       System.exit(1)
 
-    val filesystem = new fuse.FilesystemAdapter(flashix)
+    val filesystem = new fuse.FilesystemAdapter(flashix) {
+      override def _run(force: Boolean, operation: Ref[error] => Unit): Int = {
+        val res = super._run(force, operation)
+        res
+      }
+    }
+
+    val model = new GraphModel(Graph.empty[String])
+    val view = new GraphView(model)
+
+    val refresh = new CheckBox("Refresh?") {
+      selected = true
+
+      reactions += {
+        case ButtonClicked(_) =>
+        // adapter.enabled = selected
+        // adapter.updateDirectoryTree()
+      }
+    }
+
+    val quit = new Button("Quit") {
+      reactions += {
+        case ButtonClicked(_) => {
+          Unmount.main(Array("-z", args.last))
+          System.exit(0)
+        }
+      }
+    }
+
+    val buttons = new BoxPanel(Orientation.Vertical) {
+      contents += refresh
+      contents += quit
+      contents += Swing.VGlue
+    }
+
+    val box = new BoxPanel(Orientation.Horizontal) {
+      contents += view
+      contents += buttons
+    }
+
+    MainWindow.reactions += {
+      case WindowClosing(_) =>
+        Unmount.main(Array("-z", args.last))
+        System.exit(0)
+    }
+
+    MainWindow.addPage("Filesystem", box)
+    MainWindow.show
 
     val syncargs = Array("-s") ++ args
     FuseMount.mount(syncargs, filesystem, null)

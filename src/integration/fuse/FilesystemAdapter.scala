@@ -11,8 +11,11 @@ import asm._
 import helpers.scala._
 import types._
 import types.error.error
-import scala.annotation.tailrec
 import debug.Debug
+import integration.Flashix
+
+import scala.annotation.tailrec
+import scala.language.implicitConversions 
 
 object OpenMode {
   // <fcntl.h>
@@ -38,7 +41,7 @@ object Metadata {
   val DEFAULT_FILE_PERM = 0x1A4 // 0644
   val DEFAULT_SYMLINK_PERM = 0x1FF // 0777
 
-/*
+  /*
   val GID = 0
   val UID = 0
   val UMASK = 0x1FF // 0777
@@ -92,10 +95,15 @@ object SymlinkMetadata {
   }
 }
 
-class FilesystemAdapter(posix: posix_interface, journal: gjournal_asm, persistence: persistence_asm, persistence_io: persistence_io_asm)(implicit _algebraic_implicit: algebraic.Algebraic, _procedures_implicit: proc.Procedures) extends Filesystem3 {
+class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebraic.Algebraic, _procedures_implicit: proc.Procedures) extends Filesystem3 {
   import _algebraic_implicit._
   import _procedures_implicit._
   import Metadata._
+
+  import flashix.posix
+  import flashix.journal
+  import flashix.persistence
+  import flashix.persistence_io
 
   val user: Byte = 0 // TODO: DefaultUser
 
@@ -184,7 +192,7 @@ class FilesystemAdapter(posix: posix_interface, journal: gjournal_asm, persisten
       }
       debug("")
 
-/* TODO
+      /* TODO
       val (ri, is) = journal.index()
 
       debug("RAM INDEX")
@@ -420,7 +428,7 @@ class FilesystemAdapter(posix: posix_interface, journal: gjournal_asm, persisten
 
     0
   }
-  
+
   def readlink(path: String, link: CharBuffer): Int = {
     val fd = new Ref[Int](0)
     val n = new Ref[Int](link.limit)
