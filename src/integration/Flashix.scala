@@ -6,6 +6,9 @@ import types.error._
 import helpers.scala._
 
 class Flashix(mtd: mtd_interface)(implicit val ops: algebraic.Algebraic, val procs: proc.Procedures) {
+  import ops._
+  import procs._
+
   // Check axioms
   procs.flashix_check_axioms
 
@@ -18,6 +21,50 @@ class Flashix(mtd: mtd_interface)(implicit val ops: algebraic.Algebraic, val pro
   val journal = new gjournal_asm(0, false, new nat_set(), 0, true, 0, btree) // TODO: sync option
   val aubifs = new aubifs_asm(journal)
   val vfs = new vfs_asm(new open_files(), 0, aubifs)
-  
+
   def posix: posix_interface = vfs
+
+  def percentOf(percent: Int, amount: Int) = amount * percent / 100
+
+  def mainAreaLEBs = {
+    val _total = persistence.LPT.length
+    val _free = persistence.FREELIST.length
+    val reserved = percentOf(10, _total)
+
+    val total = _total - reserved
+    val free = if (reserved <= _free) _free - reserved else 0
+    val log = persistence_io.LOGOFF / EB_PAGE_SIZE
+
+    (total, free, log)
+  }
+
+  def isBlockEligibleForGC(lp: lprops) = {
+    lp.ref_size < LEB_SIZE - 2 * VFS_PAGE_SIZE
+  }
+
+  def computeStats = {
+    var used_bytes = 0
+    val (avail, free, log) = mainAreaLEBs
+    val total = persistence.LPT.length
+
+    for (i <- 0 until total) {
+      val lp = persistence.LPT(i)
+      lp.flags match {
+        case lpropflags.LP_FREE =>
+          used_bytes += 0
+        case lpropflags.LP_INDEX_NODES =>
+          used_bytes += LEB_SIZE
+        case lpropflags.LP_GROUP_NODES =>
+          if (isBlockEligibleForGC(lp))
+            used_bytes += lp.ref_size
+          else
+            used_bytes += LEB_SIZE
+      }
+    }
+
+    val total_bytes = avail * LEB_SIZE
+    val free_bytes = total_bytes - used_bytes
+
+    (total_bytes, free_bytes)
+  }
 }

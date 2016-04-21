@@ -141,98 +141,6 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
     throw e
   }
 
-  def percentOf(percent: Int, amount: Int) = amount * percent / 100
-
-  def mainAreaLEBs = {
-    val _total = persistence.LPT.length
-    val _free = persistence.FREELIST.length
-    val reserved = percentOf(10, _total)
-
-    val total = _total - reserved
-    val free = if (reserved <= _free) _free - reserved else 0
-    val log = persistence_io.LOGOFF / EB_PAGE_SIZE
-
-    (total, free, log)
-  }
-
-  def isBlockEligibleForGC(lp: lprops) = {
-    lp.ref_size < LEB_SIZE - 2 * VFS_PAGE_SIZE
-  }
-
-  def computeStats(dbg: Boolean = false) = {
-    var used_bytes = 0
-    val (avail, free, log) = mainAreaLEBs
-    val total = persistence.LPT.length
-
-    for (i <- 0 until total) {
-      val lp = persistence.LPT(i)
-      lp.flags match {
-        case lpropflags.LP_FREE =>
-          used_bytes += 0
-        case lpropflags.LP_INDEX_NODES =>
-          used_bytes += LEB_SIZE
-        case lpropflags.LP_GROUP_NODES =>
-          if (isBlockEligibleForGC(lp))
-            used_bytes += lp.ref_size
-          else
-            used_bytes += LEB_SIZE
-      }
-    }
-
-    val total_bytes = avail * LEB_SIZE
-    val free_bytes = total_bytes - used_bytes
-
-    if (dbg) try {
-      debug("BLOCKS")
-      for (i <- 0 until total) {
-        val lp = persistence.LPT(i)
-
-        if (lp.ref_size > 0)
-          debug(lp.toString)
-      }
-      debug("")
-
-      /* TODO
-      val (ri, is) = journal.index()
-
-      debug("RAM INDEX")
-      for ((key, adr) <- ri) {
-        debug(key + " -> " + adr)
-      }
-      debug()
-
-      debug("INDEX NODES")
-      for ((znd, adr) <- is) {
-        val isleaf = if (znd.leaf) "leaf" else "internal"
-        val isdirty = if (znd.dirty) "dirty" else "clean"
-        debug("znode(" + isleaf + ", " + isdirty + ", usedsize=" + znd.usedsize + ")" + " -> " + adr)
-      }
-      debug()
-
-      import Debug.Refsizes
-      val ri_refsizes = ri.values.refsizes
-      val is_refsizes = is.filterNot(_._1.dirty).values.refsizes
-
-      debug("REFSIZE CHECK")
-      for (i <- 0 until total) {
-        val lp = persistence.LPT(i)
-
-        lp.flags match {
-          case lpropflags.LP_INDEX_NODES if (is_refsizes contains i) && (is_refsizes(i) != lp.ref_size) =>
-            debug("index block " + i + " has invalid refsize " + lp.ref_size + ", expected " + is_refsizes(i))
-          case lpropflags.LP_GROUP_NODES if (ri_refsizes contains i) && (ri_refsizes(i) != lp.ref_size) =>
-            debug("group block " + i + " has invalid refsize " + lp.ref_size + ", expected " + ri_refsizes(i))
-          case _ =>
-        }
-      }
-*/
-      debug("DEBUG END")
-    } finally {
-    }
-
-    (total_bytes, free_bytes)
-  }
-
   def doGC(reason: String, ERR: Ref[error], free_lebs: Int) = {
     if (free_lebs >= 0)
       debug(s"flashix: attempting garbage collection with ${free_lebs} LEBs (${reason})")
@@ -248,7 +156,7 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
 
   def GCcritical(tryCommit: Boolean, free: Int, log: Int, ERR: Ref[error]): Unit = {
     if (tryCommit && log != 0 && free == 0) {
-      val (total_bytes, free_bytes) = computeStats(false)
+      val (total_bytes, free_bytes) = flashix.computeStats
 
       if (free_bytes > LEB_SIZE * (4 + free)) {
         debug(s"flashix: attempting to free ${free_bytes} bytes from the log")
@@ -262,8 +170,8 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
   }
 
   def GCloop(tryCommit: Boolean, ERR: Ref[error]): Unit = {
-    val (total, free, log) = mainAreaLEBs
-    val isCritical = free < percentOf(10, total)
+    val (total, free, log) = flashix.mainAreaLEBs
+    val isCritical = free < flashix.percentOf(10, total)
 
     val N = new Ref[Int](0)
     persistence.apersistence_get_gc_block(N, ERR)
@@ -271,8 +179,8 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
     if (ERR.get == error.ESUCCESS) {
       val lp = persistence.LPT(N.get)
 
-      val isEasy = lp.ref_size < percentOf(30, LEB_SIZE)
-      val eligible = isBlockEligibleForGC(lp)
+      val isEasy = lp.ref_size < flashix.percentOf(30, LEB_SIZE)
+      val eligible = flashix.isBlockEligibleForGC(lp)
 
       if (!eligible) {
         if (isCritical) GCcritical(tryCommit, free, log, ERR)
@@ -292,7 +200,7 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
   }
 
   def isFull: Boolean = {
-    val (_, free, _) = mainAreaLEBs
+    val (_, free, _) = flashix.mainAreaLEBs
     free == 0
   }
 
@@ -493,7 +401,7 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
   }
 
   def statfs(statfsSetter: FuseStatfsSetter): Int = {
-    val (total_bytes, free_bytes) = computeStats(true)
+    val (total_bytes, free_bytes) = flashix.computeStats
 
     val bsize = VFS_PAGE_SIZE
     val blocks = total_bytes / bsize

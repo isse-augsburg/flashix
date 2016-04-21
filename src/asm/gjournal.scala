@@ -98,15 +98,15 @@ class gjournal_asm(var SQNUM : Int, var JNLHEADVALID : Boolean, val JRO : nat_se
   def gjournal_gc_copy(NDLIST: node_list, ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
     while (ERR.get == types.error.ESUCCESS && ! NDLIST.isEmpty) {
-      val SIZE = new Ref[Int](LEB_SIZE)
+      val SIZE = new Ref[Int](0)
       if (JNLHEADVALID) {
         indexpluspersistence.indexpluspersistence_get_gblock_size(JNLHEAD, SIZE)
-        if (SIZE.get < flashsize(NDLIST.head))
-          SIZE := LEB_SIZE
+        if (SIZE.get + flashsize(NDLIST.head) > LEB_SIZE)
+          SIZE := 0
         
       }
       val NDLIST0: node_list = new node_list()
-      gjournal_split_nodes(SIZE.get, NDLIST, NDLIST0)
+      gjournal_split_nodes(LEB_SIZE - SIZE.get, NDLIST, NDLIST0)
       if (NDLIST0.isEmpty)
         ERR := types.error.EINVAL
       else {
