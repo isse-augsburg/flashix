@@ -32,8 +32,7 @@ object Index extends Tab with Observable[Graph[String]] {
           graph(zbr.adr, zbr.child)
       }
 
-      val es = (0 until r.usedsize) map {
-        i =>
+      val es = for(i <- 0 until r.usedsize if r.zbranches(i).child != null) yield  {
           val zbr = r.zbranches(i)
           (n, node(zbr.child))
       }
