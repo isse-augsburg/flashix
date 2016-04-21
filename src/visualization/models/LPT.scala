@@ -16,6 +16,7 @@ object LPT extends Tab {
 
   private val dataset = new DefaultCategoryDataset()
   private val chart = ChartFactory.createStackedBarChart(null, null, "Bytes", dataset, PlotOrientation.VERTICAL, true, true, false)
+  chart.setBorderVisible(false)
   private val plot = chart.getPlot.asInstanceOf[CategoryPlot]
   plot.getDomainAxis.setVisible(false)
   plot.getDomainAxis.setCategoryMargin(0)

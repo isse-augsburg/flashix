@@ -90,6 +90,8 @@ object Visualization {
       filesystem.doGC("user", err, -1)
     }
 
+    flashix.journal.SYNC = false // TODO: option
+
     def unmount() {
       Unmount.main(Array("-z", args.last))
       mtd.close
