@@ -14,17 +14,20 @@ import _root_.fuse._
 import scala.swing.event._
 import scala.swing._
 import visualization.Toolkit._
+import visualization.models.Index
+import scala.swing.TabbedPane.Page
+
+trait Tab extends Observer[Flashix] {
+  def page: Page
+}
 
 object Visualization {
-  def native = true
-
   def printHelp {
     println("usage:")
     println("  flashix [-odebug] [-obig_writes] <mountpoint>")
   }
 
   def main(args: Array[String]) {
-
     if (args.size <= 0) {
       printHelp
       System.exit(1)
@@ -60,29 +63,34 @@ object Visualization {
     if (err != ESUCCESS)
       System.exit(1)
 
-    val filesystem = new fuse.FilesystemAdapter(flashix) {
-      override def _run(force: Boolean, operation: Ref[error] => Unit): Int = {
-        val res = super._run(force, operation)
-        res
-      }
-    }
-
-    /*
-    val model = new GraphModel(Graph.empty[String])
-    val view = new GraphView(model)
-*/
+    object observable extends Observable[Flashix]
 
     def unmount {
       Unmount.main(Array("-z", args.last))
       System.exit(0)
     }
 
+    def update() {
+      observable update flashix
+    }
+
+    val filesystem = new fuse.FilesystemAdapter(flashix) {
+      override def _run(force: Boolean, operation: Ref[error] => Unit): Int = {
+        val res = super._run(force, operation)
+        update()
+        res
+      }
+    }
+
+    val vis = List(Index)
+
     val quit = button("Quit", unmount)
     val refresh = check("Refresh", true, s => ())
 
     val about = tab("About", label("Flashix File System"))
 
-    val main = tabs(about)
+    val pages = about :: vis.map(_.page)
+    val main = tabs(pages: _*)
     val side = vbox(refresh, quit, Swing.VGlue)
 
     val window = frame("Flashix",
@@ -90,6 +98,10 @@ object Visualization {
       unmount)
 
     window.size = new Dimension(600, 400)
+
+    vis foreach (observable += _)
+    
+    update()
 
     val syncargs = Array("-s") ++ args
     FuseMount.mount(syncargs, filesystem, null)
