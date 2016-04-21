@@ -28,6 +28,8 @@ object Visualization {
   }
 
   def main(args: Array[String]) {
+    val err = new Ref(error.uninit)
+
     if (args.size <= 0) {
       printHelp
       System.exit(1)
@@ -39,7 +41,7 @@ object Visualization {
     val pages_per_peb = 64
     val page_size = 2048
     val spare_pebs = 5
-    val format = !deviceFile.exists()
+    val doFormat = !deviceFile.exists()
 
     // Create MTD simulation
     val mtd = MTDSimulation(deviceFile, pebs, pages_per_peb, page_size)
@@ -48,16 +50,23 @@ object Visualization {
 
     val flashix = new Flashix(mtd)
 
-    val err = new Ref(error.uninit)
-    if (format) {
+    def format() {
       val rootmeta = fuse.DirMetadata()
       flashix.vfs.posix_format(pebs - spare_pebs, rootmeta, err)
       if (err != ESUCCESS)
         println(s"vfs: format failed with error code ${err.get}")
-    } else {
+    }
+
+    def recover() {
       flashix.vfs.posix_recover(err)
       if (err != ESUCCESS)
         println(s"vfs: recovery failed with error code ${err.get}")
+    }
+
+    if (doFormat) {
+      format()
+    } else {
+      recover()
     }
 
     if (err != ESUCCESS)
@@ -74,24 +83,18 @@ object Visualization {
       observable update flashix
     }
 
-    val filesystem = new fuse.FilesystemAdapter(flashix) {
-      override def _run(force: Boolean, operation: Ref[error] => Unit): Int = {
-        val res = super._run(force, operation)
-        update()
-        res
-      }
-    }
-
     val vis = List(Index)
 
-    val quit = button("Quit", unmount)
     val refresh = check("Refresh", true, s => ())
+    val fmt = button("Format", { format(); update() })
+    val rec = button("Recover", { recover(); update() })
+    val quit = button("Quit", unmount)
 
     val about = tab("About", label("Flashix File System"))
 
     val pages = about :: vis.map(_.page)
     val main = tabs(pages: _*)
-    val side = vbox(refresh, quit, Swing.VGlue)
+    val side = vbox(refresh, fmt, rec, quit, Swing.VGlue)
 
     val window = frame("Flashix",
       hbox(main, side),
@@ -100,7 +103,15 @@ object Visualization {
     window.size = new Dimension(600, 400)
 
     vis foreach (observable += _)
-    
+
+    val filesystem = new fuse.FilesystemAdapter(flashix) {
+      override def _run(force: Boolean, operation: Ref[error] => Unit): Int = {
+        val res = super._run(force, operation)
+        if (refresh.enabled) update()
+        res
+      }
+    }
+
     update()
 
     val syncargs = Array("-s") ++ args
