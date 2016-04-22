@@ -8,6 +8,7 @@ import types._
 import types.error.error
 import helpers.scala.Ref
 import asm._
+import types.lpropflags._
 
 import scala.collection.mutable
 
@@ -24,6 +25,19 @@ object Debug {
 
 trait DebugUBIFSJournal {
   this: btree_asm =>
+
+  def check_invariant {
+    import Debug._
+    val refsizeperblock = index._2.filter { ! _._1.dirty }.values.refsizes
+    val lpt = apersistence.asInstanceOf[persistence_asm].LPT
+    for (i <- 0 until lpt.length) {
+      assert(! refsizeperblock.contains(i) || (lpt(i).flags == LP_INDEX_NODES) , "wrong index block " + i)
+      if (refsizeperblock.contains(i))
+        assert(lpt(i).ref_size == refsizeperblock(i), "wrong refsize, block " + i + ", expected " + refsizeperblock(i) + ", got " + lpt(i).ref_size)
+      else if (lpt(i).flags == LP_INDEX_NODES)
+        assert(lpt(i).ref_size == 0, "nonzero refsize, block " + i)
+    }
+  }
 
   def index: (Map[key, address], Map[znode, address]) = {
     val ERR = new Ref[error](error.ESUCCESS)
@@ -43,13 +57,13 @@ trait DebugUBIFSJournal {
 
     while (N < R.get.usedsize) {
       val zbr = R.get.zbranches(N)
-      val ADRC = zbr.adr
       val KEYC = zbr.key
 
       if (R.get.leaf) {
-        RI += KEYC -> ADRC
+        if (zbr.isInstanceOf[zbranch.mkzentry])
+          RI += KEYC -> zbr.adr
       } else {
-        index(R.get, zbr.child, ADRC, ERR, RI, IS)
+        index(R.get, zbr.child, zbr.adr, ERR, RI, IS)
       }
       N = N + 1
     }

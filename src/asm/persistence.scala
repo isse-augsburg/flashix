@@ -185,6 +185,9 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
           if (OFFSET + SIZE > LEB_SIZE) {
             debug("persistence: read_gblock_nodes ignoring node of size " + (toStr(SIZE) + (" at offset " + (toStr(OFFSET) + (" in LEB " + toStr(LNUM))))))
             ERR := types.error.ENOENT
+          } else           if (! rangeeq(BUF, OFFSET + (NODE_HEADER_SIZE + alignUp(NDHD.get.size, 2 * NODE_HEADER_SIZE)), validtrailer, 0, NODE_HEADER_SIZE)) {
+            debug("persistence: read_gblock_nodes partial node at offset " + (toStr(OFFSET) + (" in LEB " + toStr(LNUM))))
+            ERR := types.error.ENOENT
           } else           if (! NDHD.get.ispadding) {
             val GND = new Ref[group_node](types.group_node.uninit)
             decode_group_node(OFFSET, SIZE, BUF, GND, ERR)
@@ -194,8 +197,7 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
               NODELIST += GND.get
               ADRLIST += types.address.at(LNUM, OFFSET, SIZE)
             }
-          } else           if (! rangeeq(BUF, OFFSET + (NODE_HEADER_SIZE + alignUp(NDHD.get.size, 2 * NODE_HEADER_SIZE)), validtrailer, 0, NODE_HEADER_SIZE))
-            ERR := types.error.ENOENT
+          }
           
           if (ERR.get == types.error.ESUCCESS)
             OFFSET = OFFSET + SIZE
