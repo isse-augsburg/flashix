@@ -2,17 +2,14 @@ package visualization
 
 import scala.swing.Component
 import Toolkit._
-import java.awt.Dimension
 import javax.swing.JPanel
-import java.awt.Graphics
+import java.awt._
 
-case class Node(label: String, sub: List[Node], width: Int, height: Int)
+case class Node(label: String, isDirty: Boolean, sub: scala.List[Node], width: Int, height: Int)
 
 class TreeView extends JPanel with Observer[Tree] {
-  def WIDTH = 48
-  def HEIGHT = 32
-  def HSPACE = 16
-  def VSPACE = 16
+  def WIDTH = 20
+  def HEIGHT = 48
 
   def PADDING = 32
 
@@ -25,7 +22,6 @@ class TreeView extends JPanel with Observer[Tree] {
     if (node != null) {
       val width = node.width + 2 * PADDING
       val height = node.height + 2 * PADDING
-      println("preferred size: " + width + " × " + height)
       new Dimension(width, height)
     } else {
       new Dimension(100, 100)
@@ -38,47 +34,74 @@ class TreeView extends JPanel with Observer[Tree] {
     repaint()
   }
 
-  override def paintComponent(g: Graphics) {
+  override def paintComponent(_g: Graphics) {
+    val g = _g.asInstanceOf[Graphics2D]
     super.paintComponent(g)
 
-    println("painting")
+    g.setRenderingHint(
+      RenderingHints.KEY_TEXT_ANTIALIASING,
+      RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+    g.setRenderingHint(
+      RenderingHints.KEY_ANTIALIASING,
+      RenderingHints.VALUE_ANTIALIAS_ON);
+
+    g.setStroke(new BasicStroke(1.5f))
 
     if (node != null) {
       val x = PADDING
-      val y = PADDING
+      val y = PADDING + HEIGHT / 2
       paint(x, y, node, g)
     }
   }
 
   def paint(x: Int, y: Int, node: Node, g: Graphics) {
-    val nx = x + (node.width - WIDTH) / 2
+    val nx = x + node.width / 2
     val ny = y
-
-    g.drawString(node.label, nx + 4, ny + HEIGHT / 2 + 4)
-    g.drawRect(nx, ny, WIDTH, HEIGHT)
 
     var offset = x
     for (n <- node.sub) {
       val sx = offset
-      val sy = y + HEIGHT + VSPACE
-      offset += n.width + HSPACE
-      g.drawLine(nx + WIDTH / 2, ny + HEIGHT, sx + n.width / 2, sy)
+      val sy = y + HEIGHT
+      offset += n.width
+
+      g.setColor(Color.gray)
+      g.drawLine(nx, ny, sx + n.width / 2, sy)
       paint(sx, sy, n, g)
+    }
+
+    // g.drawString(node.label, nx + 4, ny + HEIGHT / 2 + 4)
+    if (node.label == "<null>") {
+      g.setColor(Color.black)
+      g.fillOval(nx - 4, ny - 4, 8, 8)
+    } else {
+      val bg = if (node.isDirty) Color.red else Color.cyan
+      val fg = Color.black
+
+      if (node.label == "leaf") {
+        g.setColor(bg)
+        g.fillOval(nx - 6, ny - 6, 12, 12)
+        g.setColor(fg)
+        g.drawOval(nx - 6, ny - 6, 12, 12)
+      } else if (node.label == "node") {
+        g.setColor(bg)
+        g.fillRect(nx - 12, ny - 8, 24, 16)
+        g.setColor(fg)
+        g.drawRect(nx - 12, ny - 8, 24, 16)
+      }
     }
   }
 
   def measure(tree: Tree): Node = {
     val label = tree.label
-
+    val dirty = tree.isDirty
     if (tree.isLeaf) {
-      Node(label, Nil, WIDTH, HEIGHT)
+      Node(label, dirty, Nil, WIDTH, HEIGHT)
     } else {
-      val vspace = HEIGHT + VSPACE
-      val hspace = (tree.sub.length - 1) * HSPACE
       val nodes = tree.sub map measure
       val widths = nodes.map(_.width)
       val heights = nodes.map(_.height)
-      Node(label, nodes, widths.sum + hspace, heights.max + vspace)
+      Node(label, dirty, nodes, widths.sum, heights.max)
     }
   }
 }

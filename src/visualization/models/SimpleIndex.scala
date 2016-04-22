@@ -16,22 +16,22 @@ object SimpleIndex extends Tab with Observable[Tree] {
 
   val scrollPane = new ScrollPane(view)
   val page = tab("Index", scrollPane)
-  
+
   def tree(adr: address, r: znode): Tree = {
     if (r == null) {
-      Tree("<null>")
+      Tree("<null>", false)
     } else if (r.leaf) {
-      Tree("leaf")
+      Tree("leaf", r.dirty)
     } else {
       val ts = (0 until r.usedsize) map {
         i =>
           val zbr = r.zbranches(i)
           tree(zbr.adr, zbr.child)
       }
-      Tree("node", ts.toList)
+      Tree("node", r.dirty, ts.toList)
     }
   }
-  
+
   def apply(flashix: Flashix) {
     update(tree(flashix.btree.ADRT, flashix.btree.RT))
   }
