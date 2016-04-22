@@ -2,7 +2,7 @@
 // (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
-package debug
+package integration
 
 import types._
 import types.error.error
@@ -25,7 +25,7 @@ object Debug {
 trait DebugUBIFSJournal {
   this: btree_asm =>
 
-  def index(): (Map[key, address], Map[znode, address]) = {
+  def index: (Map[key, address], Map[znode, address]) = {
     val ERR = new Ref[error](error.ESUCCESS)
     val RI = mutable.Map[key, address]()
     val IS = mutable.Map[znode, address]()
@@ -33,7 +33,7 @@ trait DebugUBIFSJournal {
     (RI.toMap, IS.toMap)
   }
 
-  def index(RP: znode, RT: znode, ADRT: address, ERR: Ref[error], RI: mutable.Map[key, address], IS: mutable.Map[znode, address]): Unit = {
+  private def index(RP: znode, RT: znode, ADRT: address, ERR: Ref[error], RI: mutable.Map[key, address], IS: mutable.Map[znode, address]): Unit = {
     val R = new Ref[znode](RT)
 
     btree_io_load(RP, ADRT, R, ERR)

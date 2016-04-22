@@ -98,7 +98,7 @@ object Visualization {
       System.exit(0)
     }
 
-    val vis = List(Space, LPT, Index)
+    val vis = List(Space, LPT /*, Index*/)
 
     val fmt = button("Format", { format(); update() })
     val rec = button("Recover", { recover(); update() })

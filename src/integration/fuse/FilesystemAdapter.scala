@@ -11,7 +11,7 @@ import asm._
 import helpers.scala._
 import types._
 import types.error.error
-import debug.Debug
+import integration.Debug
 import integration.Flashix
 
 import scala.annotation.tailrec
