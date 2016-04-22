@@ -17,8 +17,8 @@ class Flashix(mtd: mtd_interface)(implicit val ops: algebraic.Algebraic, val pro
   val wbuf = new wbuf_asm(0, new wbuf_store(), ubi)
   val persistence_io = new persistence_io_asm(superblock.uninit, 0, wbuf)
   val persistence = new persistence_asm(binheap(new key_array(), 0), new nat_list(), new nat_list(), new lp_array(), persistence_io)
-  val btree = new btree_asm(znode.uninit, address(0, 0, 0), persistence)
-  val journal = new gjournal_asm(0, false, new nat_set(), 0, true, 0, btree) // TODO: sync option
+  val btree = new btree_asm(znode.uninit, address(0, 0, 0), persistence) with DebugUBIFSJournal
+  val journal = new gjournal_asm(0, false, new nat_set(), 0, true, 0, btree)
   val aubifs = new aubifs_asm(journal)
   val vfs = new vfs_asm(new open_files(), 0, aubifs)
 
