@@ -72,14 +72,14 @@ object Visualization {
       flashix.vfs.posix_format(pebs - spare_pebs, rootmeta, err)
       if (err != ESUCCESS)
         println(s"vfs: format failed with error code ${err.get}")
-      flashix.journal.SYNC = false // TODO: option
+      // flashix.journal.SYNC = false // TODO: option
     }
 
     def recover() {
       flashix.vfs.posix_recover(err)
       if (err != ESUCCESS)
         println(s"vfs: recovery failed with error code ${err.get}")
-      flashix.journal.SYNC = false // TODO: option
+      // flashix.journal.SYNC = false // TODO: option
     }
 
     def commit() {
@@ -98,7 +98,7 @@ object Visualization {
       System.exit(0)
     }
 
-    val vis = List(Space, LPT, Index)
+    val vis = List(Space, LPT, SimpleIndex)
 
     val fmt = button("Format", { format(); update() })
     val rec = button("Recover", { recover(); update() })
