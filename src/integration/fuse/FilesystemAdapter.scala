@@ -234,8 +234,7 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
   }
 
   def doGC(reason: String, ERR: Ref[error], free_lebs: Int) = {
-    if (free_lebs >= 0)
-      debug(s"flashix: attempting garbage collection with ${free_lebs} LEBs (${reason})")
+    debug(s"flashix: attempting garbage collection with ${free_lebs} LEBs (${reason})")
 
     journal.aubifs_internal_check_commit(ERR)
 
