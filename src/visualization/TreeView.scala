@@ -12,7 +12,7 @@ class TreeView extends JPanel with Observer[Tree] {
   def HEIGHT = 48
 
   def PADDING = 32
-
+  
   // var tree: Tree = null
   var node: Node = null
 

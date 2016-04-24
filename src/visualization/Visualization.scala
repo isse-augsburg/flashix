@@ -18,7 +18,7 @@ import visualization.models._
 import scala.swing.TabbedPane.Page
 import java.awt.GridLayout
 
-trait Tab extends Observer[Flashix] {
+trait Tab extends Component with Observer[Flashix] {
   def page: Page
 }
 
@@ -98,7 +98,7 @@ object Visualization {
       System.exit(0)
     }
 
-    val vis = List(Space, LPT, SimpleIndex)
+    val vis = List(Space, SimpleLPT, SimpleIndex)
 
     val fmt = button("Format", { format(); update() })
     val rec = button("Recover", { recover(); update() })
@@ -118,7 +118,7 @@ object Visualization {
       { unmount() })
 
     window.size = new Dimension(600, 400)
-    
+
     if (doFormat) {
       format()
     } else {
