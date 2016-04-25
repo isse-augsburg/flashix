@@ -23,10 +23,9 @@ object SimpleLPT extends Tab with Observable[Array[Array[Int]]] {
         val used = lpt(i).ref_size
         val garbage = lpt(i).size - lpt(i).ref_size
         val free = LEB_SIZE - lpt(i).size
-        Array(used, garbage, free)
+        Array(free, garbage, used)
     }
     
-    println("entries = " + entries)
     update(entries)
   }
 }

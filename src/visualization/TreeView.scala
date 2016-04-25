@@ -8,11 +8,11 @@ import java.awt._
 case class Node(label: String, isDirty: Boolean, sub: scala.List[Node], width: Int, height: Int)
 
 class TreeView extends JPanel with Observer[Tree] {
-  def WIDTH = 20
+  def WIDTH = 28
   def HEIGHT = 48
 
   def PADDING = 32
-  
+
   // var tree: Tree = null
   var node: Node = null
 
@@ -24,7 +24,7 @@ class TreeView extends JPanel with Observer[Tree] {
       val height = node.height + 2 * PADDING
       new Dimension(width, height)
     } else {
-      new Dimension(100, 100)
+      super.preferredSize
     }
   }
 
@@ -80,14 +80,21 @@ class TreeView extends JPanel with Observer[Tree] {
 
       if (node.label == "leaf") {
         g.setColor(bg)
-        g.fillOval(nx - 6, ny - 6, 12, 12)
+        g.fillOval(nx - 6, ny, 12, 12)
         g.setColor(fg)
-        g.drawOval(nx - 6, ny - 6, 12, 12)
+        g.drawOval(nx - 6, ny, 12, 12)
+      } else if(node.label == "clean") {
+        val xs = Array(nx, nx - 12, nx + 12)
+        val ys = Array(ny, ny + 16, ny + 16)
+        g.setColor(bg)
+        g.fillPolygon(xs, ys, 3)
+        g.setColor(fg)
+        g.drawPolygon(xs, ys, 3)
       } else if (node.label == "node") {
         g.setColor(bg)
-        g.fillRect(nx - 12, ny - 8, 24, 16)
+        g.fillRect(nx - 12, ny, 24, 16)
         g.setColor(fg)
-        g.drawRect(nx - 12, ny - 8, 24, 16)
+        g.drawRect(nx - 12, ny, 24, 16)
       }
     }
   }
@@ -97,6 +104,8 @@ class TreeView extends JPanel with Observer[Tree] {
     val dirty = tree.isDirty
     if (tree.isLeaf) {
       Node(label, dirty, Nil, WIDTH, HEIGHT)
+    } else if (!dirty) {
+      Node("clean", dirty, Nil, WIDTH, HEIGHT)
     } else {
       val nodes = tree.sub map measure
       val widths = nodes.map(_.width)

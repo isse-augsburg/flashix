@@ -38,7 +38,7 @@ object Visualization {
 
     // Implicit configuration options
     val deviceFile = new File("flash-device")
-    val pebs = 512
+    val pebs = 1024
     val pages_per_peb = 64
     val page_size = 2048
     val spare_pebs = 5
@@ -72,14 +72,14 @@ object Visualization {
       flashix.vfs.posix_format(pebs - spare_pebs, rootmeta, err)
       if (err != ESUCCESS)
         println(s"vfs: format failed with error code ${err.get}")
-      // flashix.journal.SYNC = false // TODO: option
+      flashix.journal.SYNC = false // TODO: option
     }
 
     def recover() {
       flashix.vfs.posix_recover(err)
       if (err != ESUCCESS)
         println(s"vfs: recovery failed with error code ${err.get}")
-      // flashix.journal.SYNC = false // TODO: option
+      flashix.journal.SYNC = false // TODO: option
     }
 
     def commit() {
