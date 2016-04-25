@@ -80,9 +80,9 @@ class TreeView extends JPanel with Observer[Tree] {
 
       if (node.label == "leaf") {
         g.setColor(bg)
-        g.fillOval(nx - 6, ny, 12, 12)
+        g.fillOval(nx - 6, ny - 6, 12, 12)
         g.setColor(fg)
-        g.drawOval(nx - 6, ny, 12, 12)
+        g.drawOval(nx - 6, ny - 6, 12, 12)
       } else if(node.label == "clean") {
         val xs = Array(nx, nx - 12, nx + 12)
         val ys = Array(ny, ny + 16, ny + 16)

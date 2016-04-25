@@ -60,8 +60,8 @@ object Visualization {
     val refresh = check("Refresh", true, { if (_) update() })
 
     val filesystem = new fuse.FilesystemAdapter(flashix) {
-      override def _run(force: Boolean, operation: Ref[error] => Unit): Int = {
-        val res = super._run(force, operation)
+      override def _run(force: Boolean, sync: Boolean, operation: Ref[error] => Unit): Int = {
+        val res = super._run(force, sync, operation)
         if (refresh.selected) update()
         res
       }
