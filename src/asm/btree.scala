@@ -33,7 +33,6 @@ class btree_asm(var RT : znode, var ADRT : address, val apersistence : apersiste
     }
     if (ERR.get == types.error.ESUCCESS)
       R.dirty = false
-    
   }
 
   private def btree_entries(KEY: key, RP: znode, ADR0: address, R: Ref[znode], DONE: Ref[Boolean], NAMES: stringset, ERR: Ref[error]): Unit = {
@@ -298,7 +297,10 @@ class btree_asm(var RT : znode, var ADRT : address, val apersistence : apersiste
         while (N.get < R.get.usedsize && DONE.get != true) {
           val ADRC: address = R.get.zbranches(N.get).adr
           val RC = new Ref[znode](R.get.zbranches(N.get).child)
+          val dirty = DIRTY.get
           btree_truncate(KEY, R.get, ADRC, RC, DIRTY, DONE, AS, ERR)
+          R.get.zbranches(N.get) = R.get.zbranches(N.get).updated_child(RC.get).deepCopy
+          DIRTY := DIRTY.get || dirty
           if (RC.get.usedsize == 0 && R.get.usedsize != 0) {
             btree_io_shift_left(N.get, R.get)
             R.get.usedsize = R.get.usedsize - 1
@@ -340,7 +342,6 @@ class btree_asm(var RT : znode, var ADRT : address, val apersistence : apersiste
     }
     if (ERR.get == types.error.ESUCCESS)
       ADRT = ADR.get
-    
   }
 
   override def indexpluspersistence_deallocate_gnd(N: Int, ERR: Ref[error]): Unit = {
