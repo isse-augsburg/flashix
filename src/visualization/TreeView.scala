@@ -24,7 +24,7 @@ class TreeView extends JPanel with Observer[Tree] {
       val height = node.height + 2 * PADDING
       new Dimension(width, height)
     } else {
-      super.preferredSize
+      super.getPreferredSize
     }
   }
 

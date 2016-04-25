@@ -18,7 +18,7 @@ class BarChartView() extends JPanel with Observer[Array[Array[Int]]] {
       val height = 100 
       new Dimension(width, height)
     } else {
-      super.preferredSize
+      super.getPreferredSize
     }
   }
 
