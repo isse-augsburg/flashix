@@ -16,7 +16,7 @@ class TreeView extends JPanel with Observer[Tree] {
   // var tree: Tree = null
   var node: Node = null
 
-  override def preferredSize = dimension
+  override def getPreferredSize = dimension
 
   def dimension = {
     if (node != null) {
