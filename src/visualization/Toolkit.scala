@@ -40,7 +40,7 @@ object Toolkit {
       reactions += {
         case ButtonClicked(_) => k
       }
-      maximumSize_=(new Dimension(200, 0))
+      maximumSize = new Dimension(200, 0)
     }
   }
 
