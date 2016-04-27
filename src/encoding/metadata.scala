@@ -26,47 +26,38 @@ object metadata {
     err := types.error.ESUCCESS
     if (err.get == types.error.ESUCCESS) {
       encode_nat(elem.mode, index + nbytes.get, buf, tmpsize, err)
-      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
       encode_nat(elem.uid, index + nbytes.get, buf, tmpsize, err)
-      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
       encode_nat(elem.gid, index + nbytes.get, buf, tmpsize, err)
-      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
       encode_nat(elem.atime, index + nbytes.get, buf, tmpsize, err)
-      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
       encode_nat(elem.atimesec, index + nbytes.get, buf, tmpsize, err)
-      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
       encode_nat(elem.mtime, index + nbytes.get, buf, tmpsize, err)
-      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
       encode_nat(elem.mtimesec, index + nbytes.get, buf, tmpsize, err)
-      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
       encode_nat(elem.ctime, index + nbytes.get, buf, tmpsize, err)
-      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
       encode_nat(elem.ctimesec, index + nbytes.get, buf, tmpsize, err)
-      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
       nbytes := nbytes.get + tmpsize.get
     }
   }

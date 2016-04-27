@@ -26,7 +26,6 @@ object ref_node {
     err := types.error.ESUCCESS
     if (err.get == types.error.ESUCCESS) {
       encode_nat(elem.leb, index + nbytes.get, buf, tmpsize, err)
-      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
       nbytes := nbytes.get + tmpsize.get
     }
   }

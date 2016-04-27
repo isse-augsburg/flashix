@@ -28,7 +28,6 @@ object buffer {
       var arindex: Int = 0
       while (err.get == types.error.ESUCCESS && arindex < elem.length) {
         encode_data(elem(arindex), index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == ENCODED_DATA_SIZE, """encoding has invalid size""")
         if (err.get == types.error.ESUCCESS) {
           nbytes := nbytes.get + tmpsize.get
           arindex = arindex + 1

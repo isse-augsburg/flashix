@@ -36,7 +36,6 @@ object key {
       err := types.error.ESUCCESS
       if (err.get == types.error.ESUCCESS) {
         encode_nat(elem.ino, index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
         nbytes := nbytes.get + tmpsize.get
       }
     } else     if (elem.isInstanceOf[types.key.datakey]) {
@@ -45,12 +44,10 @@ object key {
       err := types.error.ESUCCESS
       if (err.get == types.error.ESUCCESS) {
         encode_nat(elem.ino, index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
         nbytes := nbytes.get + tmpsize.get
       }
       if (err.get == types.error.ESUCCESS) {
         encode_nat(elem.part, index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
         nbytes := nbytes.get + tmpsize.get
       }
     } else     if (elem.isInstanceOf[types.key.dentrykey]) {
@@ -59,17 +56,14 @@ object key {
       err := types.error.ESUCCESS
       if (err.get == types.error.ESUCCESS) {
         encode_nat(elem.ino, index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
         nbytes := nbytes.get + tmpsize.get
       }
       if (err.get == types.error.ESUCCESS) {
         encode_string(elem.name, index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == flashsize_string(elem.name), """encoding has invalid size""")
         nbytes := nbytes.get + tmpsize.get
       }
     } else
       assert(false)
-    assert(nbytes.get == flashsize_key(elem), """encoding has invalid size""")
   }
 
   def decode_key(index: Int, buf: buffer, elem: Ref[key], nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {

@@ -35,7 +35,6 @@ object branch_array {
       var arindex: Int = 0
       while (err.get == types.error.ESUCCESS && arindex < elem.length) {
         encode_branch(elem(arindex), index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == flashsize_branch(elem(arindex)), """encoding has invalid size""")
         if (err.get == types.error.ESUCCESS) {
           nbytes := nbytes.get + tmpsize.get
           arindex = arindex + 1

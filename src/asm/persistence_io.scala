@@ -66,6 +66,9 @@ class persistence_io_asm(val SB : superblock, var LOGOFF : Int, val awbuf : awbu
       }
     }
     if (ERR.get == types.error.ESUCCESS) {
+      awbuf.awbuf_sync_device(ERR)
+    }
+    if (ERR.get == types.error.ESUCCESS) {
       persistence_io_write_superblock(NEWSB, ERR)
     }
     if (ERR.get == types.error.ESUCCESS) {
@@ -197,14 +200,14 @@ class persistence_io_asm(val SB : superblock, var LOGOFF : Int, val awbuf : awbu
     awbuf.awbuf_write_buf(SB.main + LNUM, N, BUF, ERR)
   }
 
-  private def decode_ref_node(buf: buffer, rnd: Ref[ref_node], err: Ref[error]): Unit = {
+  def decode_ref_node(buf: buffer, rnd: Ref[ref_node], err: Ref[error]): Unit = {
     if (ENCODED_REF_NODE_SIZE <= EB_PAGE_SIZE) {
       decode_ref_node_nonempty(0, buf, rnd, err)
     } else
       err := types.error.EINVAL
   }
 
-  private def decode_ref_node_nonempty(n: Int, buf: buffer, rnd: Ref[ref_node], err: Ref[error]): Unit = {
+  def decode_ref_node_nonempty(n: Int, buf: buffer, rnd: Ref[ref_node], err: Ref[error]): Unit = {
     if (isempty(buf, n, ENCODED_REF_NODE_SIZE))
       err := types.error.EINVAL
     else {
@@ -213,7 +216,7 @@ class persistence_io_asm(val SB : superblock, var LOGOFF : Int, val awbuf : awbu
     }
   }
 
-  private def decode_superblock(n: Int, buf: buffer, sb: superblock, n0: Ref[Int], err: Ref[error]): Unit = {
+  def decode_superblock(n: Int, buf: buffer, sb: superblock, n0: Ref[Int], err: Ref[error]): Unit = {
     decode_superblock_unaligned(n, buf, sb, n0, err)
     if (err.get == types.error.ESUCCESS) {
       n0 := alignUp(n0.get, EB_PAGE_SIZE)
@@ -223,14 +226,14 @@ class persistence_io_asm(val SB : superblock, var LOGOFF : Int, val awbuf : awbu
     }
   }
 
-  private def encode_ref_node(rnd: ref_node, buf: buffer, err: Ref[error]): Unit = {
+  def encode_ref_node(rnd: ref_node, buf: buffer, err: Ref[error]): Unit = {
     if (ENCODED_REF_NODE_SIZE <= EB_PAGE_SIZE) {
       encode_ref_node_nonempty(rnd, 0, buf, err)
     } else
       err := types.error.EINVAL
   }
 
-  private def encode_ref_node_nonempty(rnd: ref_node, n: Int, buf: buffer, err: Ref[error]): Unit = {
+  def encode_ref_node_nonempty(rnd: ref_node, n: Int, buf: buffer, err: Ref[error]): Unit = {
     val m = new Ref[Int](0)
     encode_ref_node_empty(rnd, n, buf, m, err)
     if (err.get == types.error.ESUCCESS && isempty(buf, n, m.get)) {
@@ -239,14 +242,14 @@ class persistence_io_asm(val SB : superblock, var LOGOFF : Int, val awbuf : awbu
     }
   }
 
-  private def encode_superblock(sb: superblock, n: Int, buf: buffer, n0: Ref[Int], err: Ref[error]): Unit = {
+  def encode_superblock(sb: superblock, n: Int, buf: buffer, n0: Ref[Int], err: Ref[error]): Unit = {
     encode_superblock_unaligned(sb, n, buf, n0, err)
     if (err.get == types.error.ESUCCESS)
       n0 := alignUp(n0.get, EB_PAGE_SIZE)
     
   }
 
-  private def persistence_io_decode_lpt(BUF: buffer, LPT: lp_array, ERR: Ref[error]): Unit = {
+  def persistence_io_decode_lpt(BUF: buffer, LPT: lp_array, ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
     var N: Int = 0
     while (ERR.get == types.error.ESUCCESS && N < LPT.length) {
@@ -256,15 +259,14 @@ class persistence_io_asm(val SB : superblock, var LOGOFF : Int, val awbuf : awbu
     }
   }
 
-  private def persistence_io_decode_orphans(MAXINO: Int, BUF: buffer, ORPHANS: nat_set, ERR: Ref[error]): Unit = {
-    var SIZE: Int = MAXINO
+  def persistence_io_decode_orphans(N0: Int, BUF: buffer, ORPHANS: nat_set, ERR: Ref[error]): Unit = {
+    var SIZE: Int = N0
     ORPHANS.clear
     ERR := types.error.ESUCCESS
     var OFFSET: Int = 0
     while (ERR.get == types.error.ESUCCESS && SIZE != 0) {
       val N = new Ref[Int](0)
-      val FD = new Ref[Int](0)
-      decode_nat(OFFSET, BUF, N, FD, ERR)
+      decode_nat(OFFSET, BUF, N, N, ERR)
       if (ERR.get == types.error.ESUCCESS)
         ORPHANS += N.get
       
@@ -273,7 +275,7 @@ class persistence_io_asm(val SB : superblock, var LOGOFF : Int, val awbuf : awbu
     }
   }
 
-  private def persistence_io_encode_lpt(LPT: lp_array, BUF: buffer, ERR: Ref[error]): Unit = {
+  def persistence_io_encode_lpt(LPT: lp_array, BUF: buffer, ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
     BUF.allocate(lptsize(LPT.length), 0.toByte)
     var N: Int = 0
@@ -284,7 +286,7 @@ class persistence_io_asm(val SB : superblock, var LOGOFF : Int, val awbuf : awbu
     }
   }
 
-  private def persistence_io_encode_orphans(ORPHANS: nat_set, BUF: buffer, ERR: Ref[error]): Unit = {
+  def persistence_io_encode_orphans(ORPHANS: nat_set, BUF: buffer, ERR: Ref[error]): Unit = {
     if (ORPHANS.size * ENCODED_NAT_SIZE > LEB_SIZE)
       ERR := types.error.ENOSPC
     else {
@@ -301,7 +303,7 @@ class persistence_io_asm(val SB : superblock, var LOGOFF : Int, val awbuf : awbu
     }
   }
 
-  private def persistence_io_read_lebs(LNUM: Int, SIZE: Int, BUF: buffer, ERR: Ref[error]): Unit = {
+  def persistence_io_read_lebs(LNUM: Int, SIZE: Int, BUF: buffer, ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
     BUF.allocate(SIZE * LEB_SIZE, 0.toByte)
     var N: Int = 0
@@ -311,11 +313,11 @@ class persistence_io_asm(val SB : superblock, var LOGOFF : Int, val awbuf : awbu
     }
   }
 
-  private def persistence_io_read_log(LOG: nat_list, ERR: Ref[error]): Unit = {
+  def persistence_io_read_log(LOG: nat_list, ERR: Ref[error]): Unit = {
     LOG.clear
     ERR := types.error.ESUCCESS
-    var LOGOFF: Int = 0
     val BUF: buffer = new buffer(EB_PAGE_SIZE).fill(0.toByte)
+    var LOGOFF: Int = 0
     while (ERR.get == types.error.ESUCCESS && LOGOFF < LEB_SIZE) {
       awbuf.awbuf_read(SB.log, LOGOFF, 0, EB_PAGE_SIZE, BUF, ERR)
       if (ERR.get == types.error.ESUCCESS) {
@@ -336,7 +338,7 @@ class persistence_io_asm(val SB : superblock, var LOGOFF : Int, val awbuf : awbu
     
   }
 
-  private def persistence_io_read_orphans(ORPHANS: nat_set, ERR: Ref[error]): Unit = {
+  def persistence_io_read_orphans(ORPHANS: nat_set, ERR: Ref[error]): Unit = {
     val BUF: buffer = new buffer(SB.orphsize * ENCODED_NAT_SIZE).fill(0.toByte)
     awbuf.awbuf_read(SB.orph, 0, 0, SB.orphsize * ENCODED_NAT_SIZE, BUF, ERR)
     if (ERR.get == types.error.ESUCCESS) {
@@ -344,7 +346,7 @@ class persistence_io_asm(val SB : superblock, var LOGOFF : Int, val awbuf : awbu
     }
   }
 
-  private def persistence_io_read_superblock(NEWSB: superblock, ERR: Ref[error]): Unit = {
+  def persistence_io_read_superblock(NEWSB: superblock, ERR: Ref[error]): Unit = {
     val BUF: buffer = new buffer(LEB_SIZE).fill(0.toByte)
     awbuf.awbuf_read(0, 0, 0, LEB_SIZE, BUF, ERR)
     if (ERR.get == types.error.ESUCCESS) {
@@ -353,7 +355,7 @@ class persistence_io_asm(val SB : superblock, var LOGOFF : Int, val awbuf : awbu
     }
   }
 
-  private def persistence_io_write_lebs(LNUM: Int, SIZE: Int, BUF: buffer, ERR: Ref[error]): Unit = {
+  def persistence_io_write_lebs(LNUM: Int, SIZE: Int, BUF: buffer, ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
     var N: Int = 0
     while (ERR.get == types.error.ESUCCESS && N < SIZE) {
@@ -365,7 +367,7 @@ class persistence_io_asm(val SB : superblock, var LOGOFF : Int, val awbuf : awbu
     }
   }
 
-  private def persistence_io_write_orphans(LNUM: Int, ORPHANS: nat_set, ERR: Ref[error]): Unit = {
+  def persistence_io_write_orphans(LNUM: Int, ORPHANS: nat_set, ERR: Ref[error]): Unit = {
     val BUF: buffer = new buffer(0).fill(0.toByte)
     persistence_io_encode_orphans(ORPHANS, BUF, ERR)
     if (ERR.get == types.error.ESUCCESS) {
@@ -376,7 +378,7 @@ class persistence_io_asm(val SB : superblock, var LOGOFF : Int, val awbuf : awbu
     }
   }
 
-  private def persistence_io_write_superblock(NEWSB: superblock, ERR: Ref[error]): Unit = {
+  def persistence_io_write_superblock(NEWSB: superblock, ERR: Ref[error]): Unit = {
     val SIZE = new Ref[Int](size(NEWSB))
     if (SIZE.get <= LEB_SIZE) {
       val BUF: buffer = new buffer(SIZE.get).fill(0.toByte)

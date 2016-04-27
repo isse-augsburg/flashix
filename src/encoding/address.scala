@@ -26,17 +26,14 @@ object address {
     err := types.error.ESUCCESS
     if (err.get == types.error.ESUCCESS) {
       encode_nat(elem.lnum, index + nbytes.get, buf, tmpsize, err)
-      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
       encode_nat(elem.pos, index + nbytes.get, buf, tmpsize, err)
-      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
       encode_nat(elem.size, index + nbytes.get, buf, tmpsize, err)
-      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
       nbytes := nbytes.get + tmpsize.get
     }
   }

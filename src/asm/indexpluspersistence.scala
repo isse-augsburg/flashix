@@ -11,7 +11,6 @@ import types._
 import types.error.error
 
 abstract class indexpluspersistence_interface {
-  def indexpluspersistence_add_gnd(LNUM: Int, GND: group_node, ADR: Ref[address], ERR: Ref[error])
   def indexpluspersistence_add_gnds(LNUM: Int, GNDLIST: group_node_list, ADRLIST: address_list, ERR: Ref[error])
   def indexpluspersistence_allocate_gnd(N: Ref[Int], ERR: Ref[error])
   def indexpluspersistence_commit(PMAXINO0: Int, P_OS0: nat_set, ERR: Ref[error])

@@ -21,7 +21,6 @@ trait Procedures {
     assert(validtrailer.length == NODE_HEADER_SIZE, """axiom  ⊦ # validtrailer = NODE_HEADER_SIZE does not hold""")
     assert(! isempty(validtrailer), """axiom  ⊦ ¬ isempty(validtrailer) does not hold""")
     assert(is_aligned(EB_PAGE_SIZE, 2 * NODE_HEADER_SIZE), """axiom  ⊦ is-aligned(EB_PAGE_SIZE, 2 * NODE_HEADER_SIZE) does not hold""")
-    assert(keys(new nat_set()).isEmpty, """axiom  ⊦ ∅.keys = ∅ does not hold""")
     assert(EB_PAGE_SIZE != 0, """axiom  ⊦ EB_PAGE_SIZE ≠ 0 does not hold""")
     assert(PAGES_PER_LEB != 0, """axiom  ⊦ PAGES_PER_LEB ≠ 0 does not hold""")
     assert(EB_PAGE_SIZE != 0, """axiom  ⊦ EB_PAGE_SIZE ≠ 0 does not hold""")

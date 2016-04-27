@@ -27,22 +27,18 @@ object lprops {
     err := types.error.ESUCCESS
     if (err.get == types.error.ESUCCESS) {
       encode_nat(elem.ref_size, index + nbytes.get, buf, tmpsize, err)
-      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
       encode_nat(elem.size, index + nbytes.get, buf, tmpsize, err)
-      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
       encode_lpropflags(elem.flags, index + nbytes.get, buf, tmpsize, err)
-      assert(tmpsize.get == ENCODED_LPROPFLAGS_SIZE, """encoding has invalid size""")
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
       encode_nat(elem.gcheapidx, index + nbytes.get, buf, tmpsize, err)
-      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
       nbytes := nbytes.get + tmpsize.get
     }
   }

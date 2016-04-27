@@ -17,7 +17,7 @@ class ubi_asm(val VOLS : volumes, val ERASEQ : queue, var SQNUM : Int, val WLARR
   import _algebraic_implicit._
   import _procedures_implicit._
 
-  private def decode_vtbl(BUF: buffer, VTBL: vtbl, ERR: Ref[error]): Unit = {
+  def decode_vtbl(BUF: buffer, VTBL: vtbl, ERR: Ref[error]): Unit = {
     VTBL.clear
     ERR := types.error.ESUCCESS
     var INDEX: Int = 0
@@ -167,9 +167,9 @@ class ubi_asm(val VOLS : volumes, val ERASEQ : queue, var SQNUM : Int, val WLARR
 
   override def ebm_recover(ERR: Ref[error]): Unit = {
     VOLS.clear
+    val RECS: recoveryentries = new recoveryentries()
     val INVALIDECS: nat_list = new nat_list()
     val VALIDCOUNT = new Ref[Int](0)
-    val RECS: recoveryentries = new recoveryentries()
     val VALIDECSUM = new Ref[Int](0)
     ubi_scan_all(RECS, VALIDCOUNT, VALIDECSUM, INVALIDECS, ERR)
     if (! RECS.contains(types.lebadress.×(VTBL_VOLID, VTBL_LNUM)))
@@ -193,6 +193,16 @@ class ubi_asm(val VOLS : volumes, val ERASEQ : queue, var SQNUM : Int, val WLARR
           ubi_fix_ecs(N, INVALIDECS)
         }
       }
+    }
+  }
+
+  override def ebm_sync_device(ERR: Ref[error]): Unit = {
+    ERR := types.error.ESUCCESS
+    while (ERR.get == types.error.ESUCCESS && ! ERASEQ.isEmpty) {
+      ubi_erase_worker_helper(ERASEQ.head.pnum, ERR)
+      if (ERR.get == types.error.ESUCCESS)
+        ERASEQ.removeHead
+      
     }
   }
 
@@ -229,7 +239,7 @@ class ubi_asm(val VOLS : volumes, val ERASEQ : queue, var SQNUM : Int, val WLARR
       ERR := types.error.ESUCCESS
   }
 
-  private def encode_vtbl(VTBL: vtbl, BUF: buffer, ERR: Ref[error]): Unit = {
+  def encode_vtbl(VTBL: vtbl, BUF: buffer, ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
     var INDEX: Int = 0
     val SIZE = new Ref[Int](0)
@@ -247,8 +257,8 @@ class ubi_asm(val VOLS : volumes, val ERASEQ : queue, var SQNUM : Int, val WLARR
     }
   }
 
-  private def ubi_atomic_leb_change(VOLID: Byte, LNUM: Int, TO: Int, FD: Int, BUF: buffer, ERR: Ref[error]): Unit = {
-    var N: Int = FD
+  def ubi_atomic_leb_change(VOLID: Byte, LNUM: Int, TO: Int, N0: Int, BUF: buffer, ERR: Ref[error]): Unit = {
+    var N: Int = N0
     ERR := types.error.ESUCCESS
     N = datasize(BUF, N)
     val M = new Ref[Int](0)
@@ -293,7 +303,7 @@ class ubi_asm(val VOLS : volumes, val ERASEQ : queue, var SQNUM : Int, val WLARR
     }
   }
 
-  private def ubi_erase_worker_helper(PNUM: Int, ERR: Ref[error]): Unit = {
+  def ubi_erase_worker_helper(PNUM: Int, ERR: Ref[error]): Unit = {
     ERR := types.error.EIO
     var TRIES: Int = 0
     while (ERR.get != types.error.ESUCCESS && TRIES <= UBI_ERASE_RETRIES) {
@@ -318,46 +328,35 @@ class ubi_asm(val VOLS : volumes, val ERASEQ : queue, var SQNUM : Int, val WLARR
     }
   }
 
-  private def ubi_fix_ecs(N: Int, INVALIDECS: nat_list): Unit = {
+  def ubi_fix_ecs(N: Int, INVALIDECS: nat_list): Unit = {
     while (! INVALIDECS.isEmpty) {
       WLARRAY(INVALIDECS.head).ec = N
       INVALIDECS.removeHead
     }
   }
 
-  private def ubi_get_pebs_for_wl(TO: Ref[Int], FROM: Ref[Int], VALID: Ref[Boolean]): Unit = {
+  def ubi_get_pebs_for_wl(TO: Ref[Int], FROM: Ref[Int], VALID: Ref[Boolean]): Unit = {
     VALID := false
-    val FREEECS: nat_set = free_ecs(WLARRAY).deepCopy
-    if (! FREEECS.isEmpty) {
-      var N: Int = 0
-      val M: Int = max(below(FREEECS, min(FREEECS) + 2 * WL_THRESHOLD))
-      while (N < WLARRAY.length && (WLARRAY(N).ec != M || WLARRAY(N).status != types.wlstatus.free)) {
-        N = N + 1
-      }
-      TO := N
+    val N = new Ref[Int](0)
+    val FOUND = new Ref[Boolean](helpers.scala.Boolean.uninit)
+    ubi_wl_get_free_min(N, FOUND)
+    if (FOUND.get) {
+      ubi_wl_find_free_max_below(N.get + 2 * WL_THRESHOLD, TO)
       if (! BFLIPSET.isEmpty) {
         val N: Int = BFLIPSET.head
         FROM := N
         BFLIPSET -= N
         VALID := true
       } else {
-        val USEDECS: nat_set = used_ecs(WLARRAY).deepCopy
-        if (! USEDECS.isEmpty) {
-          var N: Int = 0
-          val M: Int = min(USEDECS)
-          while (N < WLARRAY.length && (WLARRAY(N).ec != M || WLARRAY(N).status != types.wlstatus.used)) {
-            N = N + 1
-          }
-          FROM := N
-          if (WLARRAY(TO.get).ec >= WLARRAY(FROM.get).ec + WL_THRESHOLD)
-            VALID := true
-          
-        }
+        ubi_wl_get_used_min(FROM, FOUND)
+        if (FOUND.get && WLARRAY(TO.get).ec >= WLARRAY(FROM.get).ec + WL_THRESHOLD)
+          VALID := true
+        
       }
     }
   }
 
-  private def ubi_init_vols_mappings(RECS: recoveryentries): Unit = {
+  def ubi_init_vols_mappings(RECS: recoveryentries): Unit = {
     RECS -= types.lebadress.×(VTBL_VOLID, VTBL_LNUM)
     while (! RECS.isEmpty) {
       val LADR: lebadress = RECS.headKey
@@ -373,7 +372,7 @@ class ubi_asm(val VOLS : volumes, val ERASEQ : queue, var SQNUM : Int, val WLARR
     }
   }
 
-  private def ubi_init_vols_sizes(RECS: recoveryentries, VTBL: vtbl): Unit = {
+  def ubi_init_vols_sizes(RECS: recoveryentries, VTBL: vtbl): Unit = {
     VOLS.clear
     while (! VTBL.isEmpty) {
       val VOLID: Byte = VTBL.headKey
@@ -383,12 +382,12 @@ class ubi_asm(val VOLS : volumes, val ERASEQ : queue, var SQNUM : Int, val WLARR
     }
   }
 
-  private def ubi_next_sqnum(N: Ref[Int]): Unit = {
+  def ubi_next_sqnum(N: Ref[Int]): Unit = {
     N := SQNUM
     SQNUM = SQNUM + 1
   }
 
-  private def ubi_scan_all(RECS: recoveryentries, VALIDCOUNT: Ref[Int], VALIDECSUM: Ref[Int], INVALIDECS: nat_list, ERR: Ref[error]): Unit = {
+  def ubi_scan_all(RECS: recoveryentries, VALIDCOUNT: Ref[Int], VALIDECSUM: Ref[Int], INVALIDECS: nat_list, ERR: Ref[error]): Unit = {
     RECS.clear
     BFLIPSET.clear
     VALIDCOUNT := 0
@@ -508,7 +507,19 @@ class ubi_asm(val VOLS : volumes, val ERASEQ : queue, var SQNUM : Int, val WLARR
       ERR := types.error.ENOSPC
   }
 
-  private def ubi_wl_flush(VOLID: Byte, LNUM: Int, ERR: Ref[error]): Unit = {
+  def ubi_wl_find_free_max_below(N: Int, PNUM: Ref[Int]): Unit = {
+    var M: Int = 0
+    var FOUND: Boolean = false
+    while (M < WLARRAY.length) {
+      if (WLARRAY(M).status == types.wlstatus.free && (WLARRAY(M).ec < N && (FOUND != true || WLARRAY(M).ec > WLARRAY(PNUM.get).ec))) {
+        FOUND = true
+        PNUM := M
+      }
+      M = M + 1
+    }
+  }
+
+  def ubi_wl_flush(VOLID: Byte, LNUM: Int, ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
     if (! ERASEQ.isEmpty) {
       val EQENT: erasequeueentry = ERASEQ.head
@@ -525,7 +536,7 @@ class ubi_asm(val VOLS : volumes, val ERASEQ : queue, var SQNUM : Int, val WLARR
     }
   }
 
-  private def ubi_wl_flush_vol(VOLID: Byte, ERR: Ref[error]): Unit = {
+  def ubi_wl_flush_vol(VOLID: Byte, ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
     if (! ERASEQ.isEmpty) {
       val EQENT: erasequeueentry = ERASEQ.head
@@ -542,9 +553,23 @@ class ubi_asm(val VOLS : volumes, val ERASEQ : queue, var SQNUM : Int, val WLARR
     }
   }
 
-  private def ubi_wl_get_peb(PNUM: Ref[Int], ERR: Ref[error]): Unit = {
-    val FREEECS: nat_set = free_ecs(WLARRAY).deepCopy
-    if (FREEECS.isEmpty) {
+  def ubi_wl_get_free_min(N: Ref[Int], FOUND: Ref[Boolean]): Unit = {
+    FOUND := false
+    var M: Int = 0
+    while (M < WLARRAY.length) {
+      if (WLARRAY(M).status == types.wlstatus.free && (FOUND.get != true || WLARRAY(M).ec < N.get)) {
+        FOUND := true
+        N := WLARRAY(M).ec
+      }
+      M = M + 1
+    }
+  }
+
+  def ubi_wl_get_peb(PNUM: Ref[Int], ERR: Ref[error]): Unit = {
+    val N = new Ref[Int](0)
+    val FOUND = new Ref[Boolean](helpers.scala.Boolean.uninit)
+    ubi_wl_get_free_min(N, FOUND)
+    if (FOUND.get != true) {
       if (! ERASEQ.isEmpty) {
         PNUM := ERASEQ.head.pnum
         ubi_erase_worker_helper(PNUM.get, ERR)
@@ -558,22 +583,29 @@ class ubi_asm(val VOLS : volumes, val ERASEQ : queue, var SQNUM : Int, val WLARR
       } else
         ERR := types.error.ENOSPC
     } else {
-      var N: Int = 0
-      val M: Int = max(below(FREEECS, min(FREEECS) + WL_THRESHOLD))
-      while (N < WLARRAY.length && (WLARRAY(N).ec != M || WLARRAY(N).status != types.wlstatus.free)) {
-        N = N + 1
-      }
-      PNUM := N
+      ubi_wl_find_free_max_below(N.get + WL_THRESHOLD, PNUM)
       ERR := types.error.ESUCCESS
     }
   }
 
-  private def ubi_wl_put_peb(LREF: lebref, PNUM: Int): Unit = {
+  def ubi_wl_get_used_min(PNUM: Ref[Int], FOUND: Ref[Boolean]): Unit = {
+    FOUND := false
+    var M: Int = 0
+    while (M < WLARRAY.length) {
+      if (WLARRAY(M).status == types.wlstatus.used && (FOUND.get != true || WLARRAY(M).ec < WLARRAY(PNUM.get).ec)) {
+        FOUND := true
+        PNUM := M
+      }
+      M = M + 1
+    }
+  }
+
+  def ubi_wl_put_peb(LREF: lebref, PNUM: Int): Unit = {
     WLARRAY(PNUM).status = types.wlstatus.erasing
     ERASEQ += types.erasequeueentry.eq_entry(PNUM, LREF)
   }
 
-  private def ubi_write_multiple(VOLID: Byte, LNUM: Int, OFFSET: Int, N0: Int, N: Int, BUF: buffer, ERR: Ref[error]): Unit = {
+  def ubi_write_multiple(VOLID: Byte, LNUM: Int, OFFSET: Int, N0: Int, N: Int, BUF: buffer, ERR: Ref[error]): Unit = {
     ERR := types.error.EIO
     var TRIES: Int = 0
     while (ERR.get != types.error.ESUCCESS && TRIES <= UBI_WRITE_RETRIES) {
@@ -582,7 +614,7 @@ class ubi_asm(val VOLS : volumes, val ERASEQ : queue, var SQNUM : Int, val WLARR
     }
   }
 
-  private def ubi_write_once(VOLID: Byte, LNUM: Int, OFFSET: Int, N0: Int, N: Int, BUF: buffer, ERR: Ref[error]): Unit = {
+  def ubi_write_once(VOLID: Byte, LNUM: Int, OFFSET: Int, N0: Int, N: Int, BUF: buffer, ERR: Ref[error]): Unit = {
     val PNUM = new Ref[Int](0)
     ubi_wl_get_peb(PNUM, ERR)
     if (ERR.get == types.error.ESUCCESS) {

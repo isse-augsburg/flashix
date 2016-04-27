@@ -39,6 +39,7 @@ class gjournal_asm(var SQNUM : Int, var JNLHEADVALID : Boolean, val JRO : nat_se
   override def aubifs_readflash(LOG: address_list, KS: key_set, ERR: Ref[error]): Unit = {
     JNLHEADVALID = false
     SYNC = true
+    SQNUM = 0
     val JNL: nat_list = new nat_list()
     val ino: Ref[Int] = new Ref[Int](JMAXINO)
     indexpluspersistence.indexpluspersistence_recover(ino, JNL, JRO, ERR)
@@ -119,7 +120,7 @@ class gjournal_asm(var SQNUM : Int, var JNLHEADVALID : Boolean, val JRO : nat_se
     }
   }
 
-  private def gjournal_gc_referenced_nodes(LNUM: Int, ADRLIST: address_list, GNDLIST: group_node_list, NDLIST: node_list, ERR: Ref[error]): Unit = {
+  def gjournal_gc_referenced_nodes(LNUM: Int, ADRLIST: address_list, GNDLIST: group_node_list, NDLIST: node_list, ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
     NDLIST.clear
     while (ERR.get == types.error.ESUCCESS && ! ADRLIST.isEmpty) {
@@ -150,7 +151,7 @@ class gjournal_asm(var SQNUM : Int, var JNLHEADVALID : Boolean, val JRO : nat_se
     }
   }
 
-  private def gjournal_remove_addresses(AS: address_set): Unit = {
+  def gjournal_remove_addresses(AS: address_set): Unit = {
     while (! AS.isEmpty) {
       val N = new Ref[Int](0)
       val ADR: address = AS.head
@@ -160,7 +161,7 @@ class gjournal_asm(var SQNUM : Int, var JNLHEADVALID : Boolean, val JRO : nat_se
     }
   }
 
-  private def gjournal_remove_nonend_blocks(LNUM: Int, LOG: address_list, ERR: Ref[error]): Unit = {
+  def gjournal_remove_nonend_blocks(LNUM: Int, LOG: address_list, ERR: Ref[error]): Unit = {
     val GNDLIST: group_node_list = new group_node_list()
     indexpluspersistence.indexpluspersistence_read_gblock_nodes(LNUM, LOG, GNDLIST, ERR)
     if (ERR.get == types.error.ESUCCESS) {
@@ -176,8 +177,8 @@ class gjournal_asm(var SQNUM : Int, var JNLHEADVALID : Boolean, val JRO : nat_se
     }
   }
 
-  private def gjournal_restore_log(PLOG: nat_list, LOG: address_list, ERR: Ref[error]): Unit = {
-    val JNL: nat_list = PLOG.deepCopy
+  def gjournal_restore_log(NL: nat_list, LOG: address_list, ERR: Ref[error]): Unit = {
+    val JNL: nat_list = NL.deepCopy
     LOG.clear
     ERR := types.error.ESUCCESS
     while (! JNL.isEmpty && ERR.get == types.error.ESUCCESS) {
@@ -186,8 +187,8 @@ class gjournal_asm(var SQNUM : Int, var JNLHEADVALID : Boolean, val JRO : nat_se
     }
   }
 
-  private def gjournal_split_nodes(FD: Int, NDLIST: node_list, NDLIST0: node_list): Unit = {
-    var SIZE: Int = FD
+  def gjournal_split_nodes(N: Int, NDLIST: node_list, NDLIST0: node_list): Unit = {
+    var SIZE: Int = N
     NDLIST0.clear
     while (! NDLIST.isEmpty && flashsize(NDLIST.head) <= SIZE) {
       val ND: node = NDLIST.head.deepCopy
@@ -274,6 +275,7 @@ class gjournal_asm(var SQNUM : Int, var JNLHEADVALID : Boolean, val JRO : nat_se
   override def internal_format(VOLSIZE: Int, ERR: Ref[error]): Unit = {
     JNLHEADVALID = false
     JMAXINO = ROOT_INO + 1
+    SQNUM = 0
     SYNC = true
     indexpluspersistence.indexpluspersistence_format(VOLSIZE, JMAXINO, ERR)
     if (ERR.get != types.error.ESUCCESS) {
@@ -343,10 +345,10 @@ class gjournal_asm(var SQNUM : Int, var JNLHEADVALID : Boolean, val JRO : nat_se
       val N = new Ref[Int](0)
       indexpluspersistence.indexpluspersistence_get_gblock_refsize(LNUM.get, N)
       if (N.get != 0) {
-        val NDLIST: node_list = new node_list()
         val GNDLIST: group_node_list = new group_node_list()
         val ADRLIST: address_list = new address_list()
         indexpluspersistence.indexpluspersistence_read_gblock_nodes(LNUM.get, ADRLIST, GNDLIST, ERR)
+        val NDLIST: node_list = new node_list()
         if (ERR.get != types.error.ESUCCESS) {
           debug("gjournal: failed to read LEB " + (toStr(LNUM.get) + " during GC"))
         } else {

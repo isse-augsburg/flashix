@@ -26,12 +26,10 @@ object node_header {
     err := types.error.ESUCCESS
     if (err.get == types.error.ESUCCESS) {
       encode_nat(elem.size, index + nbytes.get, buf, tmpsize, err)
-      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
       encode_bool(elem.ispadding, index + nbytes.get, buf, tmpsize, err)
-      assert(tmpsize.get == ENCODED_BOOL_SIZE, """encoding has invalid size""")
       nbytes := nbytes.get + tmpsize.get
     }
   }

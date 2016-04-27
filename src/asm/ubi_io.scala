@@ -119,14 +119,14 @@ class ubi_io_asm(val mtd : mtd_interface)(implicit _algebraic_implicit: algebrai
     }
   }
 
-  private def decode_echeader(buf: buffer, ehdr: Ref[echeader], err: Ref[error]): Unit = {
+  def decode_echeader(buf: buffer, ehdr: Ref[echeader], err: Ref[error]): Unit = {
     if (ENCODED_EC_HEADER_SIZE <= EB_PAGE_SIZE) {
       decode_echeader_nonempty(0, buf, ehdr, err)
     } else
       err := types.error.EINVAL
   }
 
-  private def decode_echeader_nonempty(n: Int, buf: buffer, ehdr: Ref[echeader], err: Ref[error]): Unit = {
+  def decode_echeader_nonempty(n: Int, buf: buffer, ehdr: Ref[echeader], err: Ref[error]): Unit = {
     if (isempty(buf, n, ENCODED_EC_HEADER_SIZE))
       err := types.error.EINVAL
     else {
@@ -135,14 +135,14 @@ class ubi_io_asm(val mtd : mtd_interface)(implicit _algebraic_implicit: algebrai
     }
   }
 
-  private def decode_vidheader(buf: buffer, vhdr: Ref[vidheader], err: Ref[error]): Unit = {
+  def decode_vidheader(buf: buffer, vhdr: Ref[vidheader], err: Ref[error]): Unit = {
     if (ENCODED_VIDHEADER_SIZE <= EB_PAGE_SIZE) {
       decode_vidheader_nonempty(0, buf, vhdr, err)
     } else
       err := types.error.EINVAL
   }
 
-  private def decode_vidheader_nonempty(n: Int, buf: buffer, vhdr: Ref[vidheader], err: Ref[error]): Unit = {
+  def decode_vidheader_nonempty(n: Int, buf: buffer, vhdr: Ref[vidheader], err: Ref[error]): Unit = {
     if (isempty(buf, n, ENCODED_VIDHEADER_SIZE))
       err := types.error.EINVAL
     else {
@@ -151,14 +151,14 @@ class ubi_io_asm(val mtd : mtd_interface)(implicit _algebraic_implicit: algebrai
     }
   }
 
-  private def encode_echeader(ehdr: echeader, buf: buffer, err: Ref[error]): Unit = {
+  def encode_echeader(ehdr: echeader, buf: buffer, err: Ref[error]): Unit = {
     if (ENCODED_EC_HEADER_SIZE <= EB_PAGE_SIZE) {
       encode_echeader_nonempty(ehdr, 0, buf, err)
     } else
       err := types.error.EINVAL
   }
 
-  private def encode_echeader_nonempty(ehdr: echeader, n: Int, buf: buffer, err: Ref[error]): Unit = {
+  def encode_echeader_nonempty(ehdr: echeader, n: Int, buf: buffer, err: Ref[error]): Unit = {
     val m = new Ref[Int](0)
     encode_echeader_empty(ehdr, n, buf, m, err)
     if (err.get == types.error.ESUCCESS && isempty(buf, n, m.get)) {
@@ -167,14 +167,14 @@ class ubi_io_asm(val mtd : mtd_interface)(implicit _algebraic_implicit: algebrai
     }
   }
 
-  private def encode_vidheader(vhdr: vidheader, buf: buffer, err: Ref[error]): Unit = {
+  def encode_vidheader(vhdr: vidheader, buf: buffer, err: Ref[error]): Unit = {
     if (ENCODED_VIDHEADER_SIZE <= EB_PAGE_SIZE) {
       encode_vidheader_nonempty(vhdr, 0, buf, err)
     } else
       err := types.error.EINVAL
   }
 
-  private def encode_vidheader_nonempty(vhdr: vidheader, n: Int, buf: buffer, err: Ref[error]): Unit = {
+  def encode_vidheader_nonempty(vhdr: vidheader, n: Int, buf: buffer, err: Ref[error]): Unit = {
     val m = new Ref[Int](0)
     encode_vidheader_empty(vhdr, n, buf, m, err)
     if (err.get == types.error.ESUCCESS && isempty(buf, n, m.get)) {
