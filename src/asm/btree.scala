@@ -15,12 +15,12 @@ class btree_asm(var RT : znode, var ADRT : address, val apersistence : apersiste
   import _algebraic_implicit._
   import _procedures_implicit._
 
-  private def btree_commit_rec(R: znode, ADR: Ref[address], LNUM: Ref[Int], ERR: Ref[error]): Unit = {
+  def btree_commit_rec(R: znode, ADR: Ref[address], LNUM: Ref[Int], ERR: Ref[error]): Unit = {
     if (! R.leaf) {
       var N: Int = 0
       while (N < R.usedsize && ERR.get == types.error.ESUCCESS) {
-        val RC: znode = R.zbranches(N).child
         val ADRC = new Ref[address](R.zbranches(N).adr)
+        val RC: znode = R.zbranches(N).child
         if (RC != null && RC.dirty) {
           btree_commit_rec(RC, ADRC, LNUM, ERR)
           R.zbranches(N) = R.zbranches(N).updated_adr(ADRC.get).deepCopy
@@ -33,9 +33,10 @@ class btree_asm(var RT : znode, var ADRT : address, val apersistence : apersiste
     }
     if (ERR.get == types.error.ESUCCESS)
       R.dirty = false
+    
   }
 
-  private def btree_entries(KEY: key, RP: znode, ADR0: address, R: Ref[znode], DONE: Ref[Boolean], NAMES: stringset, ERR: Ref[error]): Unit = {
+  def btree_entries(KEY: key, RP: znode, ADR0: address, R: Ref[znode], DONE: Ref[Boolean], NAMES: stringset, ERR: Ref[error]): Unit = {
     btree_io_load(RP, ADR0, R, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       if (R.get.leaf) {
@@ -59,7 +60,7 @@ class btree_asm(var RT : znode, var ADRT : address, val apersistence : apersiste
     }
   }
 
-  private def btree_io_dirty(R: znode, ADR: address, DIRTY: Boolean, ERR: Ref[error]): Unit = {
+  def btree_io_dirty(R: znode, ADR: address, DIRTY: Boolean, ERR: Ref[error]): Unit = {
     if (DIRTY) {
       if (! R.dirty) {
         val SIZE = new Ref[Int](0)
@@ -87,16 +88,16 @@ class btree_asm(var RT : znode, var ADRT : address, val apersistence : apersiste
       ERR := types.error.ESUCCESS
   }
 
-  private def btree_io_save(R: znode, ADR: Ref[address], LNUM: Ref[Int], ERR: Ref[error]): Unit = {
+  def btree_io_save(R: znode, ADR: Ref[address], LNUM: Ref[Int], ERR: Ref[error]): Unit = {
     val IND: index_node = types.index_node.indexnode(new branch_array(BRANCH_SIZE).fill(types.branch.uninit), R.leaf, R.usedsize)
     var N: Int = 0
     while (N < R.usedsize) {
       IND.branches(N) = save(R.zbranches(N))
       N = N + 1
     }
-    val FD = new Ref[Int](0)
-    apersistence.apersistence_get_iblock_size(LNUM.get, FD)
-    if (LEB_SIZE <= FD.get + flashsize(IND)) {
+    val N0 = new Ref[Int](0)
+    apersistence.apersistence_get_iblock_size(LNUM.get, N0)
+    if (LEB_SIZE <= N0.get + flashsize(IND)) {
       apersistence.apersistence_flush_ind(LNUM.get, ERR)
       if (ERR.get == types.error.ESUCCESS) {
         apersistence.apersistence_allocate_ind(LNUM, ERR)
@@ -114,14 +115,14 @@ class btree_asm(var RT : znode, var ADRT : address, val apersistence : apersiste
     }
   }
 
-  private def btree_io_scan(KEY: key, SKIP: Int, R: znode, POS: Ref[Int]): Unit = {
+  def btree_io_scan(KEY: key, SKIP: Int, R: znode, POS: Ref[Int]): Unit = {
     POS := 0
     while (POS.get + SKIP < R.usedsize && <(R.zbranches(POS.get).key, KEY)) {
       POS := POS.get + 1
     }
   }
 
-  private def btree_io_shift_left(POS: Int, R: znode): Unit = {
+  def btree_io_shift_left(POS: Int, R: znode): Unit = {
     var N: Int = POS
     while (N + 1 < R.usedsize) {
       R.zbranches(N) = R.zbranches(N + 1).deepCopy
@@ -129,7 +130,7 @@ class btree_asm(var RT : znode, var ADRT : address, val apersistence : apersiste
     }
   }
 
-  private def btree_io_shift_n_left(POS: Int, N: Int, R: znode): Unit = {
+  def btree_io_shift_n_left(POS: Int, N: Int, R: znode): Unit = {
     var M: Int = POS
     while (M + N < R.usedsize) {
       R.zbranches(M) = R.zbranches(M + N).deepCopy
@@ -137,7 +138,7 @@ class btree_asm(var RT : znode, var ADRT : address, val apersistence : apersiste
     }
   }
 
-  private def btree_io_shift_right(POS: Int, R: znode): Unit = {
+  def btree_io_shift_right(POS: Int, R: znode): Unit = {
     var N: Int = R.usedsize
     while (POS < N) {
       R.zbranches(N) = R.zbranches(N - 1).deepCopy
@@ -145,13 +146,13 @@ class btree_asm(var RT : znode, var ADRT : address, val apersistence : apersiste
     }
   }
 
-  private def btree_io_split(POS: Int, R: znode, RL: Ref[znode], RR: Ref[znode], ERR: Ref[error]): Unit = {
+  def btree_io_split(POS: Int, R: znode, RL: Ref[znode], RR: Ref[znode], ERR: Ref[error]): Unit = {
     val NUSED: Int = R.usedsize
-    val LEFT: Int = POS
-    val RIGHT: Int = NUSED - POS
     val LEAF: Boolean = R.leaf
     val RP: znode = R.parent
     val DIRTY: Boolean = R.dirty
+    val LEFT: Int = POS
+    val RIGHT: Int = NUSED - POS
     val R0 : znode = types.znode.mkznode(RP, new zbranch_array(BRANCH_SIZE).fill(types.zbranch.uninit), LEAF, DIRTY, RIGHT)
     RR := R0
     RL := R
@@ -166,7 +167,7 @@ class btree_asm(var RT : znode, var ADRT : address, val apersistence : apersiste
     ERR := types.error.ESUCCESS
   }
 
-  private def btree_traverse(MOD: modification, RP: znode, ADR0: address, R: Ref[znode], DIRTY: Ref[Boolean], EXISTS: Ref[Boolean], ADR: Ref[address], ND: Ref[node], ERR: Ref[error]): Unit = {
+  def btree_traverse(MOD: modification, RP: znode, ADR0: address, R: Ref[znode], DIRTY: Ref[Boolean], EXISTS: Ref[Boolean], ADR: Ref[address], ND: Ref[node], ERR: Ref[error]): Unit = {
     btree_io_load(RP, ADR0, R, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       if (R.get.leaf) {
@@ -252,15 +253,15 @@ class btree_asm(var RT : znode, var ADRT : address, val apersistence : apersiste
     }
   }
 
-  private def btree_traverse_root(MOD: modification, RP: znode, DIRTY: Ref[Boolean], EXISTS: Ref[Boolean], ADR: Ref[address], ND: Ref[node], ERR: Ref[error]): Unit = {
+  def btree_traverse_root(MOD: modification, RP: znode, DIRTY: Ref[Boolean], EXISTS: Ref[Boolean], ADR: Ref[address], ND: Ref[node], ERR: Ref[error]): Unit = {
     val rp: Ref[znode] = new Ref[znode](RT)
     btree_traverse(MOD, RP, ADRT, rp, DIRTY, EXISTS, ADR, ND, ERR)
     RT = rp.get
     if (ERR.get == types.error.ESUCCESS) {
       if (RT.usedsize == BRANCH_SIZE) {
-        val POS: Int = MIN_SIZE
-        val RL = new Ref[znode](null)
         val RR = new Ref[znode](null)
+        val RL = new Ref[znode](null)
+        val POS: Int = MIN_SIZE
         btree_io_split(POS, RT, RL, RR, ERR)
         val R : znode = types.znode.mkznode(null, new zbranch_array(BRANCH_SIZE).fill(types.zbranch.uninit), false, true, 2)
         RT = R
@@ -274,13 +275,13 @@ class btree_asm(var RT : znode, var ADRT : address, val apersistence : apersiste
     }
   }
 
-  private def btree_truncate(KEY: key, RP: znode, ADR0: address, R: Ref[znode], DIRTY: Ref[Boolean], DONE: Ref[Boolean], AS: address_set, ERR: Ref[error]): Unit = {
+  def btree_truncate(KEY: key, RP: znode, ADR0: address, R: Ref[znode], DIRTY: Ref[Boolean], DONE: Ref[Boolean], AS: address_set, ERR: Ref[error]): Unit = {
     btree_io_load(RP, ADR0, R, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       if (R.get.leaf) {
+        var N: Int = 0
         val POS = new Ref[Int](0)
         btree_io_scan(KEY, 0, R.get, POS)
-        var N: Int = 0
         while (POS.get + N < R.get.usedsize && (KEY.ino == R.get.zbranches(POS.get + N).key.ino && R.get.zbranches(POS.get + N).key.isInstanceOf[types.key.datakey])) {
           if (R.get.zbranches(POS.get + N).isInstanceOf[types.zbranch.mkzentry])
             AS += R.get.zbranches(POS.get + N).adr
@@ -297,10 +298,8 @@ class btree_asm(var RT : znode, var ADRT : address, val apersistence : apersiste
         while (N.get < R.get.usedsize && DONE.get != true) {
           val ADRC: address = R.get.zbranches(N.get).adr
           val RC = new Ref[znode](R.get.zbranches(N.get).child)
-          val dirty = DIRTY.get
           btree_truncate(KEY, R.get, ADRC, RC, DIRTY, DONE, AS, ERR)
           R.get.zbranches(N.get) = R.get.zbranches(N.get).updated_child(RC.get).deepCopy
-          DIRTY := DIRTY.get || dirty
           if (RC.get.usedsize == 0 && R.get.usedsize != 0) {
             btree_io_shift_left(N.get, R.get)
             R.get.usedsize = R.get.usedsize - 1
@@ -310,10 +309,6 @@ class btree_asm(var RT : znode, var ADRT : address, val apersistence : apersiste
       }
     }
     btree_io_dirty(R.get, ADR0, DIRTY.get, ERR)
-  }
-
-  override def indexpluspersistence_add_gnd(LNUM: Int, GND: group_node, ADR: Ref[address], ERR: Ref[error]): Unit = {
-    apersistence.apersistence_add_gnd(LNUM, GND, ADR, ERR)
   }
 
   override def indexpluspersistence_add_gnds(LNUM: Int, GNDLIST: group_node_list, ADRLIST: address_list, ERR: Ref[error]): Unit = {
@@ -342,6 +337,7 @@ class btree_asm(var RT : znode, var ADRT : address, val apersistence : apersiste
     }
     if (ERR.get == types.error.ESUCCESS)
       ADRT = ADR.get
+    
   }
 
   override def indexpluspersistence_deallocate_gnd(N: Int, ERR: Ref[error]): Unit = {

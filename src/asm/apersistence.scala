@@ -11,7 +11,6 @@ import types._
 import types.error.error
 
 abstract class apersistence_interface {
-  def apersistence_add_gnd(LNUM: Int, GND: group_node, ADR: Ref[address], ERR: Ref[error])
   def apersistence_add_gnds(LNUM: Int, GNDLIST: group_node_list, ADRLIST: address_list, ERR: Ref[error])
   def apersistence_add_ind(LNUM: Int, IND: index_node, ADR: Ref[address], ERR: Ref[error])
   def apersistence_allocate_gnd(N: Ref[Int], ERR: Ref[error])

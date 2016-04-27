@@ -19,6 +19,7 @@ abstract class ebm_interface {
   def ebm_map(VOLID: Byte, LNUM: Int, ERR: Ref[error])
   def ebm_read(VOLID: Byte, LNUM: Int, OFFSET: Int, N0: Int, N: Int, BUF: buffer, ERR: Ref[error])
   def ebm_recover(ERR: Ref[error])
+  def ebm_sync_device(ERR: Ref[error])
   def ebm_unmap(VOLID: Byte, LNUM: Int)
   def ebm_write(VOLID: Byte, LNUM: Int, OFFSET: Int, N0: Int, N: Int, BUF: buffer, ERR: Ref[error])
 }

@@ -41,32 +41,26 @@ object node {
       err := types.error.ESUCCESS
       if (err.get == types.error.ESUCCESS) {
         encode_key(elem.key, index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == flashsize_key(elem.key), """encoding has invalid size""")
         nbytes := nbytes.get + tmpsize.get
       }
       if (err.get == types.error.ESUCCESS) {
         encode_metadata(elem.meta, index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == ENCODED_METADATA_SIZE, """encoding has invalid size""")
         nbytes := nbytes.get + tmpsize.get
       }
       if (err.get == types.error.ESUCCESS) {
         encode_bool(elem.directory, index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == ENCODED_BOOL_SIZE, """encoding has invalid size""")
         nbytes := nbytes.get + tmpsize.get
       }
       if (err.get == types.error.ESUCCESS) {
         encode_nat(elem.nlink, index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
         nbytes := nbytes.get + tmpsize.get
       }
       if (err.get == types.error.ESUCCESS) {
         encode_nat(elem.nsubdirs, index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
         nbytes := nbytes.get + tmpsize.get
       }
       if (err.get == types.error.ESUCCESS) {
         encode_nat(elem.size, index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
         nbytes := nbytes.get + tmpsize.get
       }
     } else     if (elem.isInstanceOf[types.node.dentrynode]) {
@@ -75,12 +69,10 @@ object node {
       err := types.error.ESUCCESS
       if (err.get == types.error.ESUCCESS) {
         encode_key(elem.key, index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == flashsize_key(elem.key), """encoding has invalid size""")
         nbytes := nbytes.get + tmpsize.get
       }
       if (err.get == types.error.ESUCCESS) {
         encode_nat(elem.ino, index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
         nbytes := nbytes.get + tmpsize.get
       }
     } else     if (elem.isInstanceOf[types.node.datanode]) {
@@ -89,12 +81,10 @@ object node {
       err := types.error.ESUCCESS
       if (err.get == types.error.ESUCCESS) {
         encode_key(elem.key, index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == flashsize_key(elem.key), """encoding has invalid size""")
         nbytes := nbytes.get + tmpsize.get
       }
       if (err.get == types.error.ESUCCESS) {
         encode_buffer(elem.data, index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == flashsize_buffer(elem.data), """encoding has invalid size""")
         nbytes := nbytes.get + tmpsize.get
       }
     } else     if (elem.isInstanceOf[types.node.truncnode]) {
@@ -103,17 +93,14 @@ object node {
       err := types.error.ESUCCESS
       if (err.get == types.error.ESUCCESS) {
         encode_key(elem.key, index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == flashsize_key(elem.key), """encoding has invalid size""")
         nbytes := nbytes.get + tmpsize.get
       }
       if (err.get == types.error.ESUCCESS) {
         encode_nat(elem.size, index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
         nbytes := nbytes.get + tmpsize.get
       }
     } else
       assert(false)
-    assert(nbytes.get == flashsize_node(elem), """encoding has invalid size""")
   }
 
   def decode_node(index: Int, buf: buffer, elem: Ref[node], nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {

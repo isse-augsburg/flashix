@@ -23,6 +23,7 @@ abstract class awbuf_interface {
   def awbuf_read_buf(LNUM: Int, OFFSET: Int, N: Int, BUF: buffer, ERR: Ref[error])
   def awbuf_recover(ERR: Ref[error])
   def awbuf_remap(LNUM: Int, ERR: Ref[error])
+  def awbuf_sync_device(ERR: Ref[error])
   def awbuf_unmap(LNUM: Int)
   def awbuf_write(LNUM: Int, OFFSET: Int, N0: Int, N: Int, BUF: buffer, ERR: Ref[error])
   def awbuf_write_buf(LNUM: Int, N: Int, BUF: buffer, ERR: Ref[error])

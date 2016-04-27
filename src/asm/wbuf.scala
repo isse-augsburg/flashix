@@ -90,6 +90,10 @@ class wbuf_asm(var VOLID : Byte, val WBSTORE : wbuf_store, val ebm : ebm_interfa
     ebm.ebm_map(VOLID, LNUM, ERR)
   }
 
+  override def awbuf_sync_device(ERR: Ref[error]): Unit = {
+    ebm.ebm_sync_device(ERR)
+  }
+
   override def awbuf_unmap(LNUM: Int): Unit = {
     ebm.ebm_unmap(VOLID, LNUM)
     WBSTORE -= LNUM

@@ -38,12 +38,10 @@ object branch {
       err := types.error.ESUCCESS
       if (err.get == types.error.ESUCCESS) {
         encode_key(elem.key, index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == flashsize_key(elem.key), """encoding has invalid size""")
         nbytes := nbytes.get + tmpsize.get
       }
       if (err.get == types.error.ESUCCESS) {
         encode_address(elem.adr, index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == ENCODED_ADDRESS_SIZE, """encoding has invalid size""")
         nbytes := nbytes.get + tmpsize.get
       }
     } else     if (elem.isInstanceOf[types.branch.mkentry]) {
@@ -52,12 +50,10 @@ object branch {
       err := types.error.ESUCCESS
       if (err.get == types.error.ESUCCESS) {
         encode_key(elem.key, index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == flashsize_key(elem.key), """encoding has invalid size""")
         nbytes := nbytes.get + tmpsize.get
       }
       if (err.get == types.error.ESUCCESS) {
         encode_address(elem.adr, index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == ENCODED_ADDRESS_SIZE, """encoding has invalid size""")
         nbytes := nbytes.get + tmpsize.get
       }
     } else     if (elem.isInstanceOf[types.branch.mkchecked]) {
@@ -66,12 +62,10 @@ object branch {
       err := types.error.ESUCCESS
       if (err.get == types.error.ESUCCESS) {
         encode_key(elem.key, index + nbytes.get, buf, tmpsize, err)
-        assert(tmpsize.get == flashsize_key(elem.key), """encoding has invalid size""")
         nbytes := nbytes.get + tmpsize.get
       }
     } else
       assert(false)
-    assert(nbytes.get == flashsize_branch(elem), """encoding has invalid size""")
   }
 
   def decode_branch(index: Int, buf: buffer, elem: Ref[branch], nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {

@@ -234,8 +234,8 @@ class aubifs_asm(val aubifs_internal_asm : aubifs_internal_asm_interface)(implic
     val IDENTITY: Boolean = OLD_DENT.get == NEW_DENT.get
     val OVERWRITE: Boolean = NEW_DENT.get.isInstanceOf[types.dentry.mkdentry]
     if (OVERWRITE || REPARENT) {
-      val FD: Int = OLD_INO
-      aubifs_iget_check(FD, EXISTS, INODE, ERR)
+      val N: Int = OLD_INO
+      aubifs_iget_check(N, EXISTS, INODE, ERR)
       OLD_INODE := INODE.deepCopy
       val INO: Int = OLD_DENT.get.ino
       aubifs_iget_check(INO, EXISTS, INODE, ERR)
@@ -340,20 +340,20 @@ class aubifs_asm(val aubifs_internal_asm : aubifs_internal_asm_interface)(implic
 
   override def afs_truncate(INODE: inode, N: Int, ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
+    var KEY2: key = types.key.uninit
+    var ND2: node = types.node.uninit
+    var KEY1: key = types.key.uninit
+    val ADR2 = new Ref[address](types.address.uninit)
+    val SIZE: Int = min(N, INODE.size)
     val ND3 = new Ref[node](types.node.uninit)
     val EXISTS = new Ref[Boolean](helpers.scala.Boolean.uninit)
-    var KEY2: key = types.key.uninit
     val ADR1 = new Ref[address](types.address.uninit)
     var KEY3: key = types.key.uninit
     var ND1: node = types.node.uninit
-    var ND2: node = types.node.uninit
     val PBUF: buffer = new buffer()
-    var KEY1: key = types.key.uninit
-    val ADR2 = new Ref[address](types.address.uninit)
     val ADR3 = new Ref[address](types.address.uninit)
     val PAGENO: Int = INODE.size / VFS_PAGE_SIZE
     val OFFSET: Int = INODE.size % VFS_PAGE_SIZE
-    val SIZE: Int = min(N, INODE.size)
     KEY1 = types.key.inodekey(INODE.ino)
     KEY2 = KEY1
     KEY3 = types.key.datakey(INODE.ino, PAGENO)
@@ -455,7 +455,7 @@ class aubifs_asm(val aubifs_internal_asm : aubifs_internal_asm_interface)(implic
     }
   }
 
-  private def aubifs_iget_check(INO: Int, EXISTS: Ref[Boolean], INODE: inode, ERR: Ref[error]): Unit = {
+  def aubifs_iget_check(INO: Int, EXISTS: Ref[Boolean], INODE: inode, ERR: Ref[error]): Unit = {
     if (ERR.get == types.error.ESUCCESS) {
       val KEY: key = types.key.inodekey(INO)
       val ND = new Ref[node](types.node.uninit)
@@ -466,14 +466,14 @@ class aubifs_asm(val aubifs_internal_asm : aubifs_internal_asm_interface)(implic
     }
   }
 
-  private def aubifs_pget_check(P_INO: Int, EXISTS: Ref[Boolean], P_INODE: inode, ERR: Ref[error]): Unit = {
+  def aubifs_pget_check(P_INO: Int, EXISTS: Ref[Boolean], P_INODE: inode, ERR: Ref[error]): Unit = {
     val INODE: inode = types.inode.uninit
     val INO: Int = P_INO
     aubifs_iget_check(INO, EXISTS, INODE, ERR)
     P_INODE := INODE
   }
 
-  private def aubifs_replaylog(LOG0: address_list, ERR: Ref[error]): Unit = {
+  def aubifs_replaylog(LOG0: address_list, ERR: Ref[error]): Unit = {
     val AX: address_list = LOG0.deepCopy
     while (ERR.get == types.error.ESUCCESS && ! AX.isEmpty) {
       val ADR: address = AX.head
@@ -482,7 +482,7 @@ class aubifs_asm(val aubifs_internal_asm : aubifs_internal_asm_interface)(implic
     }
   }
 
-  private def aubifs_replayone(ADR: address, ERR: Ref[error]): Unit = {
+  def aubifs_replayone(ADR: address, ERR: Ref[error]): Unit = {
     val ND = new Ref[node](types.node.uninit)
     aubifs_internal_asm.journal_get(ADR, ND, ERR)
     val EXISTS = new Ref[Boolean](helpers.scala.Boolean.uninit)
@@ -528,7 +528,7 @@ class aubifs_asm(val aubifs_internal_asm : aubifs_internal_asm_interface)(implic
     }
   }
 
-  private def aubifs_replayorphans(KS: key_set, ERR: Ref[error]): Unit = {
+  def aubifs_replayorphans(KS: key_set, ERR: Ref[error]): Unit = {
     while (! KS.isEmpty && ERR.get == types.error.ESUCCESS) {
       val KEY: key = KS.head
       aubifs_internal_asm.index_checkdata(KEY, 0, ERR)

@@ -19,27 +19,6 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
   import _algebraic_implicit._
   import _procedures_implicit._
 
-  override def apersistence_add_gnd(LNUM: Int, GND: group_node, ADR: Ref[address], ERR: Ref[error]): Unit = {
-    if (LPT(LNUM).size + flashsize(GND) > LEB_SIZE)
-      ERR := types.error.ENOSPC
-    else {
-      persistence_ensure_buffered(LNUM)
-      val SIZE = new Ref[Int](0)
-      val BUF: buffer = new buffer(flashsize(GND)).fill(0.toByte)
-      encode_group_node(GND, 0, SIZE, BUF, ERR)
-      if (ERR.get == types.error.ESUCCESS) {
-        apersistence_io.apersistence_io_write_buf(LNUM, SIZE.get, BUF, ERR)
-      }
-      if (ERR.get == types.error.ESUCCESS) {
-        ADR := types.address.at(LNUM, LPT(LNUM).size, SIZE.get)
-        LPT(LNUM).size = LPT(LNUM).size + SIZE.get
-      } else {
-        debug("persistence: adding group node to LEB " + (toStr(LNUM) + " failed"))
-        LPT(LNUM).size = LEB_SIZE
-      }
-    }
-  }
-
   override def apersistence_add_gnds(LNUM: Int, NODELIST: group_node_list, ADRLIST: address_list, ERR: Ref[error]): Unit = {
     if (NODELIST.isEmpty) {
       ADRLIST.clear
@@ -130,7 +109,7 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
   override def apersistence_format(VOLSIZE: Int, PMAXINO0: Int, ERR: Ref[error]): Unit = {
     LPT.allocate(VOLSIZE, types.lprops.uninit)
     LPT.fill(types.lprops.mklp(0, 0, types.lpropflags.LP_FREE, 0))
-    val ADR: address = types.address.uninit
+    val ADR: address = types.address.at(0, 0, 0)
     apersistence_io.apersistence_io_format(VOLSIZE, LPT, ADR, PMAXINO0, ERR)
     if (ERR.get != types.error.ESUCCESS) {
       debug("persistence: persistence-io format failed")
@@ -186,8 +165,8 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
             debug("persistence: read_gblock_nodes ignoring node of size " + (toStr(SIZE) + (" at offset " + (toStr(OFFSET) + (" in LEB " + toStr(LNUM))))))
             ERR := types.error.ENOENT
           } else           if (! rangeeq(BUF, OFFSET + (NODE_HEADER_SIZE + alignUp(NDHD.get.size, 2 * NODE_HEADER_SIZE)), validtrailer, 0, NODE_HEADER_SIZE)) {
-            debug("persistence: read_gblock_nodes partial node at offset " + (toStr(OFFSET) + (" in LEB " + toStr(LNUM))))
             ERR := types.error.ENOENT
+            debug("persistence: read_gblock_nodes partial node at offset " + (toStr(OFFSET) + (" in LEB " + toStr(LNUM))))
           } else           if (! NDHD.get.ispadding) {
             val GND = new Ref[group_node](types.group_node.uninit)
             decode_group_node(OFFSET, SIZE, BUF, GND, ERR)
@@ -198,7 +177,6 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
               ADRLIST += types.address.at(LNUM, OFFSET, SIZE)
             }
           }
-          
           if (ERR.get == types.error.ESUCCESS)
             OFFSET = OFFSET + SIZE
           
@@ -255,7 +233,7 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     LPT(LNUM).ref_size = N
   }
 
-  private def bin_min_heap_bubble_down(n0: Int, bh: binheap, lpt: lp_array): Unit = {
+  def bin_min_heap_bubble_down(n0: Int, bh: binheap, lpt: lp_array): Unit = {
     var n1: Int = n0
     while (2 * n1 + 1 < bh.size && (bh.ar(2 * n1 + 1).key < bh.ar(n1).key || 2 * n1 + 2 < bh.size && bh.ar(2 * n1 + 2).key < bh.ar(n1).key)) {
       val ki: keyindex = bh.ar(n1).deepCopy
@@ -277,7 +255,7 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     }
   }
 
-  private def bin_min_heap_bubble_up(n0: Int, bh: binheap, lpt: lp_array): Unit = {
+  def bin_min_heap_bubble_up(n0: Int, bh: binheap, lpt: lp_array): Unit = {
     var n1: Int = n0
     while (n1 != 0 && bh.ar(n1).key < bh.ar((n1 - 1) / 2).key) {
       val ki: keyindex = bh.ar(n1).deepCopy
@@ -290,13 +268,13 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     }
   }
 
-  private def bin_min_heap_next_2pot(n0: Int, n1: Ref[Int]): Unit = {
+  def bin_min_heap_next_2pot(n0: Int, n1: Ref[Int]): Unit = {
     while (n1.get < n0) {
       n1 := n1.get * 2
     }
   }
 
-  private def bin_min_heap_resize(n1: Int, bh: binheap): Unit = {
+  def bin_min_heap_resize(n1: Int, bh: binheap): Unit = {
     if (n1 > bh.size) {
       val n0 = new Ref[Int](bh.ar.length)
       bin_min_heap_next_2pot(n1, n0)
@@ -306,8 +284,8 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     }
   }
 
-  private def decode_group_node(OFFSET: Int, FD: Int, BUF: buffer, GND: Ref[group_node], ERR: Ref[error]): Unit = {
-    val SIZE = new Ref[Int](FD)
+  def decode_group_node(OFFSET: Int, N: Int, BUF: buffer, GND: Ref[group_node], ERR: Ref[error]): Unit = {
+    val SIZE = new Ref[Int](N)
     if (SIZE.get < 2 * NODE_HEADER_SIZE) {
       debug("persistence: decode_node expected size wrong")
       ERR := types.error.EINVAL
@@ -341,7 +319,7 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     }
   }
 
-  private def decode_header(n: Int, buf: buffer, ndhd: Ref[node_header], err: Ref[error]): Unit = {
+  def decode_header(n: Int, buf: buffer, ndhd: Ref[node_header], err: Ref[error]): Unit = {
     if (isempty(buf, n, NODE_HEADER_SIZE))
       err := types.error.EINVAL
     else {
@@ -350,8 +328,8 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     }
   }
 
-  private def decode_index_node(OFFSET: Int, FD: Int, BUF: buffer, IND: index_node, ERR: Ref[error]): Unit = {
-    val SIZE = new Ref[Int](FD)
+  def decode_index_node(OFFSET: Int, N: Int, BUF: buffer, IND: index_node, ERR: Ref[error]): Unit = {
+    val SIZE = new Ref[Int](N)
     if (SIZE.get < 2 * NODE_HEADER_SIZE) {
       debug("persistence: decode_node expected size wrong")
       ERR := types.error.EINVAL
@@ -385,7 +363,7 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     }
   }
 
-  private def encode_group_node(GND: group_node, OFFSET: Int, SIZE: Ref[Int], BUF: buffer, ERR: Ref[error]): Unit = {
+  def encode_group_node(GND: group_node, OFFSET: Int, SIZE: Ref[Int], BUF: buffer, ERR: Ref[error]): Unit = {
     val NDSIZE: Int = group_node_size_headerless(GND)
     val ALIGNEDSIZE: Int = alignUp(NDSIZE, 2 * NODE_HEADER_SIZE)
     encode_header(types.node_header.nodeheader(NDSIZE, false), OFFSET, BUF, ERR)
@@ -400,7 +378,7 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     SIZE := 2 * NODE_HEADER_SIZE + ALIGNEDSIZE
   }
 
-  private def encode_header(ndhd: node_header, n: Int, buf: buffer, err: Ref[error]): Unit = {
+  def encode_header(ndhd: node_header, n: Int, buf: buffer, err: Ref[error]): Unit = {
     val m = new Ref[Int](0)
     encode_header_empty(ndhd, n, buf, m, err)
     if (err.get == types.error.ESUCCESS && isempty(buf, n, m.get)) {
@@ -409,7 +387,7 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     }
   }
 
-  private def encode_index_node(IND: index_node, OFFSET: Int, SIZE: Ref[Int], BUF: buffer, ERR: Ref[error]): Unit = {
+  def encode_index_node(IND: index_node, OFFSET: Int, SIZE: Ref[Int], BUF: buffer, ERR: Ref[error]): Unit = {
     val NDSIZE: Int = index_node_size_headerless(IND)
     val ALIGNEDSIZE: Int = alignUp(NDSIZE, 2 * NODE_HEADER_SIZE)
     encode_header(types.node_header.nodeheader(NDSIZE, false), OFFSET, BUF, ERR)
@@ -424,18 +402,18 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     SIZE := 2 * NODE_HEADER_SIZE + ALIGNEDSIZE
   }
 
-  private def gc_heap_empty(bh: binheap): Unit = {
+  def gc_heap_empty(bh: binheap): Unit = {
     bh := types.binheap.bin_heap(new key_array(1).fill(types.keyindex.uninit), 0)
   }
 
-  private def gc_heap_get_min(bh: binheap, n0: Ref[Int]): Unit = {
+  def gc_heap_get_min(bh: binheap, n0: Ref[Int]): Unit = {
     if (bh.size == 0)
       assert(false, """abort""")
     
     n0 := bh.ar(0).idx
   }
 
-  private def gc_heap_insert(ki: keyindex, bh: binheap, lpt: lp_array): Unit = {
+  def gc_heap_insert(ki: keyindex, bh: binheap, lpt: lp_array): Unit = {
     if (! (ki.idx < lpt.length))
       assert(false, """abort""")
     
@@ -446,11 +424,11 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     bin_min_heap_bubble_up(bh.size - 1, bh, lpt)
   }
 
-  private def gc_heap_is_empty(bh: binheap, empty_ : Ref[Boolean]): Unit = {
+  def gc_heap_is_empty(bh: binheap, empty_ : Ref[Boolean]): Unit = {
     empty_ := (bh.size == 0)
   }
 
-  private def gc_heap_remove(n0: Int, bh: binheap, lpt: lp_array): Unit = {
+  def gc_heap_remove(n0: Int, bh: binheap, lpt: lp_array): Unit = {
     if (! (n0 < bh.size))
       assert(false, """abort""")
     
@@ -466,7 +444,7 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     }
   }
 
-  private def gc_heap_update(n2: Int, n0: Int, bh: binheap, lpt: lp_array): Unit = {
+  def gc_heap_update(n2: Int, n0: Int, bh: binheap, lpt: lp_array): Unit = {
     if (! (n2 < bh.size))
       assert(false, """abort""")
     
@@ -479,7 +457,7 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     }
   }
 
-  private def persistence_allocate_leb(N: Ref[Int], ERR: Ref[error]): Unit = {
+  def persistence_allocate_leb(N: Ref[Int], ERR: Ref[error]): Unit = {
     if (FREELIST.isEmpty)
       ERR := types.error.ENOSPC
     else {
@@ -493,7 +471,7 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     }
   }
 
-  private def persistence_cleanup_bufs(): Unit = {
+  def persistence_cleanup_bufs(): Unit = {
     val WBS0: nat_set = new nat_set()
     apersistence_io.apersistence_io_get_bufs(WBS0)
     while (! WBS0.isEmpty) {
@@ -504,7 +482,7 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     apersistence_io.apersistence_io_destroy_bufs()
   }
 
-  private def persistence_cleanup_lpt(): Unit = {
+  def persistence_cleanup_lpt(): Unit = {
     var N: Int = 0
     while (N < LPT.length) {
       if (LPT(N).ref_size == 0 && LPT(N).flags != types.lpropflags.LP_FREE) {
@@ -520,7 +498,7 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     }
   }
 
-  private def persistence_create_freelist(): Unit = {
+  def persistence_create_freelist(): Unit = {
     FREELIST.clear
     var N: Int = 0
     while (N < LPT.length) {
@@ -531,7 +509,7 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     }
   }
 
-  private def persistence_create_gcheap(): Unit = {
+  def persistence_create_gcheap(): Unit = {
     gc_heap_empty(GCHEAP)
     var N: Int = 0
     while (N < LPT.length) {
@@ -543,7 +521,7 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     }
   }
 
-  private def persistence_encode_group_nodes(LNUM: Int, N: Int, GNDLIST: group_node_list, BUF: buffer, ADRLIST: address_list, ERR: Ref[error]): Unit = {
+  def persistence_encode_group_nodes(LNUM: Int, N: Int, GNDLIST: group_node_list, BUF: buffer, ADRLIST: address_list, ERR: Ref[error]): Unit = {
     val NODELIST: group_node_list = GNDLIST.deepCopy
     ERR := types.error.ESUCCESS
     BUF.allocate(flashsize(NODELIST), 0.toByte)
@@ -558,13 +536,13 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     }
   }
 
-  private def persistence_encode_padding_node(BUF: buffer, ERR: Ref[error]): Unit = {
+  def persistence_encode_padding_node(BUF: buffer, ERR: Ref[error]): Unit = {
     val SIZE: Int = BUF.length - 2 * NODE_HEADER_SIZE
     encode_header(types.node_header.nodeheader(SIZE, true), 0, BUF, ERR)
     BUF.copy(validtrailer, 0, BUF.length - NODE_HEADER_SIZE, NODE_HEADER_SIZE)
   }
 
-  private def persistence_ensure_buffered(LNUM: Int): Unit = {
+  def persistence_ensure_buffered(LNUM: Int): Unit = {
     val ISBUF = new Ref[Boolean](helpers.scala.Boolean.uninit)
     apersistence_io.apersistence_io_is_buffered(LNUM, ISBUF)
     if (ISBUF.get != true) {
@@ -572,7 +550,7 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     }
   }
 
-  private def persistence_flush(LNUM: Int, ERR: Ref[error]): Unit = {
+  def persistence_flush(LNUM: Int, ERR: Ref[error]): Unit = {
     val OFFSET: Int = LPT(LNUM).size
     if (is_aligned(OFFSET, EB_PAGE_SIZE))
       ERR := types.error.ESUCCESS
@@ -598,7 +576,7 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     }
   }
 
-  private def persistence_gc_heap_add_log(): Unit = {
+  def persistence_gc_heap_add_log(): Unit = {
     while (! LOG.isEmpty) {
       val LNUM: Int = LOG.head
       val KI: keyindex = types.keyindex.key_index(LPT(LNUM).ref_size, LNUM)
@@ -607,7 +585,7 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     }
   }
 
-  private def persistence_replay_log(LOG0: nat_list): Unit = {
+  def persistence_replay_log(LOG0: nat_list): Unit = {
     while (! LOG0.isEmpty) {
       val N: Int = LOG0.head
       LPT(N).flags = types.lpropflags.LP_GROUP_NODES
@@ -616,7 +594,7 @@ class persistence_asm(val GCHEAP : binheap, val LOG : nat_list, val FREELIST : n
     }
   }
 
-  private def persistence_replay_lpt(): Unit = {
+  def persistence_replay_lpt(): Unit = {
     var N: Int = 0
     while (N < LPT.length) {
       if (LPT(N).flags != types.lpropflags.LP_FREE && ! LOG.contains(N)) {

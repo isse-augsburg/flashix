@@ -36,8 +36,6 @@ final class Algebraic(val mtd: MTDSimulation) extends algebraic.Algebraic {
       acc + flashsize(gnd)
   }
   override def flashsize(param0: node): Int = flashsize(group_node(param0, 0, false, false))
-  override def max(param0: nat_set): Int = param0.set.max
-  override def min(param0: nat_set): Int = param0.set.min
   override def toStr(param0: Int): String = param0.toString
   override def <(param0: key, param1: key): Boolean = param0 match {
     case inodekey(ino0) =>
@@ -66,30 +64,10 @@ final class Algebraic(val mtd: MTDSimulation) extends algebraic.Algebraic {
   }
   override def ⊑(param0: path, param1: path): Boolean = param0.startsWith(param1)
 
-  // TODO: ab hier sollte es eigentlich Definitionen geben, werden aber manchmal (nicht) mitgeneriert?
-  override def below(param0: nat_set, param1: Int): nat_set = {
-    new nat_set(param0.set.filter { _ < param1 })
-  }
-  override def keys(param0: nat_set): key_set = {
-    new key_set(param0.set.map { inodekey(_).asInstanceOf[key] })
-  }
-  override def minus(param0: nat_set, param1: Int): nat_set = {
-    new nat_set(param0.set.map { _ - param1 })
-  }
-  override def isempty(buf: buffer, n: Int, ino: Int): Boolean = {
-    if (ino == 0)
-      return true
-    else
-      return buf(n + (ino - 1)) == empty && isempty(buf, n, ino - 1)
-  }
-  override def rangeeq(buf: buffer, n0: Int, buf0: buffer, n1: Int, ino: Int): Boolean = {
-    if (ino == 0)
-      return n0 <= buf.length && n1 <= buf0.length
-    else
-      return buf(n0) == buf0(n1) && rangeeq(buf, n0 + 1, buf0, n1 + 1, ino - 1)
-  }
-
+  //
   // Fixed the following implementations
+  //
+
   override def datasize(buf: buffer, m0: Int): Int = {
     // The generated implementation is recursive and leads to a stack overflow
     var cur = m0

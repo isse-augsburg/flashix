@@ -13,7 +13,6 @@ import helpers.scala._
 import helpers.scala.Encoding._
 import helpers.scala.Random._
 import types._
-import types.wlstatus.wlstatus
 
 /**
  * algebraic operations
@@ -53,6 +52,16 @@ trait Algebraic {
     return 2 * NODE_HEADER_SIZE + alignedsize(ind)
   }
 
+  def keys(fns: nat_set): key_set = {
+    if (fns.isEmpty)
+      return new key_set()
+    else {
+      val ro: key_set = keys(fns.tail).deepCopy
+      ro += types.key.inodekey(fns.head)
+      return ro
+    }
+  }
+
   def alignUp(n: Int, m: Int): Int = {
     if (n % m == 0)
       return n
@@ -78,21 +87,6 @@ trait Algebraic {
       return datasize(buf, ino - 1)
     else
       return (ino - 1) + 1
-  }
-
-  def free_ecs(wlar: wlarray): nat_set = {
-    return free_ecs(wlar, wlar.length)
-  }
-
-  def free_ecs(wlar: wlarray, ino: Int): nat_set = {
-    if (ino == 0)
-      return new nat_set()
-    else     if (wlar(ino - 1).status == types.wlstatus.free) {
-      val ns: nat_set = free_ecs(wlar, ino - 1).deepCopy
-      ns += wlar(ino - 1).ec
-      return ns
-    } else
-      return free_ecs(wlar, ino - 1)
   }
 
   def is_aligned(n: Int, m: Int): Boolean = {
@@ -147,6 +141,18 @@ trait Algebraic {
     return min(n0, min(n1, n2))
   }
 
+  def minus(fns: nat_set, m: Int): nat_set = {
+    if (fns.isEmpty)
+      return new nat_set()
+    else {
+      val fns0: nat_set = fns.tail.deepCopy
+      fns0 -= fns.head
+      val ns: nat_set = minus(fns0, m).deepCopy
+      ns += (fns.head - m)
+      return ns
+    }
+  }
+
   def mkempbuf(n: Int): buffer = {
     val buf: buffer = new buffer(n).fill(0.toByte)
     val buf0: buffer = buf
@@ -183,21 +189,6 @@ trait Algebraic {
     return alignUp(size_unaligned(sb), EB_PAGE_SIZE)
   }
 
-  def used_ecs(wlar: wlarray): nat_set = {
-    return used_ecs(wlar, wlar.length)
-  }
-
-  def used_ecs(wlar: wlarray, ino: Int): nat_set = {
-    if (ino == 0)
-      return new nat_set()
-    else     if (wlar(ino - 1).status == types.wlstatus.used) {
-      val ns: nat_set = used_ecs(wlar, ino - 1).deepCopy
-      ns += wlar(ino - 1).ec
-      return ns
-    } else
-      return used_ecs(wlar, ino - 1)
-  }
-
 
 
   //
@@ -222,16 +213,11 @@ trait Algebraic {
 
   def flashsize(param0: group_node_list): Int
   def flashsize(param0: node): Int
-  def keys(param0: nat_set): key_set
-  def max(param0: nat_set): Int
-  def min(param0: nat_set): Int
   def toStr(param0: Int): String
   def <(param0: key, param1: key): Boolean
   def at(param0: address_list, param1: Int): address
-  def below(param0: nat_set, param1: Int): nat_set
   def checksum(param0: buffer, param1: Int): Int
   def is_open(param0: Int, param1: open_files): Boolean
-  def minus(param0: nat_set, param1: Int): nat_set
   def pr(param0: Byte, param1: metadata): Boolean
   def pw(param0: Byte, param1: metadata): Boolean
   def px(param0: Byte, param1: metadata): Boolean

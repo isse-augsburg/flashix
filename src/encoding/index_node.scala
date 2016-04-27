@@ -27,17 +27,14 @@ object index_node {
     err := types.error.ESUCCESS
     if (err.get == types.error.ESUCCESS) {
       encode_branch_array(elem.branches, index + nbytes.get, buf, tmpsize, err)
-      assert(tmpsize.get == flashsize_branch_array(elem.branches), """encoding has invalid size""")
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
       encode_bool(elem.leaf, index + nbytes.get, buf, tmpsize, err)
-      assert(tmpsize.get == ENCODED_BOOL_SIZE, """encoding has invalid size""")
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
       encode_nat(elem.usedsize, index + nbytes.get, buf, tmpsize, err)
-      assert(tmpsize.get == ENCODED_NAT_SIZE, """encoding has invalid size""")
       nbytes := nbytes.get + tmpsize.get
     }
   }
