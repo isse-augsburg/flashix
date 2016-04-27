@@ -60,6 +60,10 @@ object Visualization {
     val refresh = check("Refresh", true, { if (_) update() })
 
     val filesystem = new fuse.FilesystemAdapter(flashix) {
+
+      override def checked[A](operation: Ref[error] => A) = {
+        flashix synchronized { super.checked(operation) }
+      }
       override def _run(force: Boolean, sync: Boolean, operation: Ref[error] => Unit): Int = {
         val res = super._run(force, sync, operation)
         if (refresh.selected) update()
@@ -69,21 +73,27 @@ object Visualization {
 
     def format() {
       val rootmeta = fuse.DirMetadata()
-      flashix.vfs.posix_format(pebs - spare_pebs, rootmeta, err)
+      flashix synchronized {
+        flashix.vfs.posix_format(pebs - spare_pebs, rootmeta, err)
+      }
       if (err != ESUCCESS)
         println(s"vfs: format failed with error code ${err.get}")
       flashix.journal.SYNC = false // TODO: option
     }
 
     def recover() {
-      flashix.vfs.posix_recover(err)
+      flashix synchronized {
+        flashix.vfs.posix_recover(err)
+      }
       if (err != ESUCCESS)
         println(s"vfs: recovery failed with error code ${err.get}")
       flashix.journal.SYNC = false // TODO: option
     }
 
     def commit() {
-      flashix.journal.aubifs_commit(err)
+      flashix synchronized {
+        flashix.journal.aubifs_commit(err)
+      }
       if (err != ESUCCESS)
         println(s"vfs: recovery failed with error code ${err.get}")
     }
