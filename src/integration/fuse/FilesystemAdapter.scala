@@ -178,7 +178,7 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
     if (ERR.get == error.ESUCCESS) {
       val lp = persistence.LPT(N.get)
 
-      val isEasy = lp.ref_size < flashix.percentOf(30, LEB_SIZE)
+      val isEasy = false // lp.ref_size < flashix.percentOf(30, LEB_SIZE)
       val eligible = flashix.isBlockEligibleForGC(lp)
 
       if (!eligible) {
