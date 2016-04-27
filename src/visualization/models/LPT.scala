@@ -1,47 +1,78 @@
 package visualization.models
 
-import scala.swing.Component
-import visualization.Tab
 import integration.Flashix
+import visualization._
 import visualization.Toolkit._
-import types.lpropflags._
+import scala.swing._
+import java.awt.Graphics
 import java.awt.Color
-import org.jfree.data.category.DefaultCategoryDataset
-import org.jfree.chart.ChartFactory
-import org.jfree.chart.plot.PlotOrientation
-import org.jfree.chart.ChartPanel
-import org.jfree.chart.plot.CategoryPlot
-import org.jfree.chart.renderer.category.BarRenderer
+import javax.swing.JPanel
 
 object LPT extends Tab {
 
-  private val dataset = new DefaultCategoryDataset()
-  private val chart = ChartFactory.createStackedBarChart(null, null, "Bytes", dataset, PlotOrientation.VERTICAL, true, true, false)
-  chart.setBorderVisible(false)
-  private val plot = chart.getPlot.asInstanceOf[CategoryPlot]
-  plot.getDomainAxis.setVisible(false)
-  plot.getDomainAxis.setCategoryMargin(0)
-  plot.getDomainAxis.setLowerMargin(0)
-  plot.getDomainAxis.setUpperMargin(0)
-  private val renderer = plot.getRenderer.asInstanceOf[BarRenderer]
-  renderer.setItemMargin(0)
-  renderer.setSeriesPaint(0, Color.blue)
-  renderer.setSeriesPaint(1, Color.gray)
-  renderer.setSeriesPaint(2, Color.green)
-  private val chartPanel = new ChartPanel(chart)
+  var data: Array[Array[Int]] = null
+
+  object view extends JPanel {
+    val colors = Array(Color.green, Color.gray, Color.blue)
+
+    def PADDING = 32
+
+    def dimension = {
+      if (data != null) {
+        val width = data.length + 2 * PADDING
+        val height = 100
+        new Dimension(width, height)
+      } else {
+        super.getPreferredSize
+      }
+    }
+
+    override def paintComponent(_g: Graphics) {
+      val g = _g.asInstanceOf[Graphics2D]
+      super.paintComponent(g)
+
+      if (data == null) return
+
+      val width = getWidth - 2 * PADDING
+      val height = getHeight() - 2 * PADDING
+
+      val n = data.length
+      val d = if (width < n) 1 else width / n
+
+      for (i <- 0 until n) {
+        val x = PADDING + i * d
+        var y = PADDING
+        val entry = data(i)
+        val m = entry.length
+        val total = entry.sum
+
+        for (j <- 0 until m) {
+          g.setColor(colors(j % colors.length))
+          val h = entry(j) * height / total
+          g.fillRect(x, y, d, h)
+          y += h
+        }
+      }
+    }
+  }
+
+  val scrollPane = new ScrollPane(view)
+  val page = tab("LPT", scrollPane)
 
   def apply(flashix: Flashix) {
     import flashix.ops._
 
     val lpt = flashix.persistence.LPT
-    dataset.setNotify(false)
-    for (i <- 0 until lpt.length) {
-      dataset.setValue(lpt(i).ref_size, "used", i)
-      dataset.setValue(lpt(i).size - lpt(i).ref_size, "garbage", i)
-      dataset.setValue(LEB_SIZE - lpt(i).size, "free", i)
-    }
-    dataset.setNotify(true)
-  }
 
-  val page = tab("Blocks", chartPanel)
+    data = (0 until lpt.length).toArray map {
+      i =>
+        val used = lpt(i).ref_size
+        val garbage = lpt(i).size - lpt(i).ref_size
+        val free = LEB_SIZE - lpt(i).size
+        Array(free, garbage, used)
+    }
+
+    view.revalidate()
+    view.repaint()
+  }
 }

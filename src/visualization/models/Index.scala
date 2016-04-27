@@ -16,7 +16,7 @@ import types.znode
 import visualization._
 import visualization.Toolkit._
 
-object SimpleIndex extends Tab {
+object Index extends Tab {
   sealed trait Shape
   case object Bullet extends Shape
   case object Circle extends Shape
