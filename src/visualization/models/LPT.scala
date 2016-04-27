@@ -11,11 +11,10 @@ import javax.swing.JPanel
 object LPT extends Tab {
 
   var data: Array[Array[Int]] = null
+  def PADDING = 32
 
   object view extends JPanel {
     val colors = Array(Color.green, Color.gray, Color.blue)
-
-    def PADDING = 32
 
     def dimension = {
       if (data != null) {

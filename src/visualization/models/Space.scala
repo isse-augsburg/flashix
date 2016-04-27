@@ -13,7 +13,6 @@ import types.lpropflags._
 import java.awt.Color
 
 object Space extends Tab {
-
   private val dataset = new DefaultPieDataset()
   private val chart = ChartFactory.createPieChart3D(null, dataset, true, true, false)
   private val plot = chart.getPlot().asInstanceOf[PiePlot3D]

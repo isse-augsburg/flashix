@@ -50,6 +50,8 @@ object Index extends Tab {
       val g = _g.asInstanceOf[Graphics2D]
       super.paintComponent(g)
 
+      if (node == null) return
+
       g.setRenderingHint(
         RenderingHints.KEY_TEXT_ANTIALIASING,
         RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -60,11 +62,9 @@ object Index extends Tab {
 
       g.setStroke(new BasicStroke(1.5f))
 
-      if (node != null) {
-        val x = PADDING
-        val y = PADDING + HEIGHT / 2
-        paint(x, y, node, g)
-      }
+      val x = PADDING
+      val y = PADDING + HEIGHT / 2
+      paint(x, y, node, g)
     }
 
     def paint(x: Int, y: Int, node: Node, g: Graphics) {
