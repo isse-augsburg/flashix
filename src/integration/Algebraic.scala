@@ -25,7 +25,7 @@ final class Algebraic(val mtd: MTDSimulation) extends algebraic.Algebraic {
   override def VFS_PAGE_SIZE: Int = 4 * 1024
   override def VTBL_LNUM: Int = 0
   override def VTBL_VOLID: Byte = 0xFF.toByte
-  override def WL_THRESHOLD: Int = 100
+  override def WL_THRESHOLD: Int = 1
   override def default_volid: Byte = 0
   override def empty: Byte = mtd.empty
   override def validtrailer: buffer = mkzbuf(NODE_HEADER_SIZE)
