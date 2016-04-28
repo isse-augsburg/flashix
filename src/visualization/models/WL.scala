@@ -6,17 +6,16 @@ import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.RenderingHints
-
 import scala.swing.ScrollPane
-
 import integration.Flashix
 import javax.swing.JPanel
 import visualization.Tab
 import visualization.Toolkit.tab
 import visualization.Toolkit.toComponent
+import types.wlstatus._
 
 object WL extends Tab {
-  case class Entry(ec: Int)
+  case class Entry(ec: Int, status: wlstatus)
 
   var data: Array[Entry] = null
   var rows: Int = _
@@ -76,11 +75,23 @@ object WL extends Tab {
           val red = if (c < 256) c else 255
           val green = if (c <= 256) 255 else 512 - c
 
-          g.setColor(new Color(red, green, 0))
-          g.fillRect(nx, ny, WIDTH - 4, HEIGHT - 4)
+          if (wle.status == used) {
+            g.setColor(new Color(red, green, 0))
+            g.fillRect(nx, ny, WIDTH - 4, HEIGHT - 4)
+          }
 
-          g.setColor(Color.black)
-          g.drawString("" + wle.ec, nx + 4, ny + HEIGHT / 2 + 4)
+          if (wle.status == erroneous) {
+            g.setColor(Color.red)
+            g.drawLine(nx, ny, nx + WIDTH - 4, ny + HEIGHT - 4)
+            g.drawLine(nx + WIDTH - 4, ny, nx, ny + HEIGHT - 4)
+          } else {
+            g.setColor(Color.black)
+            g.drawString("" + wle.ec, nx + 4, ny + HEIGHT / 2 + 4)
+          }
+
+          if (wle.status == erasing)
+            g.setColor(Color.red)
+
           g.drawRect(nx, ny, WIDTH - 4, HEIGHT - 4)
         }
       }
@@ -92,7 +103,7 @@ object WL extends Tab {
 
   def apply(flashix: Flashix) {
     data = flashix.ubi.WLARRAY.array.map {
-      wle => Entry(wle.ec)
+      wle => Entry(wle.ec, wle.status)
     }
 
     val length = data.length
