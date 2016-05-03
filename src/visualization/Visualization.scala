@@ -43,6 +43,7 @@ object Visualization {
     val page_size = 2048
     val spare_pebs = 5
     val doFormat = !deviceFile.exists()
+    val doSync = false
 
     // Create MTD simulation
     val mtd = MTDSimulation(deviceFile, pebs, pages_per_peb, page_size)
@@ -78,7 +79,7 @@ object Visualization {
       }
       if (err != ESUCCESS)
         println(s"vfs: format failed with error code ${err.get}")
-      flashix.journal.SYNC = false // TODO: option
+      flashix.journal.SYNC = doSync // TODO: option
     }
 
     def recover() {
@@ -87,7 +88,7 @@ object Visualization {
       }
       if (err != ESUCCESS)
         println(s"vfs: recovery failed with error code ${err.get}")
-      flashix.journal.SYNC = false // TODO: option
+      flashix.journal.SYNC = doSync // TODO: option
     }
 
     def commit() {
