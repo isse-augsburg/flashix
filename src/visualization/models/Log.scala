@@ -15,11 +15,21 @@ import java.awt.Color
 import types.node._
 import java.awt.Dimension
 import java.awt.BasicStroke
+import scala.collection.mutable.ListBuffer
 
 object Log extends Tab {
   var lebsize = 1
   var aligned = 1
-  var log: List[(Int, Int, List[(address, node)])] = Nil
+
+  /**
+   * @constructor
+   * @param block   number of the block
+   * @param offset  current write offset into the block
+   * @param flushed flushed to flash up to this offset
+   * @param nodes   nodes and their addresses
+   */
+  case class LogBlock(val block: Int, var offset: Int, var flushed: Int, var nodes: List[(address, node)])
+  val log: ListBuffer[LogBlock] = ListBuffer()
 
   val rowxoffset = 50
   val rowyoffset = 10
@@ -52,7 +62,7 @@ object Log extends Tab {
         RenderingHints.VALUE_ANTIALIAS_ON);
 
       for (i <- 0 until log.size) {
-        val (block, flushed, adrnds) = log(i)
+        val LogBlock(block, _, flushed, adrnds) = log(i)
         val y = rowyoffset + i * (rowheight + rowpadding)
         val fontheight = g.getFontMetrics.getHeight
 
@@ -84,17 +94,46 @@ object Log extends Tab {
     lebsize = flashix.ops.LEB_SIZE
     aligned = encoding.node_header.NODE_HEADER_SIZE(flashix.ops)
 
-    // TODO: code ist lahm
+    var redraw = false
 
-    log = logblocks.list.map { block =>
-      val adrs = new address_list()
-      val nds = new group_node_list()
-      val err: Ref[error] = Ref.empty
-      flashix.persistence.apersistence_read_gblock_nodes(block, adrs, nds, err)
-      val flushed = flashix.wbuf.WBSTORE.map.get(flashix.persistence_io.SB.main + block).map { _.offset }.getOrElse(flashix.persistence.LPT(block).size)
-      (block, flushed, adrs.list.zip(nds.list.map { _.nd }).toList)
-    }.toList
-    view.revalidate()
-    view.repaint()
+    // Add/Change blocks
+    logblocks.list.foreach { block =>
+      val offset = flashix.persistence.LPT(block).size
+      val flushed = flashix.wbuf.WBSTORE.map.get(flashix.persistence_io.SB.main + block).map { _.offset }.getOrElse(offset)
+
+      // NOTE: the addresses and nodes only change, when offset changes, too
+      val oldblock = log.find { _.block == block }
+      val changed = oldblock.map { oldblock => oldblock.offset != offset || oldblock.flushed != flushed }.getOrElse(true)
+
+      if (changed) {
+        val adrs = new address_list()
+        val nds = new group_node_list()
+        val err: Ref[error] = Ref.empty
+        flashix.persistence.apersistence_read_gblock_nodes(block, adrs, nds, err)
+        val nodes = adrs.list.zip(nds.list.map { _.nd }).toList
+        oldblock match {
+          case None =>
+            // NOTE: new blocks are only appended at the end
+            val logblock = LogBlock(block, offset, flushed, nodes)
+            log.append(logblock)
+          case Some(block) =>
+            block.offset = offset
+            block.flushed = flushed
+            block.nodes = nodes
+        }
+      }
+
+      redraw = redraw || changed
+    }
+
+    // Remove blocks (Commit / Recovery)
+    val remove = log.filter { logblock => ! logblocks.contains(logblock.block) }
+    log --= remove
+    redraw = redraw || ! remove.isEmpty
+
+    if (redraw) {
+      view.revalidate()
+      view.repaint()
+    }
   }
 }
