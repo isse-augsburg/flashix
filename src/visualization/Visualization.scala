@@ -106,6 +106,14 @@ object Visualization {
         println(s"vfs: recovery failed with error code ${err.get}")
     }
 
+    def wearleveling() {
+      flashix.synchronized {
+        flashix.ubi.ubi_wear_leveling_worker(err)
+      }
+      if (err != ESUCCESS)
+        println(s"ubi: wear-leveling failed with error code ${err.get}")
+    }
+    
     def dogc() {
       filesystem.doGC("user", err, -1)
     }
@@ -123,13 +131,14 @@ object Visualization {
     val cm = button("Commit", { commit(); update() })
     val gc = button("GC", { dogc(); update() })
     val sync = button("Sync", { dosync(); update() })
+    val wl = button("Wear-Leveling", { wearleveling(); update() })
     val quit = button("Quit", { unmount() })
 
     val about = tab("About", label("Flashix File System"))
 
     val pages = about :: vis.map(_.page)
     val main = tabs(pages: _*)
-    val side = vbox(refresh, sync, cm, gc, rec, fmt, quit, Swing.VGlue)
+    val side = vbox(refresh, sync, cm, gc, wl, rec, fmt, quit, Swing.VGlue)
     // side.peer.setLayout(new GridLayout(0,1))
 
     val window = frame("Flashix",

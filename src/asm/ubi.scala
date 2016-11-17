@@ -488,6 +488,7 @@ class ubi_asm(val VOLS : volumes, val ERASEQ : queue, var SQNUM : Int, val WLARR
       val AVHDR = new Ref[avidheader](types.avidheader.uninit)
       aubi_io.aubi_io_read_vidhdr(FROM.get, AVHDR, BITFLIPS, ERR)
       if (ERR.get == types.error.ESUCCESS) {
+        println(s"Wear-Leveling: Moving block ${FROM.get} to ${TO.get}")
         val BUF: buffer = new buffer(LEB_SIZE).fill(0.toByte)
         aubi_io.aubi_io_read_data(FROM.get, 0, 0, LEB_SIZE, BUF, BITFLIPS, ERR)
         if (ERR.get == types.error.ESUCCESS) {
