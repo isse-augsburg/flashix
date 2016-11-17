@@ -65,10 +65,17 @@ object Visualization {
       override def checked[A](operation: Ref[error] => A) = {
         flashix synchronized { super.checked(operation) }
       }
-      override def _run(force: Boolean, sync: Boolean, operation: Ref[error] => Unit): Int = {
-        val res = super._run(force, sync, operation)
+      override def _run(force: Boolean, operation: Ref[error] => Unit): Int = {
+        val res = super._run(force, operation)
         if (refresh.selected) update()
         res
+      }
+    }
+
+    def dosync() {
+      flashix synchronized {
+        if (flashix.journal.JNLHEADVALID)
+          flashix.persistence.apersistence_flush_gnd(flashix.journal.JNLHEAD, err)
       }
     }
 
@@ -99,6 +106,14 @@ object Visualization {
         println(s"vfs: recovery failed with error code ${err.get}")
     }
 
+    def wearleveling() {
+      flashix.synchronized {
+        flashix.ubi.ubi_wear_leveling_worker(err)
+      }
+      if (err != ESUCCESS)
+        println(s"ubi: wear-leveling failed with error code ${err.get}")
+    }
+    
     def dogc() {
       filesystem.doGC("user", err, -1)
     }
@@ -109,19 +124,21 @@ object Visualization {
       System.exit(0)
     }
 
-    val vis = List(Space, LPT, Index, WL)
+    val vis = List(Space, LPT, Index, Log, WL)
 
     val fmt = button("Format", { format(); update() })
     val rec = button("Recover", { recover(); update() })
     val cm = button("Commit", { commit(); update() })
     val gc = button("GC", { dogc(); update() })
+    val sync = button("Sync", { dosync(); update() })
+    val wl = button("Wear-Leveling", { wearleveling(); update() })
     val quit = button("Quit", { unmount() })
 
     val about = tab("About", label("Flashix File System"))
 
     val pages = about :: vis.map(_.page)
     val main = tabs(pages: _*)
-    val side = vbox(refresh, cm, gc, rec, fmt, quit, Swing.VGlue)
+    val side = vbox(refresh, sync, cm, gc, wl, rec, fmt, quit, Swing.VGlue)
     // side.peer.setLayout(new GridLayout(0,1))
 
     val window = frame("Flashix",

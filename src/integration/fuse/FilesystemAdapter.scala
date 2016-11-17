@@ -229,7 +229,7 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
     }
   }
 
-  def _run(force: Boolean, sync: Boolean, operation: Ref[error] => Unit): Int = {
+  def _run(force: Boolean, operation: Ref[error] => Unit): Int = {
     try {
       checkGC()
     } catch {
@@ -241,17 +241,14 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
       throw new FuseException().initErrno(Errno.ENOSPC)
     } else {
       val ret = checked(operation)
-      if (sync) try { flush() } catch { case _: Throwable => }
       ret
     }
 
     0
   }
 
-  def run(operation: Ref[error] => Unit) = _run(false, false, operation)
-  def runSync(operation: Ref[error] => Unit) = _run(false, true, operation)
-  def runAlways(operation: Ref[error] => Unit) = _run(true, false, operation)
-  def runAlwaysSync(operation: Ref[error] => Unit) = _run(true, true, operation)
+  def run(operation: Ref[error] => Unit) = _run(false, operation)
+  def runAlways(operation: Ref[error] => Unit) = _run(true, operation)
 
   implicit def splitPath(path: String) = {
     path.split(File.separatorChar).toList match {
@@ -312,25 +309,25 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
       _ => rdev == 0 || ???
     }
 
-    runSync {
+    run {
       posix.posix_create(path, FileMetadata(mode), user, _)
     }
   }
 
   def mkdir(path: String, mode: Int): Int = {
-    runSync {
+    run {
       posix.posix_mkdir(path, DirMetadata(mode), user, _)
     }
   }
 
   def unlink(path: String): Int = {
-    runAlwaysSync {
+    runAlways {
       posix.posix_unlink(path, user, _)
     }
   }
 
   def rmdir(path: String): Int = {
-    runAlwaysSync {
+    runAlways {
       posix.posix_rmdir(path, user, _)
     }
   }
@@ -365,13 +362,13 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
   }
 
   def rename(from: String, to: String): Int = {
-    runSync {
+    run {
       posix.posix_rename(from, to, user, _)
     }
   }
 
   def link(from: String, to: String): Int = {
-    runSync {
+    run {
       posix.posix_link(from, to, user, _)
     }
   }
@@ -474,7 +471,7 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
 
   def release(path: String, fh: AnyRef, flags: Int): Int = {
     val fd = fh.asInstanceOf[FH]
-    runAlwaysSync {
+    runAlways {
       posix.posix_close(fd.fd, user, _)
     }
   }
