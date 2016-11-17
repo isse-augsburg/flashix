@@ -41,7 +41,8 @@ object Mount {
     implicit val procedures = new Procedures()
 
     val flashix = new Flashix(mtd)
-
+    flashix.journal.SYNC = false
+    
     val err = new Ref(error.uninit)
     if (format) {
       val rootmeta = fuse.DirMetadata()
