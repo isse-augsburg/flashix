@@ -41,16 +41,15 @@ object Mount {
     implicit val procedures = new Procedures()
 
     val flashix = new Flashix(mtd)
-    flashix.journal.SYNC = false
-    
+    val dosync = false
     val err = new Ref(error.uninit)
     if (format) {
       val rootmeta = fuse.DirMetadata()
-      flashix.vfs.posix_format(pebs - spare_pebs, rootmeta, err)
+      flashix.vfs.format(pebs - spare_pebs, dosync, rootmeta, err)
       if (err != ESUCCESS)
         println(s"vfs: format failed with error code ${err.get}")
     } else {
-      flashix.vfs.posix_recover(err)
+      flashix.vfs.recover(dosync, err)
       if (err != ESUCCESS)
         println(s"vfs: recovery failed with error code ${err.get}")
     }

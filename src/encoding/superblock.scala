@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package encoding
@@ -8,6 +8,7 @@ import encoding.address._
 import helpers.scala._
 import helpers.scala.Encoding._
 import helpers.scala.Random._
+import sorts._
 import types._
 import types.error.error
 import types.file_mode.file_mode
@@ -16,7 +17,7 @@ import types.seekflag.seekflag
 import types.wlstatus.wlstatus
 
 object superblock {
-  def size_unaligned(elem: superblock)(implicit _algebraic_implicit: algebraic.Algebraic): Int = {
+  def encoding_size_unaligned(elem: superblock)(implicit _algebraic_implicit: algebraic.Algebraic): Int = {
     return ENCODED_SUPERBLOCK_SIZE
   }
 
@@ -27,7 +28,7 @@ object superblock {
   def encode_superblock_unaligned(elem: superblock, index: Int, buf: buffer, nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
     import _algebraic_implicit._
     nbytes := 0
-    val tmpsize = new Ref[Int](0)
+    val tmpsize = Ref[Int](0)
     err := types.error.ESUCCESS
     if (err.get == types.error.ESUCCESS) {
       encode_address(elem.indexaddr, index + nbytes.get, buf, tmpsize, err)
@@ -63,14 +64,14 @@ object superblock {
     import _algebraic_implicit._
     nbytes := 0
     err := types.error.ESUCCESS
-    val tmpsize = new Ref[Int](0)
-    val indexaddr = new Ref[address](types.address.uninit)
-    val maxino = new Ref[Int](0)
-    val log = new Ref[Int](0)
-    val orph = new Ref[Int](0)
-    val orphsize = new Ref[Int](0)
-    val lpt = new Ref[Int](0)
-    val main = new Ref[Int](0)
+    val tmpsize = Ref[Int](0)
+    val indexaddr = Ref[address](types.address.uninit)
+    val maxino = Ref[Int](0)
+    val log = Ref[Int](0)
+    val orph = Ref[Int](0)
+    val orphsize = Ref[Int](0)
+    val lpt = Ref[Int](0)
+    val main = Ref[Int](0)
     if (err.get == types.error.ESUCCESS) {
       decode_address(index + nbytes.get, buf, indexaddr, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get

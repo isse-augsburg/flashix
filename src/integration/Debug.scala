@@ -50,7 +50,7 @@ trait DebugUBIFSJournal {
   private def index(RP: znode, RT: znode, ADRT: address, ERR: Ref[error], RI: mutable.Map[key, address], IS: mutable.Map[znode, address]): Unit = {
     val R = new Ref[znode](RT)
 
-    btree_io_load(RP, ADRT, R, ERR)
+    io_load(RP, ADRT, R, ERR)
     IS += R.get -> ADRT
 
     var N: Int = 0

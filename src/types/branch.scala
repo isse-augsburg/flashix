@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package types
@@ -27,17 +27,13 @@ object branch {
     override def updated_key(__x : key) : mkentry = copy(key = __x)
     override def updated_adr(__x : address) : mkentry = copy(adr = __x)
   }
-  final case class mkchecked(override val key : key) extends branch {
-    override def updated_key(__x : key) : mkchecked = copy(key = __x)
-  }
 
   def uninit = mkbranch(types.key.uninit, types.address.uninit)
 
   implicit object Randomizer extends helpers.scala.Randomizer[branch] {
-    override def random(): branch = helpers.scala.Random.generator.nextInt(3) match {
+    override def random(): branch = helpers.scala.Random.generator.nextInt(2) match {
       case 0 => mkbranch(helpers.scala.Random[key], helpers.scala.Random[address])
       case 1 => mkentry(helpers.scala.Random[key], helpers.scala.Random[address])
-      case 2 => mkchecked(helpers.scala.Random[key])
     }
   }
 }

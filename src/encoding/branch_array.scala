@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package encoding
@@ -8,6 +8,7 @@ import encoding.branch._
 import helpers.scala._
 import helpers.scala.Encoding._
 import helpers.scala.Random._
+import sorts._
 import types._
 import types.error.error
 import types.file_mode.file_mode
@@ -29,7 +30,7 @@ object branch_array {
 
   def encode_branch_array(elem: branch_array, index: Int, buf: buffer, nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
     import _algebraic_implicit._
-    val tmpsize = new Ref[Int](0)
+    val tmpsize = Ref[Int](0)
     encode_nat(elem.length, index, buf, nbytes, err)
     if (err.get == types.error.ESUCCESS) {
       var arindex: Int = 0
@@ -45,16 +46,19 @@ object branch_array {
 
   def decode_branch_array(index: Int, buf: buffer, elem: branch_array, nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
     import _algebraic_implicit._
-    val tmpsize = new Ref[Int](0)
-    val decodedsize = new Ref[Int](0)
+    val tmpsize = Ref[Int](0)
+    val decodedsize = Ref[Int](0)
     decode_nat(index, buf, decodedsize, nbytes, err)
     if (err.get == types.error.ESUCCESS) {
       elem.allocate(decodedsize.get, types.branch.uninit)
       var arindex: Int = 0
       while (err.get == types.error.ESUCCESS && arindex < decodedsize.get) {
-        val br: Ref[branch] = new Ref[branch](elem(arindex))
-        decode_branch(index + nbytes.get, buf, br, tmpsize, err)
-        elem(arindex) = br.get
+        
+        {
+          val br: Ref[branch] = Ref[branch](elem(arindex))
+          decode_branch(index + nbytes.get, buf, br, tmpsize, err)
+          elem(arindex) = br.get
+        }
         if (err.get == types.error.ESUCCESS) {
           nbytes := nbytes.get + tmpsize.get
           arindex = arindex + 1

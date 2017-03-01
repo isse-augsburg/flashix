@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package types
@@ -8,15 +8,13 @@ import helpers.scala._
 import helpers.scala.Encoding._
 import helpers.scala.Random._
 
-sealed abstract class zbranch extends DeepCopyable[zbranch] {
+sealed abstract class zbranch {
   def key : key = throw new InvalidSelector("key undefined")
   def updated_key(__x : key) : zbranch = throw new InvalidSelectorUpdate("updated_key undefined")
   def adr : address = throw new InvalidSelector("adr undefined")
   def updated_adr(__x : address) : zbranch = throw new InvalidSelectorUpdate("updated_adr undefined")
   def child : znode = throw new InvalidSelector("child undefined")
   def updated_child(__x : znode) : zbranch = throw new InvalidSelectorUpdate("updated_child undefined")
-  def nd : node_option = throw new InvalidSelector("nd undefined")
-  def updated_nd(__x : node_option) : zbranch = throw new InvalidSelectorUpdate("updated_nd undefined")
 }
 
 object zbranch {
@@ -27,26 +25,18 @@ object zbranch {
     override def updated_key(__x : key) : mkzbranch = copy(key = __x)
     override def updated_adr(__x : address) : mkzbranch = copy(adr = __x)
     override def updated_child(__x : znode) : mkzbranch = copy(child = __x)
-    override def deepCopy(): zbranch = mkzbranch(key, adr, child)
   }
-  final case class mkzentry(override val key : key, override val adr : address, override val nd : node_option) extends zbranch {
+  final case class mkzentry(override val key : key, override val adr : address) extends zbranch {
     override def updated_key(__x : key) : mkzentry = copy(key = __x)
     override def updated_adr(__x : address) : mkzentry = copy(adr = __x)
-    override def updated_nd(__x : node_option) : mkzentry = copy(nd = __x)
-    override def deepCopy(): zbranch = mkzentry(key, adr, nd.deepCopy)
-  }
-  final case class mkzchecked(override val key : key) extends zbranch {
-    override def updated_key(__x : key) : mkzchecked = copy(key = __x)
-    override def deepCopy(): zbranch = mkzchecked(key)
   }
 
   def uninit = mkzbranch(types.key.uninit, types.address.uninit, null)
 
   implicit object Randomizer extends helpers.scala.Randomizer[zbranch] {
-    override def random(): zbranch = helpers.scala.Random.generator.nextInt(3) match {
+    override def random(): zbranch = helpers.scala.Random.generator.nextInt(2) match {
       case 0 => mkzbranch(helpers.scala.Random[key], helpers.scala.Random[address], helpers.scala.Random[znode])
-      case 1 => mkzentry(helpers.scala.Random[key], helpers.scala.Random[address], helpers.scala.Random[node_option])
-      case 2 => mkzchecked(helpers.scala.Random[key])
+      case 1 => mkzentry(helpers.scala.Random[key], helpers.scala.Random[address])
     }
   }
 }

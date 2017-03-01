@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package encoding
@@ -9,6 +9,7 @@ import encoding.key._
 import helpers.scala._
 import helpers.scala.Encoding._
 import helpers.scala.Random._
+import sorts._
 import types._
 import types.error.error
 import types.file_mode.file_mode
@@ -22,8 +23,6 @@ object branch {
       return 1 + (flashsize_key(elem.key) + ENCODED_ADDRESS_SIZE)
     else     if (! elem.isInstanceOf[types.branch.mkbranch] && elem.isInstanceOf[types.branch.mkentry])
       return 1 + (flashsize_key(elem.key) + ENCODED_ADDRESS_SIZE)
-    else     if (! elem.isInstanceOf[types.branch.mkbranch] && (! elem.isInstanceOf[types.branch.mkentry] && elem.isInstanceOf[types.branch.mkchecked]))
-      return 1 + flashsize_key(elem.key)
     else
       return 1 + 0
   }
@@ -34,7 +33,7 @@ object branch {
     val tmpsize: Int = 0
     if (elem.isInstanceOf[types.branch.mkbranch]) {
       buf(index) = 0
-      val tmpsize = new Ref[Int](0)
+      val tmpsize = Ref[Int](0)
       err := types.error.ESUCCESS
       if (err.get == types.error.ESUCCESS) {
         encode_key(elem.key, index + nbytes.get, buf, tmpsize, err)
@@ -46,7 +45,7 @@ object branch {
       }
     } else     if (elem.isInstanceOf[types.branch.mkentry]) {
       buf(index) = 1
-      val tmpsize = new Ref[Int](0)
+      val tmpsize = Ref[Int](0)
       err := types.error.ESUCCESS
       if (err.get == types.error.ESUCCESS) {
         encode_key(elem.key, index + nbytes.get, buf, tmpsize, err)
@@ -54,14 +53,6 @@ object branch {
       }
       if (err.get == types.error.ESUCCESS) {
         encode_address(elem.adr, index + nbytes.get, buf, tmpsize, err)
-        nbytes := nbytes.get + tmpsize.get
-      }
-    } else     if (elem.isInstanceOf[types.branch.mkchecked]) {
-      buf(index) = 2
-      val tmpsize = new Ref[Int](0)
-      err := types.error.ESUCCESS
-      if (err.get == types.error.ESUCCESS) {
-        encode_key(elem.key, index + nbytes.get, buf, tmpsize, err)
         nbytes := nbytes.get + tmpsize.get
       }
     } else
@@ -73,9 +64,9 @@ object branch {
     nbytes := 1
     err := types.error.ESUCCESS
     if (buf(index) == 0) {
-      val tmpsize = new Ref[Int](0)
-      val key = new Ref[key](types.key.uninit)
-      val adr = new Ref[address](types.address.uninit)
+      val tmpsize = Ref[Int](0)
+      val key = Ref[key](types.key.uninit)
+      val adr = Ref[address](types.address.uninit)
       if (err.get == types.error.ESUCCESS) {
         decode_key(index + nbytes.get, buf, key, tmpsize, err)
         nbytes := nbytes.get + tmpsize.get
@@ -88,9 +79,9 @@ object branch {
         elem := types.branch.mkbranch(key.get, adr.get)
       
     } else     if (buf(index) == 1) {
-      val tmpsize = new Ref[Int](0)
-      val key = new Ref[key](types.key.uninit)
-      val adr = new Ref[address](types.address.uninit)
+      val tmpsize = Ref[Int](0)
+      val key = Ref[key](types.key.uninit)
+      val adr = Ref[address](types.address.uninit)
       if (err.get == types.error.ESUCCESS) {
         decode_key(index + nbytes.get, buf, key, tmpsize, err)
         nbytes := nbytes.get + tmpsize.get
@@ -101,16 +92,6 @@ object branch {
       }
       if (err.get == types.error.ESUCCESS)
         elem := types.branch.mkentry(key.get, adr.get)
-      
-    } else     if (buf(index) == 2) {
-      val tmpsize = new Ref[Int](0)
-      val key = new Ref[key](types.key.uninit)
-      if (err.get == types.error.ESUCCESS) {
-        decode_key(index + nbytes.get, buf, key, tmpsize, err)
-        nbytes := nbytes.get + tmpsize.get
-      }
-      if (err.get == types.error.ESUCCESS)
-        elem := types.branch.mkchecked(key.get)
       
     } else
       err := types.error.EINVAL

@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package encoding
@@ -7,6 +7,7 @@ package encoding
 import helpers.scala._
 import helpers.scala.Encoding._
 import helpers.scala.Random._
+import sorts._
 import types._
 import types.error.error
 import types.file_mode.file_mode
@@ -22,7 +23,7 @@ object metadata {
   def encode_metadata(elem: metadata, index: Int, buf: buffer, nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
     import _algebraic_implicit._
     nbytes := 0
-    val tmpsize = new Ref[Int](0)
+    val tmpsize = Ref[Int](0)
     err := types.error.ESUCCESS
     if (err.get == types.error.ESUCCESS) {
       encode_nat(elem.mode, index + nbytes.get, buf, tmpsize, err)
@@ -66,16 +67,16 @@ object metadata {
     import _algebraic_implicit._
     nbytes := 0
     err := types.error.ESUCCESS
-    val tmpsize = new Ref[Int](0)
-    val mode = new Ref[Int](0)
-    val uid = new Ref[Int](0)
-    val gid = new Ref[Int](0)
-    val atime = new Ref[Int](0)
-    val atimesec = new Ref[Int](0)
-    val mtime = new Ref[Int](0)
-    val mtimesec = new Ref[Int](0)
-    val ctime = new Ref[Int](0)
-    val ctimesec = new Ref[Int](0)
+    val tmpsize = Ref[Int](0)
+    val mode = Ref[Int](0)
+    val uid = Ref[Int](0)
+    val gid = Ref[Int](0)
+    val atime = Ref[Int](0)
+    val atimesec = Ref[Int](0)
+    val mtime = Ref[Int](0)
+    val mtimesec = Ref[Int](0)
+    val ctime = Ref[Int](0)
+    val ctimesec = Ref[Int](0)
     if (err.get == types.error.ESUCCESS) {
       decode_nat(index + nbytes.get, buf, mode, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get

@@ -5,22 +5,24 @@ import types._
 import types.error._
 import helpers.scala._
 
-class Flashix(mtd: mtd_interface)(implicit val ops: algebraic.Algebraic, val procs: proc.Procedures) {
+class Flashix(mtd: mtd_asm_interface)(implicit val ops: algebraic.Algebraic, val procs: proc.Procedures) {
   import ops._
   import procs._
 
   // Check axioms
   procs.flashix_check_axioms
 
-  val ubiio = new ubi_io_asm(mtd)
-  val ubi = new ubi_asm(new volumes(), new queue(), 0, new wlarray(), new nat_set(), 0, ubiio)
-  val wbuf = new wbuf_asm(0, new wbuf_store(), ubi)
-  val persistence_io = new persistence_io_asm(superblock.uninit, 0, wbuf)
-  val persistence = new persistence_asm(binheap(new key_array(), 0), new nat_list(), new nat_list(), new lp_array(), persistence_io)
-  val btree = new btree_asm(znode.uninit, address(0, 0, 0), persistence) with DebugUBIFSJournal
-  val journal = new gjournal_asm(0, false, new nat_set(), 0, true, 0, btree)
+  val ubiio = new ubi_io_asm(0, mtd)
+  val ubi = new ubi_asm(new nat_set(), new queue(), 0, 0, 0, new volumes(), 0, new wlarray(), ubiio)
+  val ebm_vol = new ebm_vol_asm(0, ubi)
+  val persistence_io = new persistence_io_asm(0, 0, 0, superblock.uninit, ebm_vol)
+  val wbuf = new wbuf_asm(bufleb.nobuffer, 0, false, types.wbuf.uninit, persistence_io)
+  val persistence = new persistence_asm(new nat_list(), binheap(new key_array(), 0), new nat_list(), new lp_array(), wbuf)
+  val btree = new btree_asm(address(0, 0, 0), znode.uninit, persistence) with DebugUBIFSJournal
+  // TODO: option for dosync
+  val journal = new gjournal_asm(false, 0, new nat_set(), true, 0, btree)
   val aubifs = new aubifs_asm(journal)
-  val vfs = new vfs_asm(new open_files(), 0, aubifs)
+  val vfs = new vfs_asm(0, new open_files(), aubifs)
 
   def posix: posix_interface = vfs
 

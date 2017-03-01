@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package helpers.scala
@@ -12,5 +12,6 @@ class Ref[A](var get: A) {
 }
 
 object Ref {
+  def apply[A](a: A) = new Ref(a)
   def empty[A] = new Ref[A](null.asInstanceOf[A])
 }

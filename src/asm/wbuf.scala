@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package asm
@@ -10,132 +10,147 @@ import helpers.scala.Random._
 import types._
 import types.error.error
 
-class wbuf_asm(var VOLID : Byte, val WBSTORE : wbuf_store, val ebm : ebm_interface)(implicit _algebraic_implicit: algebraic.Algebraic) extends awbuf_interface {
+class wbuf_asm(var BUFLEB : bufleb, var PAGESIZE : Int, var ROFS : Boolean, val WBUF : wbuf, val apersistence_io : apersistence_io_interface)(implicit _algebraic_implicit: algebraic.Algebraic) extends awbuf_interface {
   import _algebraic_implicit._
 
-  override def awbuf_change(LNUM: Int, N: Int, BUF: buffer, ERR: Ref[error]): Unit = {
-    ebm.ebm_change(VOLID, LNUM, N, BUF, ERR)
-  }
-
-  override def awbuf_create_buf(LNUM: Int, OFFSET: Int): Unit = {
-    WBSTORE(LNUM) = types.wbuf.mkwbuf(mkempbuf(EB_PAGE_SIZE), OFFSET, 0)
-  }
-
-  override def awbuf_destroy_buf(LNUM: Int): Unit = {
-    WBSTORE -= LNUM
-  }
-
-  override def awbuf_destroy_bufs(): Unit = {
-    WBSTORE.clear
-  }
-
-  override def awbuf_format(VOLSIZE: Int, ERR: Ref[error]): Unit = {
-    ebm.ebm_format(ERR)
-    if (ERR.get == types.error.ESUCCESS) {
-      WBSTORE.clear
-      VOLID = default_volid
-      ebm.ebm_create_volume(VOLID, VOLSIZE, ERR)
-    }
-  }
-
-  override def awbuf_get_bufs(WBS: nat_set): Unit = {
-    WBS := WBSTORE.keySetWrapper.deepCopy
-  }
-
-  override def awbuf_get_volume_size(N: Ref[Int]): Unit = {
-    ebm.ebm_get_volume_size(VOLID, N)
-  }
-
-  override def awbuf_is_buffered(LNUM: Int, ISBUF: Ref[Boolean]): Unit = {
-    ISBUF := WBSTORE.contains(LNUM)
-  }
-
-  override def awbuf_read(LNUM: Int, OFFSET: Int, N0: Int, N: Int, BUF: buffer, ERR: Ref[error]): Unit = {
-    ebm.ebm_read(VOLID, LNUM, OFFSET, N0, N, BUF, ERR)
-  }
-
-  override def awbuf_read_buf(LNUM: Int, OFFSET: Int, N: Int, BUF: buffer, ERR: Ref[error]): Unit = {
-    if (! WBSTORE.contains(LNUM)) {
-      awbuf_read(LNUM, OFFSET, 0, N, BUF, ERR)
+  override def add_log_leb(LNUM: Int, OFFSET: Int, ERR: Ref[error]): Unit = {
+    if (ROFS) {
+      ERR := types.error.EROFS
     } else {
-      ERR := types.error.ESUCCESS
-      val WBUF: wbuf = WBSTORE(LNUM).deepCopy
-      if (WBUF.offset + WBUF.nbytes <= OFFSET)
-        BUF.fill(empty, 0, N)
-      else       if (OFFSET + N <= WBUF.offset) {
-        ebm.ebm_read(VOLID, LNUM, OFFSET, 0, N, BUF, ERR)
-      } else {
-        val N0: Int = if (OFFSET < WBUF.offset) WBUF.offset - OFFSET else 0
-        if (N0 != 0) {
-          ebm.ebm_read(VOLID, LNUM, OFFSET, 0, N0, BUF, ERR)
-        }
-        if (ERR.get == types.error.ESUCCESS) {
-          val N1: Int = max(WBUF.offset, OFFSET) - WBUF.offset
-          val N2: Int = min((OFFSET + N) - WBUF.offset, WBUF.nbytes) - N1
-          BUF.copy(WBUF.content, N1, N0, N2)
-          BUF.fill(empty, N0 + N2, N - (N0 + N2))
-        }
+      apersistence_io.add_log_leb(LNUM, ERR)
+      if (ERR.get == types.error.ESUCCESS) {
+        move_buf(LNUM, OFFSET, ERR)
       }
     }
   }
 
-  override def awbuf_recover(ERR: Ref[error]): Unit = {
-    ebm.ebm_recover(ERR)
-    WBSTORE.clear
-    VOLID = default_volid
+  override def commit(LPT: lp_array, PROOTADR0: address, PMAXINO0: Int, ORPHANS: nat_set, ERR: Ref[error]): Unit = {
+    apersistence_io.commit(LPT, PROOTADR0, PMAXINO0, ORPHANS, ERR)
+    if (ERR.get != types.error.ESUCCESS) {
+      ROFS = true
+    }
   }
 
-  override def awbuf_remap(LNUM: Int, ERR: Ref[error]): Unit = {
-    awbuf_unmap(LNUM)
-    ebm.ebm_map(VOLID, LNUM, ERR)
+  override def destroy_buf(ERR: Ref[error]): Unit = {
+    if (ROFS) {
+      ERR := types.error.EROFS
+    } else {
+      BUFLEB = types.bufleb.nobuffer
+      ERR := types.error.ESUCCESS
+    }
   }
 
-  override def awbuf_sync_device(ERR: Ref[error]): Unit = {
-    ebm.ebm_sync_device(ERR)
+  override def enter_readonly(): Unit = {
+    ROFS = true
   }
 
-  override def awbuf_unmap(LNUM: Int): Unit = {
-    ebm.ebm_unmap(VOLID, LNUM)
-    WBSTORE -= LNUM
+  override def format(VOLSIZE: Int, LPT: lp_array, PROOTADR0: address, PMAXINO0: Int, ERR: Ref[error]): Unit = {
+    apersistence_io.format(VOLSIZE, LPT, PROOTADR0, PMAXINO0, ERR)
+    if (ERR.get == types.error.ESUCCESS) {
+      
+      {
+        val ino: Ref[Int] = Ref[Int](PAGESIZE)
+        apersistence_io.get_page_size(ino)
+        PAGESIZE = ino.get
+      }
+      BUFLEB = types.bufleb.nobuffer
+      WBUF.content = new buffer(PAGESIZE)
+      ROFS = false
+    }
   }
 
-  override def awbuf_write(LNUM: Int, OFFSET: Int, N0: Int, N: Int, BUF: buffer, ERR: Ref[error]): Unit = {
-    ebm.ebm_write(VOLID, LNUM, OFFSET, N0, N, BUF, ERR)
+  override def get_buf(BUFLEB0: Ref[bufleb]): Unit = {
+    BUFLEB0 := BUFLEB
   }
 
-  override def awbuf_write_buf(LNUM: Int, N: Int, BUF: buffer, ERR: Ref[error]): Unit = {
-    var DESTROY: Boolean = false
-    val WBUF: wbuf = WBSTORE(LNUM).deepCopy
-    if (WBUF.nbytes + N >= EB_PAGE_SIZE) {
-      val N0: Int = EB_PAGE_SIZE - WBUF.nbytes
-      WBUF.content.copy(BUF, 0, WBUF.nbytes, N0)
-      ebm.ebm_write(VOLID, LNUM, WBUF.offset, 0, EB_PAGE_SIZE, WBUF.content, ERR)
+  override def get_leb_size(N: Ref[Int]): Unit = {
+    apersistence_io.get_leb_size(N)
+  }
+
+  override def get_page_size(N: Ref[Int]): Unit = {
+    N := PAGESIZE
+  }
+
+  override def get_volume_size(N: Ref[Int]): Unit = {
+    apersistence_io.get_volume_size(N)
+  }
+
+  override def is_readonly(ROFS0: Ref[Boolean]): Unit = {
+    ROFS0 := ROFS
+  }
+
+  override def move_buf(LNUM: Int, OFFSET: Int, ERR: Ref[error]): Unit = {
+    if (ROFS) {
+      ERR := types.error.EROFS
+    } else {
+      ERR := types.error.ESUCCESS
+      if (BUFLEB != types.bufleb.buffered(LNUM)) {
+        BUFLEB = types.bufleb.buffered(LNUM)
+        WBUF.offset = OFFSET
+        WBUF.nbytes = 0
+      }
+    }
+  }
+
+  override def read_buf(LNUM: Int, OFFSET: Int, N: Int, BUF: buffer, ERR: Ref[error]): Unit = {
+    apersistence_io.read(LNUM, OFFSET, 0, N, BUF, ERR)
+    if (ERR.get == types.error.ESUCCESS && (types.bufleb.buffered(LNUM) == BUFLEB && (OFFSET <= WBUF.offset + WBUF.nbytes && WBUF.offset <= OFFSET + N))) {
+      val BEGINWBUF: Int = if (OFFSET <= WBUF.offset) 0 else OFFSET - WBUF.offset
+      val BEGINBUF: Int = if (OFFSET <= WBUF.offset) WBUF.offset - OFFSET else 0
+      BUF.copy(WBUF.content, BEGINWBUF, BEGINBUF, min(N - BEGINBUF, WBUF.nbytes - BEGINWBUF))
+    }
+  }
+
+  override def recover(PROOTADR0: Ref[address], PMAXINO0: Ref[Int], ORPHANS: nat_set, LOG: nat_list, LPT: lp_array, ERR: Ref[error]): Unit = {
+    apersistence_io.recover(PROOTADR0, PMAXINO0, ORPHANS, LOG, LPT, ERR)
+    if (ERR.get == types.error.ESUCCESS) {
+      
+      {
+        val ino: Ref[Int] = Ref[Int](PAGESIZE)
+        apersistence_io.get_page_size(ino)
+        PAGESIZE = ino.get
+      }
+      BUFLEB = types.bufleb.nobuffer
+      WBUF.content = new buffer(PAGESIZE)
+      ROFS = false
+    }
+  }
+
+  override def remap(LNUM: Int, ERR: Ref[error]): Unit = {
+    apersistence_io.remap(LNUM, ERR)
+  }
+
+  override def requires_commit(COMMIT_ : Ref[Boolean]): Unit = {
+    apersistence_io.requires_commit(COMMIT_)
+  }
+
+  override def unmap(LNUM: Int): Unit = {
+    apersistence_io.unmap(LNUM)
+  }
+
+  override def write_buf(N: Int, BUF: buffer, ERR: Ref[error]): Unit = {
+    if (ROFS) {
+      ERR := types.error.EROFS
+    } else     if (WBUF.nbytes + N >= PAGESIZE) {
+      val N0: Int = alignDown(WBUF.nbytes + N, PAGESIZE)
+      val N1: Int = N0 - WBUF.nbytes
+      val N2: Int = (WBUF.nbytes + N) % PAGESIZE
+      val BUF0: buffer = new buffer(N0).fill(0.toByte)
+      BUF0.copy(WBUF.content, 0, 0, WBUF.nbytes)
+      BUF0.copy(BUF, 0, WBUF.nbytes, N1)
+      apersistence_io.write(BUFLEB.leb, WBUF.offset, 0, N0, BUF0, ERR)
       if (ERR.get == types.error.ESUCCESS) {
-        val N1: Int = alignDown(N - N0, EB_PAGE_SIZE)
-        if (N1 != 0) {
-          ebm.ebm_write(VOLID, LNUM, WBUF.offset + EB_PAGE_SIZE, N0, N1, BUF, ERR)
-        }
-        if (ERR.get == types.error.ESUCCESS) {
-          val N2: Int = N - (N0 + N1)
-          if (WBUF.offset + (EB_PAGE_SIZE + N1) >= LEB_SIZE)
-            DESTROY = true
-          else {
-            WBUF.content.copy(BUF, N0 + N1, 0, N2)
-            WBUF.offset = WBUF.offset + (EB_PAGE_SIZE + N1)
-            WBUF.nbytes = N2
-          }
-        } else
-          DESTROY = true
+        WBUF.content.copy(BUF, N1, 0, N2)
+        WBUF.offset = WBUF.offset + N0
+        WBUF.nbytes = N2
+      } else {
+        ROFS = true
       }
     } else {
       WBUF.content.copy(BUF, 0, WBUF.nbytes, N)
       WBUF.nbytes = WBUF.nbytes + N
       ERR := types.error.ESUCCESS
     }
-    WBSTORE(LNUM) = WBUF
-    if (DESTROY)
-      WBSTORE -= LNUM
-    
   }
 
 }

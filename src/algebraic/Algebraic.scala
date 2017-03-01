@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package algebraic
@@ -12,6 +12,7 @@ import encoding.superblock._
 import helpers.scala._
 import helpers.scala.Encoding._
 import helpers.scala.Random._
+import sorts._
 import types._
 
 /**
@@ -89,6 +90,10 @@ trait Algebraic {
       return (ino - 1) + 1
   }
 
+  def encoding_size(sb: superblock): Int = {
+    return alignUp(encoding_size_unaligned(sb), EB_PAGE_SIZE)
+  }
+
   def is_aligned(n: Int, m: Int): Boolean = {
     return n % m == 0
   }
@@ -109,9 +114,7 @@ trait Algebraic {
       case types.branch.mkbranch(key, adr) =>
         return types.zbranch.mkzbranch(key, adr, null)
       case types.branch.mkentry(key, adr) =>
-        return types.zbranch.mkzentry(key, adr, types.node_option.none)
-      case types.branch.mkchecked(key) =>
-        return types.zbranch.mkzchecked(key)
+        return types.zbranch.mkzentry(key, adr)
     }
   }
 
@@ -141,25 +144,6 @@ trait Algebraic {
     return min(n0, min(n1, n2))
   }
 
-  def minus(fns: nat_set, m: Int): nat_set = {
-    if (fns.isEmpty)
-      return new nat_set()
-    else {
-      val fns0: nat_set = fns.tail.deepCopy
-      fns0 -= fns.head
-      val ns: nat_set = minus(fns0, m).deepCopy
-      ns += (fns.head - m)
-      return ns
-    }
-  }
-
-  def mkempbuf(n: Int): buffer = {
-    val buf: buffer = new buffer(n).fill(0.toByte)
-    val buf0: buffer = buf
-    buf0.fill(empty)
-    return buf0
-  }
-
   def mkzbuf(n: Int): buffer = {
     val buf: buffer = new buffer(n).fill(0.toByte)
     val buf0: buffer = buf
@@ -178,15 +162,23 @@ trait Algebraic {
     zbr match {
       case types.zbranch.mkzbranch(key, adr, r) =>
         return types.branch.mkbranch(key, adr)
-      case types.zbranch.mkzentry(key, adr, nd_) =>
+      case types.zbranch.mkzentry(key, adr) =>
         return types.branch.mkentry(key, adr)
-      case types.zbranch.mkzchecked(key) =>
-        return types.branch.mkchecked(key)
     }
   }
 
-  def size(sb: superblock): Int = {
-    return alignUp(size_unaligned(sb), EB_PAGE_SIZE)
+  def save(znd: znode): index_node = {
+    return types.index_node.indexnode(save(znd.zbranches, 0, znd.usedsize), znd.leaf, znd.usedsize)
+  }
+
+  def save(zbrar: zbranch_array, m: Int, ino: Int): branch_array = {
+    if (ino == 0)
+      return new branch_array(BRANCH_SIZE).fill(types.branch.uninit)
+    else {
+      val brar: branch_array = save(zbrar, m + 1, ino - 1).deepCopy
+      brar(m) = save(zbrar(m))
+      return brar
+    }
   }
 
 
@@ -218,9 +210,9 @@ trait Algebraic {
   def at(param0: address_list, param1: Int): address
   def checksum(param0: buffer, param1: Int): Int
   def is_open(param0: Int, param1: open_files): Boolean
-  def pr(param0: Byte, param1: metadata): Boolean
-  def pw(param0: Byte, param1: metadata): Boolean
-  def px(param0: Byte, param1: metadata): Boolean
+  def pr(param0: user, param1: metadata): Boolean
+  def pw(param0: user, param1: metadata): Boolean
+  def px(param0: user, param1: metadata): Boolean
   def to_vtbl(param0: volumes): vtbl
   def ⊑(param0: path, param1: path): Boolean
 }

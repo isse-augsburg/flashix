@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package encoding
@@ -8,6 +8,7 @@ import encoding.node._
 import helpers.scala._
 import helpers.scala.Encoding._
 import helpers.scala.Random._
+import sorts._
 import types._
 import types.error.error
 import types.file_mode.file_mode
@@ -23,7 +24,7 @@ object group_node {
   def encode_group_node_headerless(elem: group_node, index: Int, buf: buffer, nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
     import _algebraic_implicit._
     nbytes := 0
-    val tmpsize = new Ref[Int](0)
+    val tmpsize = Ref[Int](0)
     err := types.error.ESUCCESS
     if (err.get == types.error.ESUCCESS) {
       encode_node(elem.nd, index + nbytes.get, buf, tmpsize, err)
@@ -47,11 +48,11 @@ object group_node {
     import _algebraic_implicit._
     nbytes := 0
     err := types.error.ESUCCESS
-    val tmpsize = new Ref[Int](0)
-    val nd = new Ref[node](types.node.uninit)
-    val sqnum = new Ref[Int](0)
-    val start = new Ref[Boolean](helpers.scala.Boolean.uninit)
-    val end = new Ref[Boolean](helpers.scala.Boolean.uninit)
+    val tmpsize = Ref[Int](0)
+    val nd = Ref[node](types.node.uninit)
+    val sqnum = Ref[Int](0)
+    val start = Ref[Boolean](helpers.scala.Boolean.uninit)
+    val end = Ref[Boolean](helpers.scala.Boolean.uninit)
     if (err.get == types.error.ESUCCESS) {
       decode_node(index + nbytes.get, buf, nd, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get

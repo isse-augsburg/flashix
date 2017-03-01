@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package asm
@@ -11,20 +11,21 @@ import types._
 import types.error.error
 
 abstract class awbuf_interface {
-  def awbuf_change(LNUM: Int, N: Int, BUF: buffer, ERR: Ref[error])
-  def awbuf_create_buf(LNUM: Int, OFFSET: Int)
-  def awbuf_destroy_buf(LNUM: Int)
-  def awbuf_destroy_bufs()
-  def awbuf_format(VOLSIZE: Int, ERR: Ref[error])
-  def awbuf_get_bufs(WBS0: nat_set)
-  def awbuf_get_volume_size(N: Ref[Int])
-  def awbuf_is_buffered(LNUM: Int, ISBUF: Ref[Boolean])
-  def awbuf_read(LNUM: Int, OFFSET: Int, N0: Int, N: Int, BUF: buffer, ERR: Ref[error])
-  def awbuf_read_buf(LNUM: Int, OFFSET: Int, N: Int, BUF: buffer, ERR: Ref[error])
-  def awbuf_recover(ERR: Ref[error])
-  def awbuf_remap(LNUM: Int, ERR: Ref[error])
-  def awbuf_sync_device(ERR: Ref[error])
-  def awbuf_unmap(LNUM: Int)
-  def awbuf_write(LNUM: Int, OFFSET: Int, N0: Int, N: Int, BUF: buffer, ERR: Ref[error])
-  def awbuf_write_buf(LNUM: Int, N: Int, BUF: buffer, ERR: Ref[error])
+  def add_log_leb(LNUM: Int, OFFSET: Int, ERR: Ref[error])
+  def commit(LPT: lp_array, WROOTADR0: address, WMAXINO0: Int, ORPHANS: nat_set, ERR: Ref[error])
+  def destroy_buf(ERR: Ref[error])
+  def enter_readonly()
+  def format(VOLSIZE: Int, LPT: lp_array, WROOTADR0: address, WMAXINO0: Int, ERR: Ref[error])
+  def get_buf(WBUFLEB0: Ref[bufleb])
+  def get_leb_size(N: Ref[Int])
+  def get_page_size(N: Ref[Int])
+  def get_volume_size(N: Ref[Int])
+  def is_readonly(AROFS0: Ref[Boolean])
+  def move_buf(LNUM: Int, OFFSET: Int, ERR: Ref[error])
+  def read_buf(LNUM: Int, OFFSET: Int, N: Int, BUF: buffer, ERR: Ref[error])
+  def recover(WROOTADR0: Ref[address], WMAXINO0: Ref[Int], ORPHANS: nat_set, LOG: nat_list, LPT: lp_array, ERR: Ref[error])
+  def remap(LNUM: Int, ERR: Ref[error])
+  def requires_commit(COMMIT_ : Ref[Boolean])
+  def unmap(LNUM: Int)
+  def write_buf(N: Int, BUF: buffer, ERR: Ref[error])
 }

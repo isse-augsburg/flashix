@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 import helpers.scala._
@@ -39,8 +39,8 @@ package object types {
   implicit object lp_arrayRandomizer extends helpers.scala.Random.ArrayWrapperDeepRandomizer[lprops]
   type wlarray = helpers.scala.ArrayWrapperDeep[wlentry]
   implicit object wlarrayRandomizer extends helpers.scala.Random.ArrayWrapperDeepRandomizer[wlentry]
-  type zbranch_array = helpers.scala.ArrayWrapperDeep[zbranch]
-  implicit object zbranch_arrayRandomizer extends helpers.scala.Random.ArrayWrapperDeepRandomizer[zbranch]
+  type zbranch_array = helpers.scala.ArrayWrapper[zbranch]
+  implicit object zbranch_arrayRandomizer extends helpers.scala.Random.ArrayWrapperRandomizer[zbranch]
   type open_files = helpers.scala.MapWrapperDeep[Int, file]
   implicit object open_filesRandomizer extends helpers.scala.Random.MapWrapperDeepRandomizer[Int, file]
   type recoveryentries = helpers.scala.MapWrapper[lebadress, recoveryentry]
@@ -49,6 +49,4 @@ package object types {
   implicit object volumesRandomizer extends helpers.scala.Random.MapWrapperDeepRandomizer[Byte, ebatbl]
   type vtbl = helpers.scala.MapWrapper[Byte, Int]
   implicit object vtblRandomizer extends helpers.scala.Random.MapWrapperRandomizer[Byte, Int]
-  type wbuf_store = helpers.scala.MapWrapperDeep[Int, wbuf]
-  implicit object wbuf_storeRandomizer extends helpers.scala.Random.MapWrapperDeepRandomizer[Int, wbuf]
 }

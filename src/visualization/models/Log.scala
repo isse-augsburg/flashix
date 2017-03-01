@@ -99,7 +99,15 @@ object Log extends Tab {
     // Add/Change blocks
     logblocks.list.foreach { block =>
       val offset = flashix.persistence.LPT(block).size
-      val flushed = flashix.wbuf.WBSTORE.map.get(flashix.persistence_io.SB.main + block).map { _.offset }.getOrElse(offset)
+      val flushed = flashix.wbuf.BUFLEB match {
+        case bufleb.nobuffer =>
+          offset
+        case bufleb.buffered(leb) =>
+          if (leb == block)
+            flashix.wbuf.WBUF.offset
+          else
+            offset
+      }
 
       // NOTE: the addresses and nodes only change, when offset changes, too
       val oldblock = log.find { _.block == block }
@@ -109,7 +117,7 @@ object Log extends Tab {
         val adrs = new address_list()
         val nds = new group_node_list()
         val err: Ref[error] = Ref.empty
-        flashix.persistence.apersistence_read_gblock_nodes(block, adrs, nds, err)
+        flashix.persistence.read_gblock_nodes(block, adrs, nds, err)
         val nodes = adrs.list.zip(nds.list.map { _.nd }).toList
         oldblock match {
           case None =>

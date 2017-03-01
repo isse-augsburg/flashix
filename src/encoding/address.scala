@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package encoding
@@ -7,6 +7,7 @@ package encoding
 import helpers.scala._
 import helpers.scala.Encoding._
 import helpers.scala.Random._
+import sorts._
 import types._
 import types.error.error
 import types.file_mode.file_mode
@@ -22,7 +23,7 @@ object address {
   def encode_address(elem: address, index: Int, buf: buffer, nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
     import _algebraic_implicit._
     nbytes := 0
-    val tmpsize = new Ref[Int](0)
+    val tmpsize = Ref[Int](0)
     err := types.error.ESUCCESS
     if (err.get == types.error.ESUCCESS) {
       encode_nat(elem.lnum, index + nbytes.get, buf, tmpsize, err)
@@ -42,10 +43,10 @@ object address {
     import _algebraic_implicit._
     nbytes := 0
     err := types.error.ESUCCESS
-    val tmpsize = new Ref[Int](0)
-    val lnum = new Ref[Int](0)
-    val pos = new Ref[Int](0)
-    val size = new Ref[Int](0)
+    val tmpsize = Ref[Int](0)
+    val lnum = Ref[Int](0)
+    val pos = Ref[Int](0)
+    val size = Ref[Int](0)
     if (err.get == types.error.ESUCCESS) {
       decode_nat(index + nbytes.get, buf, lnum, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get

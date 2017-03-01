@@ -144,7 +144,7 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
   def doGC(reason: String, ERR: Ref[error], free_lebs: Int) = {
     debug(s"flashix: attempting garbage collection with ${free_lebs} LEBs (${reason})")
 
-    journal.aubifs_internal_check_commit(ERR)
+    journal.check_commit(ERR)
 
     if (ERR.get == error.ESUCCESS) {
       journal.journal_gc()
@@ -159,7 +159,7 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
 
       if (free_bytes > LEB_SIZE * (4 + free)) {
         debug(s"flashix: attempting to free ${free_bytes} bytes from the log")
-        journal.aubifs_commit(ERR)
+        journal.commit(ERR)
 
         GCloop(tryCommit, ERR)
       }
@@ -173,7 +173,7 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
     val isCritical = free < flashix.percentOf(10, total)
 
     val N = new Ref[Int](0)
-    persistence.apersistence_get_gc_block(N, ERR)
+    persistence.get_gc_block(N, ERR)
 
     if (ERR.get == error.ESUCCESS) {
       val lp = persistence.LPT(N.get)
@@ -220,7 +220,7 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
       throw new FuseException("Unsuccessful operation: " + err.get).initErrno(errorToErrno(err.get))
     res
   }
-
+/*
   def flush() {
     val err = new Ref[error](error.ESUCCESS)
     if (journal.JNLHEADVALID) {
@@ -228,7 +228,7 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
       persistence.apersistence_flush_gnd(lnum, err)
     }
   }
-
+*/
   def _run(force: Boolean, operation: Ref[error] => Unit): Int = {
     try {
       checkGC()
@@ -261,7 +261,7 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
     val md = new Ref[metadata](metadata.uninit)
     val nlink = new Ref[Int](0)
     val size = new Ref[Int](0)
-    runAlways(posix.posix_readmeta(path, user, md, nlink, size, _))
+    runAlways(posix.readmeta(path, user, md, nlink, size, _))
     // TODO: inode number
     md.get.put(getattrSetter, 0, nlink.get, size.get)
     0
@@ -272,7 +272,7 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
     val names = new stringset()
 
     runAlways {
-      posix.posix_readdir(path, user, names, _)
+      posix.readdir(path, user, names, _)
     }
 
     val md = new Ref[metadata](metadata.uninit)
@@ -280,7 +280,7 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
     val size = new Ref[Int](0)
 
     runAlways {
-      posix.posix_readmeta(path, user, md, nlink, size, _)
+      posix.readmeta(path, user, md, nlink, size, _)
     }
 
     dirFiller.add(".", 0, md.get.mode) // TODO: inode number
@@ -289,14 +289,14 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
       dirFiller.add("..", 0, md.get.mode) // TODO: inode number
     } else {
       runAlways {
-        posix.posix_readmeta(path.init, user, md, nlink, size, _)
+        posix.readmeta(path.init, user, md, nlink, size, _)
       }
       dirFiller.add("..", 0, md.get.mode) // TODO: inode number
     }
 
     names.set.foreach { name =>
       runAlways {
-        posix.posix_readmeta(path :+ name, user, md, nlink, size, _)
+        posix.readmeta(path :+ name, user, md, nlink, size, _)
       }
       dirFiller.add(name, 0, md.get.mode) // TODO: inode number
     }
@@ -310,39 +310,39 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
     }
 
     run {
-      posix.posix_create(path, FileMetadata(mode), user, _)
+      posix.create(path, FileMetadata(mode), user, _)
     }
   }
 
   def mkdir(path: String, mode: Int): Int = {
     run {
-      posix.posix_mkdir(path, DirMetadata(mode), user, _)
+      posix.mkdir(path, DirMetadata(mode), user, _)
     }
   }
 
   def unlink(path: String): Int = {
     runAlways {
-      posix.posix_unlink(path, user, _)
+      posix.unlink(path, user, _)
     }
   }
 
   def rmdir(path: String): Int = {
     runAlways {
-      posix.posix_rmdir(path, user, _)
+      posix.rmdir(path, user, _)
     }
   }
 
   def symlink(from: String, to: String): Int = {
-    run /* */ { posix.posix_create(to, SymlinkMetadata( /* default */ ), user, _) }
+    run /* */ { posix.create(to, SymlinkMetadata( /* default */ ), user, _) }
 
     val fd = new Ref[Int](0)
     val n = new Ref[Int](from.length)
     val buf = new buffer(n.get)
     from.getBytes(0, n.get, buf.array, 0)
 
-    runAlways { posix.posix_open(to, file_mode.MODE_W, user, fd, _) }
-    run /* */ { posix.posix_write(fd.get, buf, user, n, _) }
-    runAlways { posix.posix_close(fd.get, user, _) }
+    runAlways { posix.open(to, file_mode.MODE_W, user, fd, _) }
+    run /* */ { posix.write(fd.get, buf, user, n, _) }
+    runAlways { posix.close(fd.get, user, _) }
 
     0
   }
@@ -352,9 +352,9 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
     val n = new Ref[Int](link.limit)
     val buf = new buffer(n.get)
 
-    runAlways { posix.posix_open(path, file_mode.MODE_R, user, fd, _) }
-    run /* */ { posix.posix_read(fd.get, user, buf, n, _) }
-    runAlways { posix.posix_close(fd.get, user, _) }
+    runAlways { posix.open(path, file_mode.MODE_R, user, fd, _) }
+    run /* */ { posix.read(fd.get, user, buf, n, _) }
+    runAlways { posix.close(fd.get, user, _) }
 
     link.append(new String(buf.array))
 
@@ -363,13 +363,13 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
 
   def rename(from: String, to: String): Int = {
     run {
-      posix.posix_rename(from, to, user, _)
+      posix.rename(from, to, user, _)
     }
   }
 
   def link(from: String, to: String): Int = {
     run {
-      posix.posix_link(from, to, user, _)
+      posix.link(from, to, user, _)
     }
   }
 
@@ -380,13 +380,13 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
     val size = new Ref[Int](0)
 
     runAlways {
-      posix.posix_readmeta(path, user, md, nlink, size, _)
+      posix.readmeta(path, user, md, nlink, size, _)
     }
 
     val md0 = f(md.get)
 
     run {
-      posix.posix_writemeta(path, md0, user, _)
+      posix.writemeta(path, md0, user, _)
     }
   }
 
@@ -400,7 +400,7 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
 
   def truncate(path: String, size: Long): Int = {
     runAlways {
-      posix.posix_truncate(path, size.toInt, user, _)
+      posix.truncate(path, size.toInt, user, _)
     }
   }
 
@@ -427,7 +427,7 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
 
     val fd = new Ref[Int](0)
     runAlways {
-      posix.posix_open(path, OpenMode.toMode(flags), user, fd, _)
+      posix.open(path, OpenMode.toMode(flags), user, fd, _)
     }
 
     val fh = FH(fd.get, OpenMode.isAppend(flags))
@@ -441,11 +441,11 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
     val buf = new buffer(n.get)
 
     runAlways {
-      posix.posix_seek(fd, seekflag.SEEK_SET, user, new Ref(offset.toInt), _)
+      posix.seek(fd, seekflag.SEEK_SET, user, new Ref(offset.toInt), _)
     }
 
     runAlways {
-      posix.posix_read(fd, user, buf, n, _)
+      posix.read(fd, user, buf, n, _)
     }
 
     bbuf.put(buf.array)
@@ -459,10 +459,10 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
     bbuf.get(buf.array)
 
     checked {
-      posix.posix_seek(fd, if (isAppend) seekflag.SEEK_END else seekflag.SEEK_SET, user, new Ref(if (isAppend) 0 else offset.toInt), _)
+      posix.seek(fd, if (isAppend) seekflag.SEEK_END else seekflag.SEEK_SET, user, new Ref(if (isAppend) 0 else offset.toInt), _)
     }
 
-    run { posix.posix_write(fd, buf, user, n, _) }
+    run { posix.write(fd, buf, user, n, _) }
   }
 
   def flush(path: String, fh: AnyRef): Int = {
@@ -472,7 +472,7 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
   def release(path: String, fh: AnyRef, flags: Int): Int = {
     val fd = fh.asInstanceOf[FH]
     runAlways {
-      posix.posix_close(fd.fd, user, _)
+      posix.close(fd.fd, user, _)
     }
   }
 

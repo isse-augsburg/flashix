@@ -10,16 +10,16 @@ import types._
 import types.error._
 import java.util.Arrays
 
-class MTDSimulation private(val file: RandomAccessFile, val PEBS: Int, val PAGES_PER_PEB: Int, val EB_PAGE_SIZE: Int) extends asm.mtd_interface {
+class MTDSimulation private(val file: RandomAccessFile, val PEBS: Int, val PAGES_PER_PEB: Int, val EB_PAGE_SIZE: Int) extends asm.mtd_asm_interface {
 
   val empty: Byte = 0xFF.toByte
   val PEB_SIZE: Int = PAGES_PER_PEB * EB_PAGE_SIZE
 
-  final override def mtd_init(ERR: Ref[error]) {
+  final override def init(ERR: Ref[error]) {
     ERR := ESUCCESS
   }
 
-  final override def mtd_erase(PNUM: Int, ERR: Ref[error]) {
+  final override def erase(PNUM: Int, ERR: Ref[error]) {
     val empty_peb = new Array[Byte](PEB_SIZE)
     (0 until PEB_SIZE).foreach { i =>
       empty_peb(i) = empty
@@ -36,21 +36,29 @@ class MTDSimulation private(val file: RandomAccessFile, val PEBS: Int, val PAGES
     }
   }
 
-  final override def mtd_get_blockcount(N: Ref[Int]) {
+  final override def get_blockcount(N: Ref[Int]) {
     N := PEBS
   }
 
-  final override def mtd_isbad(PNUM: Int, ISBAD: Ref[Boolean], ERR: Ref[error]) {
+  final override def get_page_size(N: Ref[Int]) {
+    N := EB_PAGE_SIZE
+  }
+
+  final override def get_peb_size(N: Ref[Int]) {
+    N := EB_PAGE_SIZE * PAGES_PER_PEB
+  }
+
+  final override def isbad(PNUM: Int, ISBAD: Ref[Boolean], ERR: Ref[error]) {
     ISBAD := false
     ERR := ESUCCESS
   }
 
-  final override def mtd_markbad(PNUM: Int, ERR: Ref[error]) {
+  final override def markbad(PNUM: Int, ERR: Ref[error]) {
     println("MTDSimulation: markbad not supported")
     ERR := EIO
   }
 
-  final override def mtd_read(PNUM: Int, OFFSET: Int, N0: Int, N: Int, BUF: buffer, BITFLIPS: Ref[Boolean], ERR: Ref[error]) {
+  final override def read(PNUM: Int, OFFSET: Int, N0: Int, N: Int, BUF: buffer, BITFLIPS: Ref[Boolean], ERR: Ref[error]) {
     try {
       file.seek(PNUM * PEB_SIZE + OFFSET)
       file.read(BUF.array, N0, N)
@@ -64,7 +72,7 @@ class MTDSimulation private(val file: RandomAccessFile, val PEBS: Int, val PAGES
     BITFLIPS := false
   }
 
-  final override def mtd_write(PNUM: Int, OFFSET: Int, N0: Int, N: Int, BUF: buffer, ERR: Ref[error]) {
+  final override def write(PNUM: Int, OFFSET: Int, N0: Int, N: Int, BUF: buffer, ERR: Ref[error]) {
     try {
       file.seek(PNUM * PEB_SIZE + OFFSET)
       file.write(BUF.array, N0, N)

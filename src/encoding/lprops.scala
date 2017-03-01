@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package encoding
@@ -8,6 +8,7 @@ import encoding.lpropflags._
 import helpers.scala._
 import helpers.scala.Encoding._
 import helpers.scala.Random._
+import sorts._
 import types._
 import types.error.error
 import types.file_mode.file_mode
@@ -23,7 +24,7 @@ object lprops {
   def encode_lprops(elem: lprops, index: Int, buf: buffer, nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
     import _algebraic_implicit._
     nbytes := 0
-    val tmpsize = new Ref[Int](0)
+    val tmpsize = Ref[Int](0)
     err := types.error.ESUCCESS
     if (err.get == types.error.ESUCCESS) {
       encode_nat(elem.ref_size, index + nbytes.get, buf, tmpsize, err)
@@ -47,11 +48,11 @@ object lprops {
     import _algebraic_implicit._
     nbytes := 0
     err := types.error.ESUCCESS
-    val tmpsize = new Ref[Int](0)
-    val ref_size = new Ref[Int](0)
-    val size = new Ref[Int](0)
-    val flags = new Ref[lpropflags](types.lpropflags.uninit)
-    val gcheapidx = new Ref[Int](0)
+    val tmpsize = Ref[Int](0)
+    val ref_size = Ref[Int](0)
+    val size = Ref[Int](0)
+    val flags = Ref[lpropflags](types.lpropflags.uninit)
+    val gcheapidx = Ref[Int](0)
     if (err.get == types.error.ESUCCESS) {
       decode_nat(index + nbytes.get, buf, ref_size, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get

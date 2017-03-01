@@ -17,6 +17,7 @@ import visualization.Toolkit._
 import visualization.models._
 import scala.swing.TabbedPane.Page
 import java.awt.GridLayout
+import integration.fuse.FilesystemAdapter
 
 trait Tab extends Component with Observer[Flashix] {
   def page: Page
@@ -74,33 +75,30 @@ object Visualization {
 
     def dosync() {
       flashix synchronized {
-        if (flashix.journal.JNLHEADVALID)
-          flashix.persistence.apersistence_flush_gnd(flashix.journal.JNLHEAD, err)
+        flashix.posix.sync(err)
       }
     }
 
     def format() {
       val rootmeta = fuse.DirMetadata()
       flashix synchronized {
-        flashix.vfs.posix_format(pebs - spare_pebs, rootmeta, err)
+        flashix.vfs.format(pebs - spare_pebs, doSync, rootmeta, err)
       }
       if (err != ESUCCESS)
         println(s"vfs: format failed with error code ${err.get}")
-      flashix.journal.SYNC = doSync // TODO: option
     }
 
     def recover() {
       flashix synchronized {
-        flashix.vfs.posix_recover(err)
+        flashix.vfs.recover(doSync, err)
       }
       if (err != ESUCCESS)
         println(s"vfs: recovery failed with error code ${err.get}")
-      flashix.journal.SYNC = doSync // TODO: option
     }
 
     def commit() {
       flashix synchronized {
-        flashix.journal.aubifs_commit(err)
+        flashix.journal.commit(err)
       }
       if (err != ESUCCESS)
         println(s"vfs: recovery failed with error code ${err.get}")
@@ -108,7 +106,7 @@ object Visualization {
 
     def wearleveling() {
       flashix.synchronized {
-        flashix.ubi.ubi_wear_leveling_worker(err)
+        flashix.ubi.wear_leveling_worker(err)
       }
       if (err != ESUCCESS)
         println(s"ubi: wear-leveling failed with error code ${err.get}")

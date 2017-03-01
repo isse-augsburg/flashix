@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package asm
@@ -10,128 +10,133 @@ import helpers.scala.Random._
 import types._
 import types.error.error
 
-class aubifs_asm(val aubifs_internal_asm : aubifs_internal_asm_interface)(implicit _algebraic_implicit: algebraic.Algebraic) extends logfs_interface {
+class aubifs_asm(val aubifs_core : aubifs_core_interface)(implicit _algebraic_implicit: algebraic.Algebraic) extends logfs_interface {
   import _algebraic_implicit._
 
-  override def afs_check_commit(ERR: Ref[error]): Unit = {
-    aubifs_internal_asm.aubifs_internal_check_commit(ERR)
+  override def check_commit(ERR: Ref[error]): Unit = {
+    aubifs_core.check_commit(ERR)
   }
 
-  override def afs_create(P_INODE: inode, MD: metadata, DENT: Ref[dentry], ERR: Ref[error]): Unit = {
-    ERR := types.error.ESUCCESS
-    val KEY3 = new Ref[key](types.key.uninit)
-    aubifs_internal_asm.index_newino(KEY3)
-    val KEY1: key = types.key.inodekey(P_INODE.ino)
-    val KEY2: key = types.key.dentrykey(P_INODE.ino, DENT.get.name)
-    val EXISTS = new Ref[Boolean](helpers.scala.Boolean.uninit)
-    aubifs_internal_asm.index_checkkey(KEY1, EXISTS, ERR)
+  override def create(MD: metadata, P_INODE: inode, C_INODE: inode, DENT: Ref[dentry], ERR: Ref[error]): Unit = {
+    var KEY1: key = types.key.uninit
+    KEY1 = types.key.inodekey(P_INODE.ino)
+    var KEY2: key = types.key.uninit
+    KEY2 = types.key.dentrykey(P_INODE.ino, DENT.get.name)
+    val KEY3 = Ref[key](types.key.uninit)
+    aubifs_core.index_newino(KEY3)
+    var ND1: node = types.node.uninit
+    ND1 = types.node.inodenode(KEY1, P_INODE.meta, P_INODE.directory, P_INODE.nlink, P_INODE.nsubdirs, P_INODE.size + 1)
+    var ND2: node = types.node.uninit
+    ND2 = types.node.dentrynode(KEY2, KEY3.get.ino)
+    var ND3: node = types.node.uninit
+    ND3 = types.node.inodenode(KEY3.get, MD, false, 1, 0, 0)
+    val ADR1 = Ref[address](types.address.uninit)
+    val ADR2 = Ref[address](types.address.uninit)
+    val ADR3 = Ref[address](types.address.uninit)
+    aubifs_core.journal_add3(ND1, ND2, ND3, ADR1, ADR2, ADR3, ERR)
     if (ERR.get == types.error.ESUCCESS) {
-      aubifs_internal_asm.index_checkkey(KEY2, EXISTS, ERR)
-    }
-    if (ERR.get == types.error.ESUCCESS) {
-      aubifs_internal_asm.index_checkkey(KEY3.get, EXISTS, ERR)
-    }
-    if (ERR.get == types.error.ESUCCESS) {
-      val ND1: node = types.node.inodenode(KEY1, P_INODE.meta, P_INODE.directory, P_INODE.nlink, P_INODE.nsubdirs, P_INODE.size + 1)
-      val ND2: node = types.node.dentrynode(KEY2, KEY3.get.ino)
-      val ND3: node = types.node.inodenode(KEY3.get, MD, false, 1, 0, 0)
-      val ADR1 = new Ref[address](types.address.uninit)
-      val ADR2 = new Ref[address](types.address.uninit)
-      val ADR3 = new Ref[address](types.address.uninit)
-      aubifs_internal_asm.journal_add3(ND1, ND2, ND3, ADR1, ADR2, ADR3, ERR)
-      if (ERR.get == types.error.ESUCCESS) {
-        aubifs_internal_asm.index_store(KEY1, ADR1.get, ND1, ERR)
-        aubifs_internal_asm.index_store(KEY2, ADR2.get, ND2, ERR)
-        aubifs_internal_asm.index_store(KEY3.get, ADR3.get, ND3, ERR)
-        DENT := types.dentry.mkdentry(DENT.get.name, KEY3.get.ino)
-      } else {
-        aubifs_internal_asm.index_remove(KEY2)
-        aubifs_internal_asm.index_remove(KEY3.get)
-      }
+      aubifs_core.index_store(KEY1, ADR1.get)
+      aubifs_core.index_store(KEY2, ADR2.get)
+      aubifs_core.index_store(KEY3.get, ADR3.get)
+      DENT := types.dentry.mkdentry(DENT.get.name, KEY3.get.ino)
+      P_INODE := types.inode.mkinode(P_INODE.ino, ND1.meta, ND1.directory, ND1.nlink, ND1.nsubdirs, ND1.size)
+      C_INODE := types.inode.mkinode(KEY3.get.ino, ND3.meta, ND3.directory, ND3.nlink, ND3.nsubdirs, ND3.size)
     }
   }
 
-  override def afs_evict(INODE: inode, ERR: Ref[error]): Unit = {
+  override def evict(INODE: inode, ERR: Ref[error]): Unit = {
     val KEY: key = types.key.inodekey(INODE.ino)
-    val EXISTS = new Ref[Boolean](helpers.scala.Boolean.uninit)
-    aubifs_internal_asm.orphans_contains(KEY, EXISTS)
+    val EXISTS = Ref[Boolean](helpers.scala.Boolean.uninit)
+    aubifs_core.orphans_contains(KEY, EXISTS)
     if (EXISTS.get) {
-      aubifs_internal_asm.index_checkkey(KEY, EXISTS, ERR)
-      if (ERR.get == types.error.ESUCCESS) {
-        aubifs_internal_asm.index_checkdata(KEY, 0, ERR)
-      }
-      if (ERR.get == types.error.ESUCCESS) {
-        aubifs_internal_asm.index_truncate(KEY, 0, ERR)
-      }
-      if (ERR.get == types.error.ESUCCESS) {
-        aubifs_internal_asm.orphan_remove(KEY)
-        aubifs_internal_asm.index_remove(KEY)
-      }
+      aubifs_core.index_truncate(KEY, 0)
+      aubifs_core.orphans_remove(KEY)
+      aubifs_core.index_remove(KEY)
     }
+    ERR := types.error.ESUCCESS
   }
 
-  override def afs_format(VOLSIZE: Int, MD: metadata, ERR: Ref[error]): Unit = {
-    aubifs_internal_asm.internal_format(VOLSIZE, ERR)
+  override def format(VOLSIZE: Int, DOSYNC: Boolean, MD: metadata, ERR: Ref[error]): Unit = {
+    aubifs_core.format(VOLSIZE, DOSYNC, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       val KEY: key = types.key.inodekey(ROOT_INO)
+      val ADR = Ref[address](types.address.uninit)
       val ND: node = types.node.inodenode(KEY, MD, true, 0, 0, 0)
-      val EXISTS = new Ref[Boolean](helpers.scala.Boolean.uninit)
-      aubifs_internal_asm.index_checkkey(KEY, EXISTS, ERR)
-      val ADR = new Ref[address](types.address.uninit)
+      aubifs_core.journal_add1(ND, ADR, ERR)
       if (ERR.get == types.error.ESUCCESS) {
-        aubifs_internal_asm.journal_add1(ND, ADR, ERR)
+        aubifs_core.index_store(KEY, ADR.get)
       }
       if (ERR.get == types.error.ESUCCESS) {
-        aubifs_internal_asm.index_store(KEY, ADR.get, ND, ERR)
+        aubifs_core.journal_sync(ERR)
       }
     }
   }
 
-  override def afs_iget(INO: Int, INODE: inode, ERR: Ref[error]): Unit = {
+  override def fsync(INODE: inode, ISDATASYNC: Boolean, ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
-    val EXISTS = new Ref[Boolean](helpers.scala.Boolean.uninit)
-    aubifs_iget_check(INO, EXISTS, INODE, ERR)
   }
 
-  override def afs_link(P_INO: Int, OLD_DENT: dentry, NEW_DENT: Ref[dentry], ERR: Ref[error]): Unit = {
+  override def fsyncdir(INODE: inode, ISDATASYNC: Boolean, ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
-    val EXISTS = new Ref[Boolean](helpers.scala.Boolean.uninit)
-    val P_INODE: inode = types.inode.uninit
-    aubifs_pget_check(P_INO, EXISTS, P_INODE, ERR)
-    val INO: Int = OLD_DENT.ino
-    val INODE: inode = types.inode.uninit
-    aubifs_iget_check(INO, EXISTS, INODE, ERR)
+  }
+
+  override def gc(): Unit = {
+    aubifs_core.journal_gc()
+  }
+
+  override def iget(INO: Int, INODE: inode, ERR: Ref[error]): Unit = {
+    ERR := types.error.ESUCCESS
+    val EXISTS = Ref[Boolean](helpers.scala.Boolean.uninit)
+    iget_check(INO, EXISTS, INODE, ERR)
+  }
+
+  def iget_check(INO: Int, EXISTS: Ref[Boolean], INODE: inode, ERR: Ref[error]): Unit = {
     if (ERR.get == types.error.ESUCCESS) {
-      val KEY1: key = types.key.inodekey(P_INO)
-      val KEY2: key = types.key.dentrykey(P_INO, NEW_DENT.get.name)
-      aubifs_internal_asm.index_checkkey(KEY2, EXISTS, ERR)
-      if (ERR.get == types.error.ESUCCESS) {
-        val KEY3: key = types.key.inodekey(INO)
-        val ND1: node = types.node.inodenode(KEY1, P_INODE.meta, P_INODE.directory, P_INODE.nlink, P_INODE.nsubdirs, P_INODE.size + 1)
-        val ND2: node = types.node.dentrynode(KEY2, INO)
-        val ND3: node = types.node.inodenode(KEY3, INODE.meta, INODE.directory, INODE.nlink + 1, INODE.nsubdirs, INODE.size)
-        val ADR1 = new Ref[address](types.address.uninit)
-        val ADR2 = new Ref[address](types.address.uninit)
-        val ADR3 = new Ref[address](types.address.uninit)
-        aubifs_internal_asm.journal_add3(ND1, ND2, ND3, ADR1, ADR2, ADR3, ERR)
-        if (ERR.get == types.error.ESUCCESS) {
-          aubifs_internal_asm.index_store(KEY1, ADR1.get, ND1, ERR)
-          aubifs_internal_asm.index_store(KEY2, ADR2.get, ND2, ERR)
-          aubifs_internal_asm.index_store(KEY3, ADR3.get, ND3, ERR)
-          NEW_DENT := types.dentry.mkdentry(NEW_DENT.get.name, INO)
-        } else {
-          aubifs_internal_asm.index_remove(KEY2)
-        }
+      var KEY: key = types.key.uninit
+      KEY = types.key.inodekey(INO)
+      val ND = Ref[node](types.node.uninit)
+      aubifs_core.index_lookup(KEY, EXISTS, ND, ERR)
+      if (ERR.get == types.error.ESUCCESS && EXISTS.get) {
+        INODE := types.inode.mkinode(INO, ND.get.meta, ND.get.directory, ND.get.nlink, if (ND.get.directory) ND.get.nsubdirs else 0, ND.get.size)
       }
     }
   }
 
-  override def afs_lookup(P_INO: Int, DENT: Ref[dentry], ERR: Ref[error]): Unit = {
+  override def link(OLD_DENT: dentry, P_INODE: inode, C_INODE: inode, NEW_DENT: Ref[dentry], ERR: Ref[error]): Unit = {
+    var KEY1: key = types.key.uninit
+    KEY1 = types.key.inodekey(P_INODE.ino)
+    var KEY2: key = types.key.uninit
+    KEY2 = types.key.dentrykey(P_INODE.ino, NEW_DENT.get.name)
+    val INO: Int = C_INODE.ino
+    var KEY3: key = types.key.uninit
+    KEY3 = types.key.inodekey(INO)
+    var ND1: node = types.node.uninit
+    ND1 = types.node.inodenode(KEY1, P_INODE.meta, P_INODE.directory, P_INODE.nlink, P_INODE.nsubdirs, P_INODE.size + 1)
+    var ND2: node = types.node.uninit
+    ND2 = types.node.dentrynode(KEY2, INO)
+    var ND3: node = types.node.uninit
+    ND3 = types.node.inodenode(KEY3, C_INODE.meta, C_INODE.directory, C_INODE.nlink + 1, C_INODE.nsubdirs, C_INODE.size)
+    val ADR1 = Ref[address](types.address.uninit)
+    val ADR2 = Ref[address](types.address.uninit)
+    val ADR3 = Ref[address](types.address.uninit)
+    aubifs_core.journal_add3(ND1, ND2, ND3, ADR1, ADR2, ADR3, ERR)
+    if (ERR.get == types.error.ESUCCESS) {
+      aubifs_core.index_store(KEY1, ADR1.get)
+      aubifs_core.index_store(KEY2, ADR2.get)
+      aubifs_core.index_store(KEY3, ADR3.get)
+      NEW_DENT := types.dentry.mkdentry(NEW_DENT.get.name, INO)
+      P_INODE := types.inode.mkinode(P_INODE.ino, ND1.meta, ND1.directory, ND1.nlink, ND1.nsubdirs, ND1.size)
+      C_INODE := types.inode.mkinode(INO, ND3.meta, ND3.directory, ND3.nlink, ND3.nsubdirs, ND3.size)
+    }
+  }
+
+  override def lookup(P_INO: Int, DENT: Ref[dentry], ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
-    val KEY: key = types.key.dentrykey(P_INO, DENT.get.name)
-    val ND = new Ref[node](types.node.uninit)
-    val EXISTS = new Ref[Boolean](helpers.scala.Boolean.uninit)
-    aubifs_internal_asm.index_lookup(KEY, EXISTS, ND, ERR)
+    var KEY: key = types.key.uninit
+    KEY = types.key.dentrykey(P_INO, DENT.get.name)
+    val ND = Ref[node](types.node.uninit)
+    val EXISTS = Ref[Boolean](helpers.scala.Boolean.uninit)
+    aubifs_core.index_lookup(KEY, EXISTS, ND, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       if (EXISTS.get) {
         ERR := types.error.ESUCCESS
@@ -143,410 +148,432 @@ class aubifs_asm(val aubifs_internal_asm : aubifs_internal_asm_interface)(implic
     }
   }
 
-  override def afs_mkdir(P_INODE: inode, MD: metadata, DENT: Ref[dentry], ERR: Ref[error]): Unit = {
+  override def mkdir(MD: metadata, P_INODE: inode, C_INODE: inode, DENT: Ref[dentry], ERR: Ref[error]): Unit = {
+    var KEY1: key = types.key.uninit
+    KEY1 = types.key.inodekey(P_INODE.ino)
+    var KEY2: key = types.key.uninit
+    KEY2 = types.key.dentrykey(P_INODE.ino, DENT.get.name)
+    val KEY3 = Ref[key](types.key.uninit)
+    aubifs_core.index_newino(KEY3)
+    var ND1: node = types.node.uninit
+    ND1 = types.node.inodenode(KEY1, P_INODE.meta, P_INODE.directory, P_INODE.nlink, P_INODE.nsubdirs + 1, P_INODE.size + 1)
+    var ND2: node = types.node.uninit
+    ND2 = types.node.dentrynode(KEY2, KEY3.get.ino)
+    var ND3: node = types.node.uninit
+    ND3 = types.node.inodenode(KEY3.get, MD, true, 1, 0, 0)
+    val ADR1 = Ref[address](types.address.uninit)
+    val ADR2 = Ref[address](types.address.uninit)
+    val ADR3 = Ref[address](types.address.uninit)
+    aubifs_core.journal_add3(ND1, ND2, ND3, ADR1, ADR2, ADR3, ERR)
+    if (ERR.get == types.error.ESUCCESS) {
+      aubifs_core.index_store(KEY1, ADR1.get)
+      aubifs_core.index_store(KEY2, ADR2.get)
+      aubifs_core.index_store(KEY3.get, ADR3.get)
+      DENT := types.dentry.mkdentry(DENT.get.name, KEY3.get.ino)
+      P_INODE := types.inode.mkinode(P_INODE.ino, ND1.meta, ND1.directory, ND1.nlink, ND1.nsubdirs, ND1.size)
+      C_INODE := types.inode.mkinode(KEY3.get.ino, ND3.meta, ND3.directory, ND3.nlink, ND3.nsubdirs, ND3.size)
+    }
+  }
+
+  override def readdir(INODE: inode, NAMES: stringset, ERR: Ref[error]): Unit = {
+    var KEY: key = types.key.uninit
+    KEY = types.key.inodekey(INODE.ino)
+    aubifs_core.index_entries(KEY, NAMES, ERR)
+  }
+
+  override def readpage(INODE: inode, PAGENO: Int, PBUF: buffer, ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
-    val KEY3 = new Ref[key](types.key.uninit)
-    aubifs_internal_asm.index_newino(KEY3)
-    val KEY1: key = types.key.inodekey(P_INODE.ino)
-    val KEY2: key = types.key.dentrykey(P_INODE.ino, DENT.get.name)
-    val EXISTS = new Ref[Boolean](helpers.scala.Boolean.uninit)
-    aubifs_internal_asm.index_checkkey(KEY1, EXISTS, ERR)
+    val ND = Ref[node](types.node.uninit)
+    val EXISTS = Ref[Boolean](helpers.scala.Boolean.uninit)
+    var KEY: key = types.key.uninit
+    KEY = types.key.datakey(INODE.ino, PAGENO)
+    aubifs_core.index_lookup(KEY, EXISTS, ND, ERR)
     if (ERR.get == types.error.ESUCCESS) {
-      aubifs_internal_asm.index_checkkey(KEY2, EXISTS, ERR)
-    }
-    if (ERR.get == types.error.ESUCCESS) {
-      aubifs_internal_asm.index_checkkey(KEY3.get, EXISTS, ERR)
-    }
-    if (ERR.get == types.error.ESUCCESS) {
-      val ND1: node = types.node.inodenode(KEY1, P_INODE.meta, P_INODE.directory, P_INODE.nlink, P_INODE.nsubdirs + 1, P_INODE.size + 1)
-      val ND2: node = types.node.dentrynode(KEY2, KEY3.get.ino)
-      val ND3: node = types.node.inodenode(KEY3.get, MD, true, 1, 0, 0)
-      val ADR1 = new Ref[address](types.address.uninit)
-      val ADR2 = new Ref[address](types.address.uninit)
-      val ADR3 = new Ref[address](types.address.uninit)
-      aubifs_internal_asm.journal_add3(ND1, ND2, ND3, ADR1, ADR2, ADR3, ERR)
-      if (ERR.get == types.error.ESUCCESS) {
-        aubifs_internal_asm.index_store(KEY1, ADR1.get, ND1, ERR)
-        aubifs_internal_asm.index_store(KEY2, ADR2.get, ND2, ERR)
-        aubifs_internal_asm.index_store(KEY3.get, ADR3.get, ND3, ERR)
-        DENT := types.dentry.mkdentry(DENT.get.name, KEY3.get.ino)
+      if (EXISTS.get) {
+        PBUF := ND.get.data.deepCopy
       } else {
-        aubifs_internal_asm.index_remove(KEY2)
-        aubifs_internal_asm.index_remove(KEY3.get)
+        PBUF := zeropage
       }
     }
   }
 
-  override def afs_readdir(INODE: inode, NAMES: stringset, ERR: Ref[error]): Unit = {
-    val KEY: key = types.key.inodekey(INODE.ino)
-    aubifs_internal_asm.index_entries(KEY, NAMES, ERR)
-  }
-
-  override def afs_readpage(INODE: inode, PAGENO: Int, PBUF: buffer, ERR: Ref[error]): Unit = {
-    ERR := types.error.ESUCCESS
-    val ND = new Ref[node](types.node.uninit)
-    val EXISTS = new Ref[Boolean](helpers.scala.Boolean.uninit)
-    val KEY: key = types.key.datakey(INODE.ino, PAGENO)
-    aubifs_internal_asm.index_lookup(KEY, EXISTS, ND, ERR)
-    if (ERR.get == types.error.ESUCCESS) {
-      if (EXISTS.get)
-        PBUF := ND.get.data.deepCopy
-      else
-        PBUF := zeropage
-    }
-  }
-
-  override def afs_recovery(ERR: Ref[error]): Unit = {
+  override def recovery(DOSYNC: Boolean, ERR: Ref[error]): Unit = {
     val AX: address_list = new address_list()
     val KS: key_set = new key_set()
-    aubifs_internal_asm.aubifs_readflash(AX, KS, ERR)
+    aubifs_core.recover(DOSYNC, AX, KS, ERR)
     if (ERR.get == types.error.ESUCCESS) {
-      aubifs_replayorphans(KS, ERR)
+      replayorphans(KS, ERR)
     }
     if (ERR.get == types.error.ESUCCESS) {
-      aubifs_replaylog(AX, ERR)
+      replaylog(AX, ERR)
+    }
+    if (ERR.get == types.error.ESUCCESS) {
+      aubifs_core.journal_sync(ERR)
     }
   }
 
-  override def afs_rename(OLD_INO: Int, NEW_INO: Int, OLD_DENT: Ref[dentry], NEW_DENT: Ref[dentry], ERR: Ref[error]): Unit = {
-    ERR := types.error.ESUCCESS
-    var ND5: node = types.node.uninit
-    val ADR5 = new Ref[address](types.address.uninit)
-    var KEY5: key = types.key.uninit
-    val OLD_INODE: inode = types.inode.uninit
-    val ADR4 = new Ref[address](types.address.uninit)
-    var ND3: node = types.node.uninit
-    val EXISTS = new Ref[Boolean](helpers.scala.Boolean.uninit)
-    var KEY2: key = types.key.uninit
-    var KEY4: key = types.key.uninit
-    val ADR1 = new Ref[address](types.address.uninit)
-    var IS_DIR: Boolean = helpers.scala.Boolean.uninit
-    val INODE: inode = types.inode.uninit
-    var KEY3: key = types.key.uninit
-    var ND1: node = types.node.uninit
-    var ND2: node = types.node.uninit
-    var KEY1: key = types.key.uninit
-    val ADR2 = new Ref[address](types.address.uninit)
-    var ND4: node = types.node.uninit
-    val ADR3 = new Ref[address](types.address.uninit)
-    val NEW_INODE: inode = types.inode.uninit
-    val REPARENT: Boolean = OLD_INO != NEW_INO
-    val IDENTITY: Boolean = OLD_DENT.get == NEW_DENT.get
+  override def rename(OLD_PARENT_INODE: inode, NEW_PARENT_INODE: inode, OLD_CHILD_INODE: inode, NEW_CHILD_INODE: inode, OLD_DENT: Ref[dentry], NEW_DENT: Ref[dentry], ERR: Ref[error]): Unit = {
     val OVERWRITE: Boolean = NEW_DENT.get.isInstanceOf[types.dentry.mkdentry]
-    if (OVERWRITE || REPARENT) {
-      val N: Int = OLD_INO
-      aubifs_iget_check(N, EXISTS, INODE, ERR)
-      OLD_INODE := INODE.deepCopy
-      val INO: Int = OLD_DENT.get.ino
-      aubifs_iget_check(INO, EXISTS, INODE, ERR)
-      IS_DIR = INODE.directory
-    }
+    val REPARENT: Boolean = OLD_PARENT_INODE.ino != NEW_PARENT_INODE.ino
+    val IS_DIR: Boolean = OLD_CHILD_INODE.directory
     if (REPARENT) {
-      val INO: Int = NEW_INO
-      aubifs_iget_check(INO, EXISTS, INODE, ERR)
-      NEW_INODE := INODE.deepCopy
-    }
-    if (OVERWRITE) {
-      val INO: Int = NEW_DENT.get.ino
-      aubifs_iget_check(INO, EXISTS, INODE, ERR)
-    }
-    if (ERR.get == types.error.ESUCCESS) {
-      KEY1 = types.key.dentrykey(OLD_INO, OLD_DENT.get.name)
-      KEY2 = types.key.dentrykey(NEW_INO, NEW_DENT.get.name)
-      ND1 = types.node.dentrynode(KEY1, 0)
-      ND2 = types.node.dentrynode(KEY2, OLD_DENT.get.ino)
-      if (REPARENT || OVERWRITE) {
-        KEY3 = types.key.inodekey(OLD_INO)
-        ND3 = types.node.inodenode(KEY3, OLD_INODE.meta, OLD_INODE.directory, OLD_INODE.nlink, OLD_INODE.nsubdirs - (if (IS_DIR) 1 else 0), OLD_INODE.size - 1)
-      }
-      if (OVERWRITE != true && REPARENT) {
-        KEY4 = types.key.inodekey(NEW_INO)
-        ND4 = types.node.inodenode(KEY4, NEW_INODE.meta, NEW_INODE.directory, NEW_INODE.nlink, NEW_INODE.nsubdirs + (if (IS_DIR) 1 else 0), NEW_INODE.size + 1)
-      }
-      if (OVERWRITE && (IDENTITY != true || REPARENT)) {
-        KEY5 = types.key.inodekey(NEW_DENT.get.ino)
-        ND5 = types.node.inodenode(KEY5, INODE.meta, INODE.directory, INODE.nlink - 1, INODE.nsubdirs, INODE.size)
-      }
-      aubifs_internal_asm.index_checkkey(KEY2, EXISTS, ERR)
-    }
-    if (ERR.get == types.error.ESUCCESS) {
-      if (OVERWRITE != true && REPARENT) {
-        aubifs_internal_asm.journal_add4(ND1, ND2, ND3, ND4, ADR1, ADR2, ADR3, ADR4, ERR)
-        if (ERR.get == types.error.ESUCCESS) {
-          aubifs_internal_asm.index_remove(KEY1)
-          aubifs_internal_asm.index_store(KEY2, ADR2.get, ND2, ERR)
-          aubifs_internal_asm.index_store(KEY3, ADR3.get, ND3, ERR)
-          aubifs_internal_asm.index_store(KEY4, ADR4.get, ND4, ERR)
-        }
-      }
       if (OVERWRITE) {
-        aubifs_internal_asm.journal_add4(ND1, ND2, ND3, ND5, ADR1, ADR2, ADR3, ADR5, ERR)
-        if (ERR.get == types.error.ESUCCESS) {
-          aubifs_internal_asm.index_remove(KEY1)
-          aubifs_internal_asm.index_store(KEY2, ADR2.get, ND2, ERR)
-          aubifs_internal_asm.index_store(KEY3, ADR3.get, ND3, ERR)
-          aubifs_internal_asm.index_store(KEY5, ADR5.get, ND5, ERR)
-        }
+        rename_overwrite_reparent(IS_DIR, OLD_CHILD_INODE, OLD_PARENT_INODE, NEW_PARENT_INODE, NEW_CHILD_INODE, OLD_DENT, NEW_DENT, ERR)
+      } else {
+        rename_new_reparent(IS_DIR, OLD_CHILD_INODE, OLD_PARENT_INODE, NEW_PARENT_INODE, OLD_DENT, NEW_DENT, ERR)
       }
-      if (OVERWRITE != true && REPARENT != true) {
-        aubifs_internal_asm.journal_add2(ND1, ND2, ADR1, ADR2, ERR)
-        if (ERR.get == types.error.ESUCCESS) {
-          aubifs_internal_asm.index_remove(KEY1)
-          aubifs_internal_asm.index_store(KEY2, ADR2.get, ND2, ERR)
-        }
+    } else {
+      if (OVERWRITE) {
+        rename_overwrite_keep_parent(IS_DIR, OLD_CHILD_INODE, OLD_PARENT_INODE, NEW_CHILD_INODE, OLD_DENT, NEW_DENT, ERR)
+      } else {
+        rename_new_keep_parent(IS_DIR, OLD_CHILD_INODE, OLD_PARENT_INODE, OLD_DENT, NEW_DENT, ERR)
       }
+      NEW_PARENT_INODE := OLD_PARENT_INODE.deepCopy
     }
+  }
+
+  def rename_new_keep_parent(IS_DIR: Boolean, OLD_CHILD_INODE: inode, PARENT_INODE: inode, OLD_DENT: Ref[dentry], NEW_DENT: Ref[dentry], ERR: Ref[error]): Unit = {
+    var KEY1: key = types.key.uninit
+    KEY1 = types.key.dentrykey(PARENT_INODE.ino, OLD_DENT.get.name)
+    var ND1: node = types.node.uninit
+    ND1 = types.node.dentrynode(KEY1, 0)
+    var KEY2: key = types.key.uninit
+    KEY2 = types.key.dentrykey(PARENT_INODE.ino, NEW_DENT.get.name)
+    var ND2: node = types.node.uninit
+    ND2 = types.node.dentrynode(KEY2, OLD_DENT.get.ino)
+    var KEY3: key = types.key.uninit
+    KEY3 = types.key.inodekey(PARENT_INODE.ino)
+    var ND3: node = types.node.uninit
+    ND3 = types.node.inodenode(KEY3, PARENT_INODE.meta, PARENT_INODE.directory, PARENT_INODE.nlink, PARENT_INODE.nsubdirs, PARENT_INODE.size)
+    val ADR2 = Ref[address](types.address.uninit)
+    val ADR3 = Ref[address](types.address.uninit)
+    val ADR1 = Ref[address](types.address.uninit)
+    aubifs_core.journal_add3(ND1, ND2, ND3, ADR1, ADR2, ADR3, ERR)
     if (ERR.get == types.error.ESUCCESS) {
-      if (INODE.nlink == 1) {
-        aubifs_internal_asm.orphan_insert(KEY5)
+      aubifs_core.index_remove(KEY1)
+      aubifs_core.index_store(KEY2, ADR2.get)
+      aubifs_core.index_store(KEY3, ADR3.get)
+      NEW_DENT := types.dentry.mkdentry(NEW_DENT.get.name, OLD_DENT.get.ino)
+      OLD_DENT := types.dentry.negdentry(OLD_DENT.get.name)
+      PARENT_INODE := types.inode.mkinode(PARENT_INODE.ino, ND3.meta, ND3.directory, ND3.nlink, ND3.nsubdirs, ND3.size)
+    }
+  }
+
+  def rename_new_reparent(IS_DIR: Boolean, OLD_CHILD_INODE: inode, OLD_PARENT_INODE: inode, NEW_PARENT_INODE: inode, OLD_DENT: Ref[dentry], NEW_DENT: Ref[dentry], ERR: Ref[error]): Unit = {
+    var KEY1: key = types.key.uninit
+    KEY1 = types.key.dentrykey(OLD_PARENT_INODE.ino, OLD_DENT.get.name)
+    var ND1: node = types.node.uninit
+    ND1 = types.node.dentrynode(KEY1, 0)
+    var KEY2: key = types.key.uninit
+    KEY2 = types.key.dentrykey(NEW_PARENT_INODE.ino, NEW_DENT.get.name)
+    var ND2: node = types.node.uninit
+    ND2 = types.node.dentrynode(KEY2, OLD_DENT.get.ino)
+    var KEY3: key = types.key.uninit
+    KEY3 = types.key.inodekey(OLD_PARENT_INODE.ino)
+    var ND3: node = types.node.uninit
+    ND3 = types.node.inodenode(KEY3, OLD_PARENT_INODE.meta, OLD_PARENT_INODE.directory, OLD_PARENT_INODE.nlink, OLD_PARENT_INODE.nsubdirs - (if (IS_DIR) 1 else 0), OLD_PARENT_INODE.size - 1)
+    var KEY4: key = types.key.uninit
+    KEY4 = types.key.inodekey(NEW_PARENT_INODE.ino)
+    var ND4: node = types.node.uninit
+    ND4 = types.node.inodenode(KEY4, NEW_PARENT_INODE.meta, NEW_PARENT_INODE.directory, NEW_PARENT_INODE.nlink, NEW_PARENT_INODE.nsubdirs + (if (IS_DIR) 1 else 0), NEW_PARENT_INODE.size + 1)
+    val ADR4 = Ref[address](types.address.uninit)
+    val ADR2 = Ref[address](types.address.uninit)
+    val ADR3 = Ref[address](types.address.uninit)
+    val ADR1 = Ref[address](types.address.uninit)
+    aubifs_core.journal_add4(ND1, ND2, ND3, ND4, ADR1, ADR2, ADR3, ADR4, ERR)
+    if (ERR.get == types.error.ESUCCESS) {
+      aubifs_core.index_remove(KEY1)
+      aubifs_core.index_store(KEY2, ADR2.get)
+      aubifs_core.index_store(KEY3, ADR3.get)
+      aubifs_core.index_store(KEY4, ADR4.get)
+      NEW_DENT := types.dentry.mkdentry(NEW_DENT.get.name, OLD_DENT.get.ino)
+      OLD_DENT := types.dentry.negdentry(OLD_DENT.get.name)
+      OLD_PARENT_INODE := types.inode.mkinode(OLD_PARENT_INODE.ino, ND3.meta, ND3.directory, ND3.nlink, ND3.nsubdirs, ND3.size)
+      NEW_PARENT_INODE := types.inode.mkinode(NEW_PARENT_INODE.ino, ND4.meta, ND4.directory, ND4.nlink, ND4.nsubdirs, ND4.size)
+    }
+  }
+
+  def rename_overwrite_keep_parent(IS_DIR: Boolean, OLD_CHILD_INODE: inode, PARENT_INODE: inode, NEW_CHILD_INODE: inode, OLD_DENT: Ref[dentry], NEW_DENT: Ref[dentry], ERR: Ref[error]): Unit = {
+    var KEY1: key = types.key.uninit
+    val IDENTITY: Boolean = OLD_DENT.get == NEW_DENT.get
+    KEY1 = types.key.dentrykey(PARENT_INODE.ino, OLD_DENT.get.name)
+    var ND1: node = types.node.uninit
+    ND1 = types.node.dentrynode(KEY1, 0)
+    var KEY2: key = types.key.uninit
+    KEY2 = types.key.dentrykey(PARENT_INODE.ino, NEW_DENT.get.name)
+    var ND2: node = types.node.uninit
+    ND2 = types.node.dentrynode(KEY2, OLD_DENT.get.ino)
+    var KEY3: key = types.key.uninit
+    KEY3 = types.key.inodekey(PARENT_INODE.ino)
+    var KEY4: key = types.key.uninit
+    KEY4 = types.key.inodekey(NEW_DENT.get.ino)
+    var ND3: node = types.node.uninit
+    var ND4: node = types.node.uninit
+    if (IDENTITY != true) {
+      ND3 = types.node.inodenode(KEY3, PARENT_INODE.meta, PARENT_INODE.directory, PARENT_INODE.nlink, PARENT_INODE.nsubdirs - (if (IS_DIR) 1 else 0), PARENT_INODE.size - 1)
+      ND4 = types.node.inodenode(KEY4, NEW_CHILD_INODE.meta, NEW_CHILD_INODE.directory, NEW_CHILD_INODE.nlink - 1, NEW_CHILD_INODE.nsubdirs, NEW_CHILD_INODE.size)
+    } else {
+      ND3 = types.node.inodenode(KEY3, PARENT_INODE.meta, PARENT_INODE.directory, PARENT_INODE.nlink, PARENT_INODE.nsubdirs, PARENT_INODE.size)
+      ND4 = types.node.inodenode(KEY4, NEW_CHILD_INODE.meta, NEW_CHILD_INODE.directory, NEW_CHILD_INODE.nlink, NEW_CHILD_INODE.nsubdirs, NEW_CHILD_INODE.size)
+    }
+    val ADR4 = Ref[address](types.address.uninit)
+    val ADR2 = Ref[address](types.address.uninit)
+    val ADR3 = Ref[address](types.address.uninit)
+    val ADR1 = Ref[address](types.address.uninit)
+    aubifs_core.journal_add4(ND1, ND2, ND3, ND4, ADR1, ADR2, ADR3, ADR4, ERR)
+    if (ERR.get == types.error.ESUCCESS) {
+      aubifs_core.index_remove(KEY1)
+      aubifs_core.index_store(KEY2, ADR2.get)
+      aubifs_core.index_store(KEY3, ADR3.get)
+      aubifs_core.index_store(KEY4, ADR4.get)
+      if (ND4.nlink == 0) {
+        aubifs_core.orphans_insert(KEY4)
       }
       NEW_DENT := types.dentry.mkdentry(NEW_DENT.get.name, OLD_DENT.get.ino)
       OLD_DENT := types.dentry.negdentry(OLD_DENT.get.name)
+      PARENT_INODE := types.inode.mkinode(PARENT_INODE.ino, ND3.meta, ND3.directory, ND3.nlink, ND3.nsubdirs, ND3.size)
+      NEW_CHILD_INODE := types.inode.mkinode(NEW_CHILD_INODE.ino, ND4.meta, ND4.directory, ND4.nlink, ND4.nsubdirs, ND4.size)
     }
   }
 
-  override def afs_rmdir(P_INODE: inode, DENT: Ref[dentry], ERR: Ref[error]): Unit = {
-    ERR := types.error.ESUCCESS
-    val INO: Int = DENT.get.ino
-    val EXISTS = new Ref[Boolean](helpers.scala.Boolean.uninit)
-    val INODE: inode = types.inode.uninit
-    aubifs_iget_check(INO, EXISTS, INODE, ERR)
-    if (ERR.get == types.error.ESUCCESS) {
-      val KEY1: key = types.key.inodekey(P_INODE.ino)
-      aubifs_internal_asm.index_checkkey(KEY1, EXISTS, ERR)
-      val KEY2: key = types.key.dentrykey(P_INODE.ino, DENT.get.name)
-      if (ERR.get == types.error.ESUCCESS) {
-        aubifs_internal_asm.index_checkkey(KEY2, EXISTS, ERR)
-      }
-      if (ERR.get == types.error.ESUCCESS) {
-        val KEY3: key = types.key.inodekey(INODE.ino)
-        val ND1: node = types.node.inodenode(KEY1, P_INODE.meta, P_INODE.directory, P_INODE.nlink, P_INODE.nsubdirs - 1, P_INODE.size - 1)
-        val ND2: node = types.node.dentrynode(KEY2, 0)
-        val ND3: node = types.node.inodenode(KEY3, INODE.meta, INODE.directory, INODE.nlink - 1, INODE.nsubdirs, INODE.size)
-        val ADR1 = new Ref[address](types.address.uninit)
-        val ADR3 = new Ref[address](types.address.uninit)
-        val ADR2 = new Ref[address](types.address.uninit)
-        aubifs_internal_asm.journal_add3(ND1, ND2, ND3, ADR1, ADR2, ADR3, ERR)
-        if (ERR.get == types.error.ESUCCESS) {
-          aubifs_internal_asm.index_store(KEY1, ADR1.get, ND1, ERR)
-          aubifs_internal_asm.index_remove(KEY2)
-          aubifs_internal_asm.index_store(KEY3, ADR3.get, ND3, ERR)
-          aubifs_internal_asm.orphan_insert(KEY3)
-          DENT := types.dentry.negdentry(DENT.get.name)
-        }
-      }
-    }
-  }
-
-  override def afs_truncate(INODE: inode, N: Int, ERR: Ref[error]): Unit = {
-    ERR := types.error.ESUCCESS
-    var KEY2: key = types.key.uninit
-    var ND2: node = types.node.uninit
+  def rename_overwrite_reparent(IS_DIR: Boolean, OLD_CHILD_INODE: inode, OLD_PARENT_INODE: inode, NEW_PARENT_INODE: inode, NEW_CHILD_INODE: inode, OLD_DENT: Ref[dentry], NEW_DENT: Ref[dentry], ERR: Ref[error]): Unit = {
     var KEY1: key = types.key.uninit
-    val ADR2 = new Ref[address](types.address.uninit)
-    val SIZE: Int = min(N, INODE.size)
-    val ND3 = new Ref[node](types.node.uninit)
-    val EXISTS = new Ref[Boolean](helpers.scala.Boolean.uninit)
-    val ADR1 = new Ref[address](types.address.uninit)
-    var KEY3: key = types.key.uninit
+    KEY1 = types.key.dentrykey(OLD_PARENT_INODE.ino, OLD_DENT.get.name)
     var ND1: node = types.node.uninit
-    val PBUF: buffer = new buffer()
-    val ADR3 = new Ref[address](types.address.uninit)
-    val PAGENO: Int = INODE.size / VFS_PAGE_SIZE
-    val OFFSET: Int = INODE.size % VFS_PAGE_SIZE
-    KEY1 = types.key.inodekey(INODE.ino)
-    KEY2 = KEY1
-    KEY3 = types.key.datakey(INODE.ino, PAGENO)
-    ND1 = types.node.truncnode(KEY1, SIZE)
-    ND2 = types.node.inodenode(KEY2, INODE.meta, INODE.directory, INODE.nlink, INODE.nsubdirs, N)
-    aubifs_internal_asm.index_checkkey(KEY2, EXISTS, ERR)
+    ND1 = types.node.dentrynode(KEY1, 0)
+    var KEY2: key = types.key.uninit
+    KEY2 = types.key.dentrykey(NEW_PARENT_INODE.ino, NEW_DENT.get.name)
+    var ND2: node = types.node.uninit
+    ND2 = types.node.dentrynode(KEY2, OLD_DENT.get.ino)
+    var KEY3: key = types.key.uninit
+    KEY3 = types.key.inodekey(OLD_PARENT_INODE.ino)
+    var ND3: node = types.node.uninit
+    ND3 = types.node.inodenode(KEY3, OLD_PARENT_INODE.meta, OLD_PARENT_INODE.directory, OLD_PARENT_INODE.nlink, OLD_PARENT_INODE.nsubdirs - (if (IS_DIR) 1 else 0), OLD_PARENT_INODE.size - 1)
+    var KEY4: key = types.key.uninit
+    KEY4 = types.key.inodekey(NEW_PARENT_INODE.ino)
+    var ND4: node = types.node.uninit
+    ND4 = types.node.inodenode(KEY4, NEW_PARENT_INODE.meta, NEW_PARENT_INODE.directory, NEW_PARENT_INODE.nlink, NEW_PARENT_INODE.nsubdirs, NEW_PARENT_INODE.size)
+    var KEY5: key = types.key.uninit
+    KEY5 = types.key.inodekey(NEW_DENT.get.ino)
+    var ND5: node = types.node.uninit
+    ND5 = types.node.inodenode(KEY5, NEW_CHILD_INODE.meta, NEW_CHILD_INODE.directory, NEW_CHILD_INODE.nlink - 1, NEW_CHILD_INODE.nsubdirs, NEW_CHILD_INODE.size)
+    val ADR5 = Ref[address](types.address.uninit)
+    val ADR4 = Ref[address](types.address.uninit)
+    val ADR2 = Ref[address](types.address.uninit)
+    val ADR3 = Ref[address](types.address.uninit)
+    val ADR1 = Ref[address](types.address.uninit)
+    aubifs_core.journal_add5(ND1, ND2, ND3, ND4, ND5, ADR1, ADR2, ADR3, ADR4, ADR5, ERR)
     if (ERR.get == types.error.ESUCCESS) {
-      aubifs_internal_asm.index_checkdata(KEY1, SIZE, ERR)
-    }
-    if (ERR.get == types.error.ESUCCESS && (INODE.size <= N && OFFSET != 0)) {
-      aubifs_internal_asm.index_lookup(KEY3, EXISTS, ND3, ERR)
-    } else
-      EXISTS := false
-    if (ERR.get == types.error.ESUCCESS && EXISTS.get)
-      PBUF := ND3.get.data.deepCopy
-    
-    if (ERR.get == types.error.ESUCCESS) {
-      if (EXISTS.get) {
-        PBUF.fill(zero, OFFSET, VFS_PAGE_SIZE - OFFSET)
-        ND3 := types.node.datanode(KEY3, PBUF).deepCopy
-        aubifs_internal_asm.journal_add3(ND1, ND2, ND3.get, ADR1, ADR2, ADR3, ERR)
-        if (ERR.get == types.error.ESUCCESS) {
-          aubifs_internal_asm.index_store(KEY3, ADR3.get, ND3.get, ERR)
-        }
-      } else {
-        aubifs_internal_asm.journal_add2(ND1, ND2, ADR1, ADR2, ERR)
+      aubifs_core.index_remove(KEY1)
+      aubifs_core.index_store(KEY2, ADR2.get)
+      aubifs_core.index_store(KEY3, ADR3.get)
+      aubifs_core.index_store(KEY4, ADR4.get)
+      aubifs_core.index_store(KEY5, ADR5.get)
+      if (ND5.nlink == 0) {
+        aubifs_core.orphans_insert(KEY5)
       }
-    }
-    if (ERR.get == types.error.ESUCCESS) {
-      aubifs_internal_asm.index_store(KEY2, ADR2.get, ND2, ERR)
-      aubifs_internal_asm.index_truncate(KEY1, SIZE, ERR)
-    }
-  }
-
-  override def afs_unlink(P_INODE: inode, DENT: Ref[dentry], ERR: Ref[error]): Unit = {
-    ERR := types.error.ESUCCESS
-    val INO: Int = DENT.get.ino
-    val EXISTS = new Ref[Boolean](helpers.scala.Boolean.uninit)
-    val INODE: inode = types.inode.uninit
-    aubifs_iget_check(INO, EXISTS, INODE, ERR)
-    if (ERR.get == types.error.ESUCCESS) {
-      val KEY1: key = types.key.inodekey(P_INODE.ino)
-      aubifs_internal_asm.index_checkkey(KEY1, EXISTS, ERR)
-      val KEY2: key = types.key.dentrykey(P_INODE.ino, DENT.get.name)
-      if (ERR.get == types.error.ESUCCESS) {
-        aubifs_internal_asm.index_checkkey(KEY2, EXISTS, ERR)
-      }
-      if (ERR.get == types.error.ESUCCESS) {
-        val KEY3: key = types.key.inodekey(INODE.ino)
-        val ND1: node = types.node.inodenode(KEY1, P_INODE.meta, P_INODE.directory, P_INODE.nlink, P_INODE.nsubdirs, P_INODE.size - 1)
-        val ND2: node = types.node.dentrynode(KEY2, 0)
-        val ND3: node = types.node.inodenode(KEY3, INODE.meta, INODE.directory, INODE.nlink - 1, INODE.nsubdirs, INODE.size)
-        val ADR1 = new Ref[address](types.address.uninit)
-        val ADR3 = new Ref[address](types.address.uninit)
-        val ADR2 = new Ref[address](types.address.uninit)
-        aubifs_internal_asm.journal_add3(ND1, ND2, ND3, ADR1, ADR2, ADR3, ERR)
-        if (ERR.get == types.error.ESUCCESS) {
-          aubifs_internal_asm.index_store(KEY1, ADR1.get, ND1, ERR)
-          aubifs_internal_asm.index_remove(KEY2)
-          aubifs_internal_asm.index_store(KEY3, ADR3.get, ND3, ERR)
-          if (INODE.nlink == 1) {
-            aubifs_internal_asm.orphan_insert(KEY3)
-          }
-          DENT := types.dentry.negdentry(DENT.get.name)
-        }
-      }
+      NEW_DENT := types.dentry.mkdentry(NEW_DENT.get.name, OLD_DENT.get.ino)
+      OLD_DENT := types.dentry.negdentry(OLD_DENT.get.name)
+      OLD_PARENT_INODE := types.inode.mkinode(OLD_PARENT_INODE.ino, ND3.meta, ND3.directory, ND3.nlink, ND3.nsubdirs, ND3.size)
+      NEW_CHILD_INODE := types.inode.mkinode(NEW_CHILD_INODE.ino, ND5.meta, ND5.directory, ND5.nlink, ND5.nsubdirs, ND5.size)
     }
   }
 
-  override def afs_write_inode(INODE: inode, ERR: Ref[error]): Unit = {
-    val KEY: key = types.key.inodekey(INODE.ino)
-    val ND: node = types.node.inodenode(KEY, INODE.meta, INODE.directory, INODE.nlink, INODE.nsubdirs, INODE.size)
-    val EXISTS = new Ref[Boolean](helpers.scala.Boolean.uninit)
-    aubifs_internal_asm.index_checkkey(KEY, EXISTS, ERR)
-    val ADR = new Ref[address](types.address.uninit)
-    if (ERR.get == types.error.ESUCCESS) {
-      aubifs_internal_asm.journal_add1(ND, ADR, ERR)
-    }
-    if (ERR.get == types.error.ESUCCESS) {
-      aubifs_internal_asm.index_store(KEY, ADR.get, ND, ERR)
-    }
-  }
-
-  override def afs_writepage(INODE: inode, PAGENO: Int, PBUF: buffer, ERR: Ref[error]): Unit = {
-    var KEY1: key = types.key.uninit
-    val INO: Int = INODE.ino
-    KEY1 = types.key.datakey(INO, PAGENO)
-    val ND1: node = types.node.datanode(KEY1, PBUF).deepCopy
-    val EXISTS = new Ref[Boolean](true)
-    aubifs_internal_asm.index_checkkey(KEY1, EXISTS, ERR)
-    if (ERR.get == types.error.ESUCCESS) {
-      val ADR1 = new Ref[address](types.address.uninit)
-      aubifs_internal_asm.journal_add1(ND1, ADR1, ERR)
-      if (ERR.get == types.error.ESUCCESS) {
-        aubifs_internal_asm.index_store(KEY1, ADR1.get, ND1, ERR)
-      } else       if (EXISTS.get != true) {
-        aubifs_internal_asm.index_remove(KEY1)
-      }
-    }
-  }
-
-  def aubifs_iget_check(INO: Int, EXISTS: Ref[Boolean], INODE: inode, ERR: Ref[error]): Unit = {
-    if (ERR.get == types.error.ESUCCESS) {
-      val KEY: key = types.key.inodekey(INO)
-      val ND = new Ref[node](types.node.uninit)
-      aubifs_internal_asm.index_lookup(KEY, EXISTS, ND, ERR)
-      if (ERR.get == types.error.ESUCCESS && EXISTS.get)
-        INODE := types.inode.mkinode(INO, ND.get.meta, ND.get.directory, ND.get.nlink, if (ND.get.directory) ND.get.nsubdirs else 0, ND.get.size)
-      
-    }
-  }
-
-  def aubifs_pget_check(P_INO: Int, EXISTS: Ref[Boolean], P_INODE: inode, ERR: Ref[error]): Unit = {
-    val INODE: inode = types.inode.uninit
-    val INO: Int = P_INO
-    aubifs_iget_check(INO, EXISTS, INODE, ERR)
-    P_INODE := INODE
-  }
-
-  def aubifs_replaylog(LOG0: address_list, ERR: Ref[error]): Unit = {
+  def replaylog(LOG0: address_list, ERR: Ref[error]): Unit = {
     val AX: address_list = LOG0.deepCopy
     while (ERR.get == types.error.ESUCCESS && ! AX.isEmpty) {
       val ADR: address = AX.head
-      aubifs_replayone(ADR, ERR)
+      replayone(ADR, ERR)
       AX.removeHead
     }
   }
 
-  def aubifs_replayone(ADR: address, ERR: Ref[error]): Unit = {
-    val ND = new Ref[node](types.node.uninit)
-    aubifs_internal_asm.journal_get(ADR, ND, ERR)
-    val EXISTS = new Ref[Boolean](helpers.scala.Boolean.uninit)
-    if (ERR.get == types.error.ESUCCESS) {
-      aubifs_internal_asm.index_checkkey(ND.get.key, EXISTS, ERR)
-    }
+  def replayone(ADR: address, ERR: Ref[error]): Unit = {
+    val ND = Ref[node](types.node.uninit)
+    aubifs_core.journal_get(ADR, ND, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       if (ND.get.isInstanceOf[types.node.inodenode]) {
         if (ND.get.nlink != 0 || ND.get.key.ino == ROOT_INO) {
-          aubifs_internal_asm.index_store(ND.get.key, ADR, ND.get, ERR)
+          aubifs_core.index_store(ND.get.key, ADR)
         } else {
           if (! ND.get.directory) {
-            aubifs_internal_asm.index_checkdata(ND.get.key, 0, ERR)
-            if (ERR.get == types.error.ESUCCESS) {
-              aubifs_internal_asm.index_truncate(ND.get.key, 0, ERR)
-            }
+            aubifs_core.index_truncate(ND.get.key, 0)
           }
           if (ERR.get == types.error.ESUCCESS) {
-            aubifs_internal_asm.index_remove(ND.get.key)
+            aubifs_core.index_remove(ND.get.key)
           }
         }
       }
       if (ND.get.isInstanceOf[types.node.dentrynode]) {
         if (ND.get.ino != 0) {
-          aubifs_internal_asm.index_store(ND.get.key, ADR, ND.get, ERR)
+          aubifs_core.index_store(ND.get.key, ADR)
         } else {
-          aubifs_internal_asm.index_remove(ND.get.key)
+          aubifs_core.index_remove(ND.get.key)
         }
       }
       if (ND.get.isInstanceOf[types.node.datanode]) {
+        val EXISTS = Ref[Boolean](helpers.scala.Boolean.uninit)
         val KEY: key = types.key.inodekey(ND.get.key.ino)
-        aubifs_internal_asm.index_contains(KEY, EXISTS, ERR)
+        aubifs_core.index_contains(KEY, EXISTS, ERR)
         if (ERR.get == types.error.ESUCCESS && EXISTS.get) {
-          aubifs_internal_asm.index_store(ND.get.key, ADR, ND.get, ERR)
+          aubifs_core.index_store(ND.get.key, ADR)
         }
       }
       if (ND.get.isInstanceOf[types.node.truncnode]) {
-        aubifs_internal_asm.index_checkdata(ND.get.key, ND.get.size, ERR)
-        if (ERR.get == types.error.ESUCCESS) {
-          aubifs_internal_asm.index_truncate(ND.get.key, ND.get.size, ERR)
-        }
+        aubifs_core.index_truncate(ND.get.key, ND.get.size)
       }
     }
   }
 
-  def aubifs_replayorphans(KS: key_set, ERR: Ref[error]): Unit = {
-    while (! KS.isEmpty && ERR.get == types.error.ESUCCESS) {
+  def replayorphans(KS: key_set, ERR: Ref[error]): Unit = {
+    while (! KS.isEmpty) {
       val KEY: key = KS.head
-      aubifs_internal_asm.index_checkdata(KEY, 0, ERR)
-      if (ERR.get == types.error.ESUCCESS) {
-        aubifs_internal_asm.index_truncate(KEY, 0, ERR)
+      aubifs_core.index_truncate(KEY, 0)
+      aubifs_core.index_remove(KEY)
+      aubifs_core.orphans_remove(KEY)
+      KS -= KEY
+    }
+  }
+
+  override def rmdir(P_INODE: inode, C_INODE: inode, DENT: Ref[dentry], ERR: Ref[error]): Unit = {
+    var KEY1: key = types.key.uninit
+    KEY1 = types.key.inodekey(P_INODE.ino)
+    var KEY2: key = types.key.uninit
+    KEY2 = types.key.dentrykey(P_INODE.ino, DENT.get.name)
+    val INO: Int = C_INODE.ino
+    var KEY3: key = types.key.uninit
+    KEY3 = types.key.inodekey(C_INODE.ino)
+    var ND1: node = types.node.uninit
+    ND1 = types.node.inodenode(KEY1, P_INODE.meta, P_INODE.directory, P_INODE.nlink, P_INODE.nsubdirs - 1, P_INODE.size - 1)
+    var ND2: node = types.node.uninit
+    ND2 = types.node.dentrynode(KEY2, 0)
+    var ND3: node = types.node.uninit
+    ND3 = types.node.inodenode(KEY3, C_INODE.meta, C_INODE.directory, C_INODE.nlink - 1, C_INODE.nsubdirs, C_INODE.size)
+    val ADR1 = Ref[address](types.address.uninit)
+    val ADR3 = Ref[address](types.address.uninit)
+    val ADR2 = Ref[address](types.address.uninit)
+    aubifs_core.journal_add3(ND1, ND2, ND3, ADR1, ADR2, ADR3, ERR)
+    if (ERR.get == types.error.ESUCCESS) {
+      aubifs_core.index_store(KEY1, ADR1.get)
+      aubifs_core.index_remove(KEY2)
+      aubifs_core.index_store(KEY3, ADR3.get)
+      aubifs_core.orphans_insert(KEY3)
+      DENT := types.dentry.negdentry(DENT.get.name)
+      P_INODE := types.inode.mkinode(P_INODE.ino, ND1.meta, ND1.directory, ND1.nlink, ND1.nsubdirs, ND1.size)
+      C_INODE := types.inode.mkinode(INO, ND3.meta, ND3.directory, ND3.nlink, ND3.nsubdirs, ND3.size)
+    }
+  }
+
+  override def sync(ERR: Ref[error]): Unit = {
+    aubifs_core.journal_sync(ERR)
+  }
+
+  override def truncate(N: Int, PAGENO: Int, PBUF_OPT: Ref[buffer_opt], INODE: inode, MODIFIED: Ref[Boolean], ERR: Ref[error]): Unit = {
+    val EXISTS = Ref[Boolean](helpers.scala.Boolean.uninit)
+    val ADR3 = Ref[address](types.address.uninit)
+    val ADR2 = Ref[address](types.address.uninit)
+    val ADR1 = Ref[address](types.address.uninit)
+    val KEY1: key = types.key.inodekey(INODE.ino)
+    val KEY2: key = types.key.inodekey(INODE.ino)
+    val OFFSET: Int = INODE.size % VFS_PAGE_SIZE
+    val SIZE: Int = min(N, INODE.size)
+    val KEY3: key = types.key.datakey(INODE.ino, PAGENO)
+    val ND2: node = types.node.inodenode(KEY2, INODE.meta, INODE.directory, INODE.nlink, INODE.nsubdirs, N)
+    val ND3 = Ref[node](types.node.uninit)
+    if (INODE.size <= N && OFFSET != 0) {
+      if (PBUF_OPT.get.isInstanceOf[types.buffer_opt.some]) {
+        ND3 := types.node.datanode(KEY3, PBUF_OPT.get.buf).deepCopy
+        EXISTS := true
+        ERR := types.error.ESUCCESS
+      } else {
+        aubifs_core.index_lookup(KEY3, EXISTS, ND3, ERR)
       }
-      if (ERR.get == types.error.ESUCCESS) {
-        aubifs_internal_asm.index_remove(KEY)
+    } else {
+      EXISTS := false
+      ERR := types.error.ESUCCESS
+    }
+    val ND1: node = types.node.truncnode(KEY1, SIZE)
+    if (ERR.get == types.error.ESUCCESS) {
+      if (EXISTS.get) {
+        ND3.get.data.fill(zero, OFFSET, VFS_PAGE_SIZE - OFFSET)
+        aubifs_core.journal_add3(ND1, ND2, ND3.get, ADR1, ADR2, ADR3, ERR)
+        if (ERR.get == types.error.ESUCCESS) {
+          aubifs_core.index_store(KEY3, ADR3.get)
+        }
+      } else {
+        aubifs_core.journal_add2(ND1, ND2, ADR1, ADR2, ERR)
       }
-      if (ERR.get == types.error.ESUCCESS) {
-        aubifs_internal_asm.orphan_remove(KEY)
-        KS -= KEY
+    }
+    if (ERR.get == types.error.ESUCCESS) {
+      aubifs_core.index_store(KEY2, ADR2.get)
+      aubifs_core.index_truncate(KEY1, SIZE)
+      MODIFIED := EXISTS.get
+      INODE := types.inode.mkinode(INODE.ino, ND2.meta, ND2.directory, ND2.nlink, ND2.nsubdirs, ND2.size)
+      if (MODIFIED.get) {
+        PBUF_OPT := types.buffer_opt.some(ND3.get.data).deepCopy
       }
     }
   }
 
-  override def logfs_gc(): Unit = {
-    aubifs_internal_asm.journal_gc()
+  override def unlink(P_INODE: inode, C_INODE: inode, DENT: Ref[dentry], ERR: Ref[error]): Unit = {
+    var KEY1: key = types.key.uninit
+    KEY1 = types.key.inodekey(P_INODE.ino)
+    var KEY2: key = types.key.uninit
+    KEY2 = types.key.dentrykey(P_INODE.ino, DENT.get.name)
+    val INO: Int = C_INODE.ino
+    var KEY3: key = types.key.uninit
+    KEY3 = types.key.inodekey(C_INODE.ino)
+    var ND1: node = types.node.uninit
+    ND1 = types.node.inodenode(KEY1, P_INODE.meta, P_INODE.directory, P_INODE.nlink, P_INODE.nsubdirs, P_INODE.size - 1)
+    var ND2: node = types.node.uninit
+    ND2 = types.node.dentrynode(KEY2, 0)
+    var ND3: node = types.node.uninit
+    ND3 = types.node.inodenode(KEY3, C_INODE.meta, C_INODE.directory, C_INODE.nlink - 1, C_INODE.nsubdirs, C_INODE.size)
+    val ADR1 = Ref[address](types.address.uninit)
+    val ADR3 = Ref[address](types.address.uninit)
+    val ADR2 = Ref[address](types.address.uninit)
+    aubifs_core.journal_add3(ND1, ND2, ND3, ADR1, ADR2, ADR3, ERR)
+    if (ERR.get == types.error.ESUCCESS) {
+      aubifs_core.index_store(KEY1, ADR1.get)
+      aubifs_core.index_remove(KEY2)
+      aubifs_core.index_store(KEY3, ADR3.get)
+      if (C_INODE.nlink == 1) {
+        aubifs_core.orphans_insert(KEY3)
+      }
+      DENT := types.dentry.negdentry(DENT.get.name)
+      P_INODE := types.inode.mkinode(P_INODE.ino, ND1.meta, ND1.directory, ND1.nlink, ND1.nsubdirs, ND1.size)
+      C_INODE := types.inode.mkinode(INO, ND3.meta, ND3.directory, ND3.nlink, ND3.nsubdirs, ND3.size)
+    }
+  }
+
+  override def write_inode(INODE: inode, ERR: Ref[error]): Unit = {
+    var KEY: key = types.key.uninit
+    KEY = types.key.inodekey(INODE.ino)
+    val ADR = Ref[address](types.address.uninit)
+    var ND: node = types.node.uninit
+    ND = types.node.inodenode(KEY, INODE.meta, INODE.directory, INODE.nlink, INODE.nsubdirs, INODE.size)
+    aubifs_core.journal_add1(ND, ADR, ERR)
+    if (ERR.get == types.error.ESUCCESS) {
+      aubifs_core.index_store(KEY, ADR.get)
+    }
+  }
+
+  override def writepage(INODE: inode, PAGENO: Int, PBUF: buffer, ERR: Ref[error]): Unit = {
+    var KEY1: key = types.key.uninit
+    val INO: Int = INODE.ino
+    KEY1 = types.key.datakey(INO, PAGENO)
+    var ND1: node = types.node.uninit
+    ND1 = types.node.datanode(KEY1, PBUF).deepCopy
+    val ADR1 = Ref[address](types.address.uninit)
+    aubifs_core.journal_add1(ND1, ADR1, ERR)
+    if (ERR.get == types.error.ESUCCESS) {
+      aubifs_core.index_store(KEY1, ADR1.get)
+    } else {
+      val EXISTS: Boolean = true
+      if (EXISTS != true) {
+        aubifs_core.index_remove(KEY1)
+      }
+    }
   }
 
 }

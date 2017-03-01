@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2016 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package helpers.scala
@@ -11,11 +11,11 @@ object Vector {
     return Array.fill[T](size) { elem }.toVector
   }
 
-  def fill[T: ClassManifest](v: Vector[T], elem: T, offset: Int, length: Int): Vector[T] = {
+  def fill[T: ClassTag](v: Vector[T], elem: T, offset: Int, length: Int): Vector[T] = {
     v.slice(0, offset) ++ Array.fill[T](length) { elem } ++ v.slice(offset + length, v.length)
   }
 
-  def fill[T: ClassManifest](v: Vector[T], elem: T): Vector[T] = {
+  def fill[T: ClassTag](v: Vector[T], elem: T): Vector[T] = {
     construct(elem, v.size)
   }
 
