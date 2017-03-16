@@ -1,7 +1,3 @@
-// Flashix: a verified file system for flash memory
-// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
-// This code is licensed under MIT license (see LICENSE for details)
-
 package algebraic
 
 import encoding.group_node._
@@ -31,7 +27,6 @@ trait Algebraic {
   //
 
   def BRANCH_SIZE: Int = 2 * MIN_SIZE
-  def LEB_SIZE: Int = PAGES_PER_LEB * EB_PAGE_SIZE
   def SB_LOG: Int = 1
   def SB_LPT: Int = 5
   def SB_ORPH: Int = 3
@@ -53,16 +48,6 @@ trait Algebraic {
     return 2 * NODE_HEADER_SIZE + alignedsize(ind)
   }
 
-  def keys(fns: nat_set): key_set = {
-    if (fns.isEmpty)
-      return new key_set()
-    else {
-      val ro: key_set = keys(fns.tail).deepCopy
-      ro += types.key.inodekey(fns.head)
-      return ro
-    }
-  }
-
   def alignUp(n: Int, m: Int): Int = {
     if (n % m == 0)
       return n
@@ -81,17 +66,17 @@ trait Algebraic {
     return datasize(buf, buf.length)
   }
 
-  def datasize(buf: buffer, ino: Int): Int = {
-    if (ino == 0)
+  def datasize(buf: buffer, pageno: Int): Int = {
+    if (pageno == 0)
       return 0
-    else     if (buf(ino - 1) == empty)
-      return datasize(buf, ino - 1)
+    else     if (buf(pageno - 1) == empty)
+      return datasize(buf, pageno - 1)
     else
-      return (ino - 1) + 1
+      return (pageno - 1) + 1
   }
 
-  def encoding_size(sb: superblock): Int = {
-    return alignUp(encoding_size_unaligned(sb), EB_PAGE_SIZE)
+  def encoding_size(sb: superblock, m: Int): Int = {
+    return alignUp(encoding_size_unaligned(sb), m)
   }
 
   def is_aligned(n: Int, m: Int): Boolean = {
@@ -102,11 +87,11 @@ trait Algebraic {
     return isempty(buf, 0, buf.length)
   }
 
-  def isempty(buf: buffer, n: Int, ino: Int): Boolean = {
-    if (ino == 0)
+  def isempty(buf: buffer, n: Int, pageno: Int): Boolean = {
+    if (pageno == 0)
       return true
     else
-      return buf(n + (ino - 1)) == empty && isempty(buf, n, ino - 1)
+      return buf(n + (pageno - 1)) == empty && isempty(buf, n, pageno - 1)
   }
 
   def load(br: branch): zbranch = {
@@ -118,12 +103,12 @@ trait Algebraic {
     }
   }
 
-  def lptlebs(mainareasize: Int): Int = {
-    return lptsize(mainareasize) / LEB_SIZE
+  def lptlebs(mainareasize: Int, n: Int): Int = {
+    return lptsize(mainareasize, n) / n
   }
 
-  def lptsize(mainareasize: Int): Int = {
-    return alignUp(mainareasize * ENCODED_LPROPS_SIZE, LEB_SIZE)
+  def lptsize(mainareasize: Int, n: Int): Int = {
+    return alignUp(mainareasize * ENCODED_LPROPS_SIZE, n)
   }
 
   def max(n: Int, m: Int): Int = {
@@ -151,11 +136,11 @@ trait Algebraic {
     return buf0
   }
 
-  def rangeeq(buf: buffer, n0: Int, buf0: buffer, n1: Int, ino: Int): Boolean = {
-    if (ino == 0)
+  def rangeeq(buf: buffer, n0: Int, buf0: buffer, n1: Int, pageno: Int): Boolean = {
+    if (pageno == 0)
       return n0 <= buf.length && n1 <= buf0.length
     else
-      return buf(n0) == buf0(n1) && rangeeq(buf, n0 + 1, buf0, n1 + 1, ino - 1)
+      return buf(n0) == buf0(n1) && rangeeq(buf, n0 + 1, buf0, n1 + 1, pageno - 1)
   }
 
   def save(zbr: zbranch): branch = {
@@ -171,11 +156,11 @@ trait Algebraic {
     return types.index_node.indexnode(save(znd.zbranches, 0, znd.usedsize), znd.leaf, znd.usedsize)
   }
 
-  def save(zbrar: zbranch_array, m: Int, ino: Int): branch_array = {
-    if (ino == 0)
+  def save(zbrar: zbranch_array, m: Int, pageno: Int): branch_array = {
+    if (pageno == 0)
       return new branch_array(BRANCH_SIZE).fill(types.branch.uninit)
     else {
-      val brar: branch_array = save(zbrar, m + 1, ino - 1).deepCopy
+      val brar: branch_array = save(zbrar, m + 1, pageno - 1).deepCopy
       brar(m) = save(zbrar(m))
       return brar
     }
@@ -187,9 +172,7 @@ trait Algebraic {
   // Unimplemented algebraic operations, need to be implemented in a derived class
   //
 
-  def EB_PAGE_SIZE: Int
   def MIN_SIZE: Int
-  def PAGES_PER_LEB: Int
   def ROOT_INO: Int
   def UBI_ERASE_RETRIES: Int
   def UBI_READ_RETRIES: Int
@@ -205,6 +188,7 @@ trait Algebraic {
 
   def flashsize(param0: group_node_list): Int
   def flashsize(param0: node): Int
+  def keys(param0: nat_set): key_set
   def toStr(param0: Int): String
   def <(param0: key, param1: key): Boolean
   def at(param0: address_list, param1: Int): address

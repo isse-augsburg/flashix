@@ -1,7 +1,3 @@
-// Flashix: a verified file system for flash memory
-// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
-// This code is licensed under MIT license (see LICENSE for details)
-
 package asm
 
 import encoding.group_node._
@@ -15,7 +11,7 @@ import types._
 import types.error.error
 import types.lpropflags.lpropflags
 
-class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, val LOG : nat_list, val LPT : lp_array, val awbuf : awbuf_interface)(implicit _algebraic_implicit: algebraic.Algebraic, _procedures_implicit: proc.Procedures) extends apersistence_interface {
+class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, var LEBSIZE : Int, val LOG : nat_list, val LPT : lp_array, val awbuf : awbuf_interface)(implicit _algebraic_implicit: algebraic.Algebraic, _procedures_implicit: proc.Procedures) extends apersistence_interface {
   import _algebraic_implicit._
   import _procedures_implicit._
 
@@ -33,7 +29,7 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, val LOG : n
       val BUF: buffer = new buffer()
       encode_group_nodes(WBUFLEB0.get.leb, LPT(WBUFLEB0.get.leb).size, NODELIST, BUF, ADRLIST, ERR)
       if (ERR.get == types.error.ESUCCESS) {
-        if (! (LPT(WBUFLEB0.get.leb).size + BUF.length <= LEB_SIZE)) {
+        if (! (LPT(WBUFLEB0.get.leb).size + BUF.length <= LEBSIZE)) {
           debug("persistence: trying to write beyond LEB size")
           awbuf.enter_readonly()
           ERR := types.error.ENOSPC
@@ -43,7 +39,7 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, val LOG : n
             LPT(WBUFLEB0.get.leb).size = LPT(WBUFLEB0.get.leb).size + BUF.length
           } else {
             debug("persistence: adding group node to LEB " + (toStr(WBUFLEB0.get.leb) + " failed"))
-            LPT(WBUFLEB0.get.leb).size = LEB_SIZE
+            LPT(WBUFLEB0.get.leb).size = LEBSIZE
           }
         }
       } else {
@@ -65,7 +61,7 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, val LOG : n
       val SIZE = Ref[Int](0)
       encode_index_node(IND, 0, SIZE, BUF, ERR)
       if (ERR.get == types.error.ESUCCESS) {
-        if (! (LPT(WBUFLEB0.get.leb).size + SIZE.get <= LEB_SIZE)) {
+        if (! (LPT(WBUFLEB0.get.leb).size + SIZE.get <= LEBSIZE)) {
           debug("persistence: trying to write beyond LEB size")
           awbuf.enter_readonly()
           ERR := types.error.ENOSPC
@@ -75,7 +71,7 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, val LOG : n
             ADR := types.address.at(WBUFLEB0.get.leb, LPT(WBUFLEB0.get.leb).size, SIZE.get)
             LPT(WBUFLEB0.get.leb).size = LPT(WBUFLEB0.get.leb).size + SIZE.get
           } else {
-            LPT(WBUFLEB0.get.leb).size = LEB_SIZE
+            LPT(WBUFLEB0.get.leb).size = LEBSIZE
           }
         }
       } else {
@@ -248,8 +244,8 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, val LOG : n
     }
   }
 
-  def decode_group_node(OFFSET: Int, N: Int, BUF: buffer, GND: Ref[group_node], ERR: Ref[error]): Unit = {
-    val SIZE = Ref[Int](N)
+  def decode_group_node(OFFSET: Int, OLD_INO: Int, BUF: buffer, GND: Ref[group_node], ERR: Ref[error]): Unit = {
+    val SIZE = Ref[Int](OLD_INO)
     if (SIZE.get < 2 * NODE_HEADER_SIZE) {
       debug("persistence: decode_node expected size wrong")
       ERR := types.error.EINVAL
@@ -292,8 +288,8 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, val LOG : n
     }
   }
 
-  def decode_index_node(OFFSET: Int, N: Int, BUF: buffer, IND: Ref[index_node], ERR: Ref[error]): Unit = {
-    val SIZE = Ref[Int](N)
+  def decode_index_node(OFFSET: Int, OLD_INO: Int, BUF: buffer, IND: Ref[index_node], ERR: Ref[error]): Unit = {
+    val SIZE = Ref[Int](OLD_INO)
     if (SIZE.get < 2 * NODE_HEADER_SIZE) {
       debug("persistence: decode_node expected size wrong")
       ERR := types.error.EINVAL
@@ -395,6 +391,12 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, val LOG : n
     if (ERR.get != types.error.ESUCCESS) {
       debug("persistence: wbuf format failed")
     } else {
+      
+      {
+        val pageno: Ref[Int] = Ref[Int](LEBSIZE)
+        awbuf.get_leb_size(pageno)
+        LEBSIZE = pageno.get
+      }
       LOG.clear
       create_freelist()
       gc_heap_empty(GCHEAP)
@@ -471,7 +473,7 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, val LOG : n
     if (WBUFLEB0.get == types.bufleb.nobuffer) {
       N := 0
     } else {
-      N := LEB_SIZE - LPT(WBUFLEB0.get.leb).size
+      N := LEBSIZE - LPT(WBUFLEB0.get.leb).size
     }
   }
 
@@ -494,6 +496,10 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, val LOG : n
     N := LPT(LNUM).ref_size
   }
 
+  override def get_leb_size(N: Ref[Int]): Unit = {
+    N := LEBSIZE
+  }
+
   override def is_log_empty(EMPTY_ : Ref[Boolean]): Unit = {
     EMPTY_ := LOG.isEmpty
   }
@@ -503,10 +509,10 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, val LOG : n
   }
 
   override def read_gblock_nodes(LNUM: Int, ADRLIST: address_list, NODELIST: group_node_list, ERR: Ref[error]): Unit = {
-    val BUF: buffer = new buffer(LEB_SIZE).fill(0.toByte)
-    awbuf.read_buf(LNUM, 0, LEB_SIZE, BUF, ERR)
+    val BUF: buffer = new buffer(LEBSIZE).fill(0.toByte)
+    awbuf.read_buf(LNUM, 0, LEBSIZE, BUF, ERR)
     var OFFSET: Int = 0
-    while (ERR.get == types.error.ESUCCESS && OFFSET < LEB_SIZE) {
+    while (ERR.get == types.error.ESUCCESS && OFFSET < LEBSIZE) {
       if (! (OFFSET + NODE_HEADER_SIZE <= BUF.length) || isempty(BUF, OFFSET, NODE_HEADER_SIZE)) {
         ERR := types.error.ENOENT
       } else {
@@ -516,7 +522,7 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, val LOG : n
           debug("persistence: read_gblock_nodes could not decode header in LEB " + (toStr(LNUM) + (" at offset " + toStr(OFFSET))))
         } else {
           val SIZE: Int = 2 * NODE_HEADER_SIZE + alignUp(NDHD.get.size, 2 * NODE_HEADER_SIZE)
-          if (OFFSET + SIZE > LEB_SIZE) {
+          if (OFFSET + SIZE > LEBSIZE) {
             debug("persistence: read_gblock_nodes ignoring node of size " + (toStr(SIZE) + (" at offset " + (toStr(OFFSET) + (" in LEB " + toStr(LNUM))))))
             ERR := types.error.ENOENT
           } else           if (! rangeeq(BUF, OFFSET + (NODE_HEADER_SIZE + alignUp(NDHD.get.size, 2 * NODE_HEADER_SIZE)), validtrailer, 0, NODE_HEADER_SIZE)) {
@@ -565,6 +571,12 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, val LOG : n
     if (ERR.get != types.error.ESUCCESS) {
       debug("persistence: wbuf recover failed")
     } else {
+      
+      {
+        val pageno: Ref[Int] = Ref[Int](LEBSIZE)
+        awbuf.get_leb_size(pageno)
+        LEBSIZE = pageno.get
+      }
       val LOG0: nat_list = LOG.deepCopy
       replay_log(LOG0)
       replay_lpt()
@@ -577,7 +589,7 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, val LOG : n
     while (! LOG0.isEmpty) {
       val N: Int = LOG0.head
       LPT(N).flags = types.lpropflags.LP_GROUP_NODES
-      LPT(N).size = LEB_SIZE
+      LPT(N).size = LEBSIZE
       LOG0.removeHead
     }
   }
@@ -587,7 +599,7 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, val LOG : n
     while (N < LPT.length) {
       if (LPT(N).flags != types.lpropflags.LP_FREE && ! LOG.contains(N)) {
         if (LPT(N).flags == types.lpropflags.LP_INDEX_NODES) {
-          LPT(N).size = LEB_SIZE
+          LPT(N).size = LEBSIZE
         }
         if (LPT(N).ref_size == 0) {
           LPT(N).flags = types.lpropflags.LP_FREE
@@ -620,11 +632,13 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, val LOG : n
     awbuf.get_buf(WBUFLEB0)
     val AROFS0 = Ref[Boolean](helpers.scala.Boolean.uninit)
     awbuf.is_readonly(AROFS0)
+    val PAGESIZE = Ref[Int](0)
+    awbuf.get_page_size(PAGESIZE)
     if (AROFS0.get != true) {
       if (WBUFLEB0.get.isInstanceOf[types.bufleb.buffered]) {
         val OFFSET: Int = LPT(WBUFLEB0.get.leb).size
-        if (! is_aligned(OFFSET, EB_PAGE_SIZE)) {
-          val SIZE: Int = EB_PAGE_SIZE - OFFSET % EB_PAGE_SIZE
+        if (! is_aligned(OFFSET, PAGESIZE.get)) {
+          val SIZE: Int = PAGESIZE.get - OFFSET % PAGESIZE.get
           val BUF: buffer = new buffer(SIZE).fill(0.toByte)
           encode_padding_node(BUF, ERR)
           if (ERR.get == types.error.ESUCCESS) {
@@ -633,7 +647,7 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, val LOG : n
               LPT(WBUFLEB0.get.leb).size = LPT(WBUFLEB0.get.leb).size + SIZE
             } else {
               debug("persistence: flushing of LEB " + (toStr(WBUFLEB0.get.leb) + " failed"))
-              LPT(WBUFLEB0.get.leb).size = LEB_SIZE
+              LPT(WBUFLEB0.get.leb).size = LEBSIZE
               awbuf.enter_readonly()
             }
           } else {

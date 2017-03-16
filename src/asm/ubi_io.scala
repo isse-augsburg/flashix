@@ -1,7 +1,3 @@
-// Flashix: a verified file system for flash memory
-// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
-// This code is licensed under MIT license (see LICENSE for details)
-
 package asm
 
 import encoding.echeader._
@@ -89,9 +85,9 @@ class ubi_io_asm(var PAGESIZE : Int, val mtd_asm : mtd_asm_interface)(implicit _
     mtd_asm.init(ERR)
     
     {
-      val ino: Ref[Int] = Ref[Int](PAGESIZE)
-      mtd_asm.get_page_size(ino)
-      PAGESIZE = ino.get
+      val pageno: Ref[Int] = Ref[Int](PAGESIZE)
+      mtd_asm.get_page_size(pageno)
+      PAGESIZE = pageno.get
     }
     if (ERR.get == types.error.ESUCCESS) {
       val N = Ref[Int](0)
@@ -188,9 +184,9 @@ class ubi_io_asm(var PAGESIZE : Int, val mtd_asm : mtd_asm_interface)(implicit _
   override def recovery(): Unit = {
     
     {
-      val ino: Ref[Int] = Ref[Int](PAGESIZE)
-      mtd_asm.get_page_size(ino)
-      PAGESIZE = ino.get
+      val pageno: Ref[Int] = Ref[Int](PAGESIZE)
+      mtd_asm.get_page_size(pageno)
+      PAGESIZE = pageno.get
     }
   }
 

@@ -1,7 +1,3 @@
-// Flashix: a verified file system for flash memory
-// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
-// This code is licensed under MIT license (see LICENSE for details)
-
 package asm
 
 import encoding.volid._
@@ -17,8 +13,8 @@ class ubi_asm(val BFLIPSET : nat_set, val ERASEQ : queue, var LEBSIZE : Int, var
   import _algebraic_implicit._
   import _procedures_implicit._
 
-  def atomic_leb_change(VOLID: Byte, LNUM: Int, TO: Int, N0: Int, BUF: buffer, ERR: Ref[error]): Unit = {
-    var N: Int = N0
+  def atomic_leb_change(VOLID: Byte, LNUM: Int, TO: Int, OLD_INO: Int, BUF: buffer, ERR: Ref[error]): Unit = {
+    var N: Int = OLD_INO
     ERR := types.error.ESUCCESS
     N = datasize(BUF, N)
     val M = Ref[Int](0)
@@ -196,15 +192,15 @@ class ubi_asm(val BFLIPSET : nat_set, val ERASEQ : queue, var LEBSIZE : Int, var
     aubi_io.format(ERR)
     
     {
-      val ino: Ref[Int] = Ref[Int](LEBSIZE)
-      aubi_io.get_leb_size(ino)
-      LEBSIZE = ino.get
+      val pageno: Ref[Int] = Ref[Int](LEBSIZE)
+      aubi_io.get_leb_size(pageno)
+      LEBSIZE = pageno.get
     }
     
     {
-      val ino: Ref[Int] = Ref[Int](PAGESIZE)
-      aubi_io.get_page_size(ino)
-      PAGESIZE = ino.get
+      val pageno: Ref[Int] = Ref[Int](PAGESIZE)
+      aubi_io.get_page_size(pageno)
+      PAGESIZE = pageno.get
     }
     if (ERR.get != types.error.ESUCCESS) {
       debug("ubi: ubi-io format failed")
@@ -351,15 +347,15 @@ class ubi_asm(val BFLIPSET : nat_set, val ERASEQ : queue, var LEBSIZE : Int, var
     VOLS.clear
     
     {
-      val ino: Ref[Int] = Ref[Int](LEBSIZE)
-      aubi_io.get_leb_size(ino)
-      LEBSIZE = ino.get
+      val pageno: Ref[Int] = Ref[Int](LEBSIZE)
+      aubi_io.get_leb_size(pageno)
+      LEBSIZE = pageno.get
     }
     
     {
-      val ino: Ref[Int] = Ref[Int](PAGESIZE)
-      aubi_io.get_page_size(ino)
-      PAGESIZE = ino.get
+      val pageno: Ref[Int] = Ref[Int](PAGESIZE)
+      aubi_io.get_page_size(pageno)
+      PAGESIZE = pageno.get
     }
     val RECS: recoveryentries = new recoveryentries()
     val INVALIDECS: nat_list = new nat_list()

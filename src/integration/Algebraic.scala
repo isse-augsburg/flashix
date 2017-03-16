@@ -15,9 +15,7 @@ final class Algebraic(val mtd: MTDSimulation) extends algebraic.Algebraic {
   // Unimplemented algebraic operations
   //
 
-  override def EB_PAGE_SIZE: Int = mtd.EB_PAGE_SIZE
   override def MIN_SIZE: Int = 4
-  override def PAGES_PER_LEB: Int = mtd.PAGES_PER_PEB - 2
   override def ROOT_INO: Int = 1
   override def UBI_ERASE_RETRIES: Int = 5
   override def UBI_READ_RETRIES: Int = 5
@@ -75,5 +73,15 @@ final class Algebraic(val mtd: MTDSimulation) extends algebraic.Algebraic {
       cur = cur - 1
     }
     return cur
+  }
+
+  override def keys(fns: nat_set): key_set = {
+    if (fns.isEmpty)
+      return new key_set()
+    else {
+      val ro: key_set = keys(fns.tail).deepCopy
+      ro += types.key.inodekey(fns.head)
+      return ro
+    }
   }
 }

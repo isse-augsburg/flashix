@@ -67,7 +67,7 @@ object LPT extends Tab {
       i =>
         val used = lpt(i).ref_size
         val garbage = lpt(i).size - lpt(i).ref_size
-        val free = LEB_SIZE - lpt(i).size
+        val free = flashix.LEB_SIZE - lpt(i).size
         Array(free, garbage, used)
     }
 

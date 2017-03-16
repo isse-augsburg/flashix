@@ -9,6 +9,18 @@ class Flashix(mtd: mtd_asm_interface)(implicit val ops: algebraic.Algebraic, val
   import ops._
   import procs._
 
+  def EB_PAGE_SIZE = {
+    val pagesize = Ref.empty[Int]
+    mtd.get_page_size(pagesize)
+    pagesize.get
+  }
+
+  def LEB_SIZE = {
+    val lebsize = Ref.empty[Int]
+    mtd.get_peb_size(lebsize)
+    lebsize.get - 2 * EB_PAGE_SIZE
+  }
+
   // Check axioms
   procs.flashix_check_axioms
 
@@ -17,7 +29,7 @@ class Flashix(mtd: mtd_asm_interface)(implicit val ops: algebraic.Algebraic, val
   val ebm_vol = new ebm_vol_asm(0, ubi)
   val persistence_io = new persistence_io_asm(0, 0, 0, superblock.uninit, ebm_vol)
   val wbuf = new wbuf_asm(bufleb.nobuffer, 0, false, types.wbuf.uninit, persistence_io)
-  val persistence = new persistence_asm(new nat_list(), binheap(new key_array(), 0), new nat_list(), new lp_array(), wbuf)
+  val persistence = new persistence_asm(new nat_list(), binheap(new key_array(), 0), 0, new nat_list(), new lp_array(), wbuf)
   val btree = new btree_asm(address(0, 0, 0), znode.uninit, persistence) with DebugUBIFSJournal
   // TODO: option for dosync
   val journal = new gjournal_asm(false, 0, new nat_set(), true, 0, btree)

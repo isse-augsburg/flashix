@@ -1,7 +1,3 @@
-// Flashix: a verified file system for flash memory
-// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
-// This code is licensed under MIT license (see LICENSE for details)
-
 package asm
 
 import helpers.scala._
@@ -58,7 +54,9 @@ class gjournal_asm(var DOSYNC : Boolean, var JMAXINO : Int, val JRO : nat_set, v
         }
       }
       val NDLIST0: node_list = new node_list()
-      split_nodes(LEB_SIZE - SIZE.get, NDLIST, NDLIST0)
+      val N = Ref[Int](0)
+      index.get_leb_size(N)
+      split_nodes(N.get - SIZE.get, NDLIST, NDLIST0)
       if (NDLIST0.isEmpty) {
         ERR := types.error.EINVAL
       } else {
@@ -245,7 +243,9 @@ class gjournal_asm(var DOSYNC : Boolean, var JMAXINO : Int, val JRO : nat_set, v
   }
 
   def journal_allocate(SIZE: Int, ERR: Ref[error]): Unit = {
-    if (SIZE > LEB_SIZE) {
+    val N = Ref[Int](0)
+    index.get_leb_size(N)
+    if (SIZE > N.get) {
       ERR := types.error.ENOSPC
     } else {
       val EMPTY_ = Ref[Boolean](helpers.scala.Boolean.uninit)
@@ -349,9 +349,9 @@ class gjournal_asm(var DOSYNC : Boolean, var JMAXINO : Int, val JRO : nat_set, v
     val JNL: nat_list = new nat_list()
     
     {
-      val ino: Ref[Int] = Ref[Int](JMAXINO)
-      index.recover(ino, JNL, JRO, ERR)
-      JMAXINO = ino.get
+      val pageno: Ref[Int] = Ref[Int](JMAXINO)
+      index.recover(pageno, JNL, JRO, ERR)
+      JMAXINO = pageno.get
     }
     if (ERR.get != types.error.ESUCCESS) {
       debug("gjournal: persistence recover failed")
@@ -397,8 +397,8 @@ class gjournal_asm(var DOSYNC : Boolean, var JMAXINO : Int, val JRO : nat_set, v
     }
   }
 
-  def split_nodes(N: Int, NDLIST: node_list, NDLIST0: node_list): Unit = {
-    var SIZE: Int = N
+  def split_nodes(OLD_INO: Int, NDLIST: node_list, NDLIST0: node_list): Unit = {
+    var SIZE: Int = OLD_INO
     NDLIST0.clear
     while (! NDLIST.isEmpty && flashsize(NDLIST.head) <= SIZE) {
       val ND: node = NDLIST.head.deepCopy

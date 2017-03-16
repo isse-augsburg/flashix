@@ -1,7 +1,3 @@
-// Flashix: a verified file system for flash memory
-// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
-// This code is licensed under MIT license (see LICENSE for details)
-
 package asm
 
 import encoding.lprops._
@@ -48,7 +44,7 @@ class persistence_io_asm(var LEBSIZE : Int, var LOGOFF : Int, var PAGESIZE : Int
     if (NEWSB.log == SB_LOG) {
       NEWSB.log = SB_LOG + 1
       NEWSB.orph = SB_ORPH + 1
-      NEWSB.lpt = SB_LPT + lptlebs(VOLSIZE.get)
+      NEWSB.lpt = SB_LPT + lptlebs(VOLSIZE.get, LEBSIZE)
     } else {
       NEWSB.log = SB_LOG
       NEWSB.orph = SB_ORPH
@@ -62,7 +58,7 @@ class persistence_io_asm(var LEBSIZE : Int, var LOGOFF : Int, var PAGESIZE : Int
       val BUF: buffer = new buffer()
       encode_lpt(LPT, BUF, ERR)
       if (ERR.get == types.error.ESUCCESS) {
-        write_lebs(NEWSB.lpt, lptlebs(VOLSIZE.get), BUF, ERR)
+        write_lebs(NEWSB.lpt, lptlebs(VOLSIZE.get, LEBSIZE), BUF, ERR)
       }
     }
     if (ERR.get == types.error.ESUCCESS) {
@@ -87,14 +83,15 @@ class persistence_io_asm(var LEBSIZE : Int, var LOGOFF : Int, var PAGESIZE : Int
     }
   }
 
-  def decode_orphans(N0: Int, BUF: buffer, ORPHANS: nat_set, ERR: Ref[error]): Unit = {
-    var SIZE: Int = N0
+  def decode_orphans(P_INO: Int, BUF: buffer, ORPHANS: nat_set, ERR: Ref[error]): Unit = {
+    var SIZE: Int = P_INO
     ORPHANS.clear
     ERR := types.error.ESUCCESS
     var OFFSET: Int = 0
     while (ERR.get == types.error.ESUCCESS && SIZE != 0) {
       val N = Ref[Int](0)
-      decode_nat(OFFSET, BUF, N, N, ERR)
+      val OLD_INO = Ref[Int](0)
+      decode_nat(OFFSET, BUF, N, OLD_INO, ERR)
       if (ERR.get == types.error.ESUCCESS) {
         ORPHANS += N.get
       }
@@ -120,10 +117,10 @@ class persistence_io_asm(var LEBSIZE : Int, var LOGOFF : Int, var PAGESIZE : Int
     }
   }
 
-  def decode_superblock(n: Int, buf: buffer, sb: superblock, n0: Ref[Int], err: Ref[error]): Unit = {
+  def decode_superblock(n: Int, buf: buffer, m: Int, sb: superblock, n0: Ref[Int], err: Ref[error]): Unit = {
     decode_superblock_unaligned(n, buf, sb, n0, err)
     if (err.get == types.error.ESUCCESS) {
-      n0 := alignUp(n0.get, EB_PAGE_SIZE)
+      n0 := alignUp(n0.get, m)
       if (! (n + n0.get <= buf.length)) {
         err := types.error.EINVAL
       }
@@ -132,7 +129,7 @@ class persistence_io_asm(var LEBSIZE : Int, var LOGOFF : Int, var PAGESIZE : Int
 
   def encode_lpt(LPT: lp_array, BUF: buffer, ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
-    BUF.allocate(lptsize(LPT.length), 0.toByte)
+    BUF.allocate(lptsize(LPT.length, LEBSIZE), 0.toByte)
     var N: Int = 0
     val SIZE = Ref[Int](0)
     while (ERR.get == types.error.ESUCCESS && N < LPT.length) {
@@ -175,15 +172,21 @@ class persistence_io_asm(var LEBSIZE : Int, var LOGOFF : Int, var PAGESIZE : Int
     }
   }
 
-  def encode_superblock(sb: superblock, n: Int, buf: buffer, n0: Ref[Int], err: Ref[error]): Unit = {
+  def encode_superblock(sb: superblock, n: Int, m: Int, buf: buffer, n0: Ref[Int], err: Ref[error]): Unit = {
     encode_superblock_unaligned(sb, n, buf, n0, err)
     if (err.get == types.error.ESUCCESS) {
-      n0 := alignUp(n0.get, EB_PAGE_SIZE)
+      n0 := alignUp(n0.get, m)
     }
   }
 
   override def format(VOLSIZE: Int, LPT: lp_array, INDEXADR0: address, MAXINO0: Int, ERR: Ref[error]): Unit = {
-    val N: Int = 5 + 2 * lptlebs(VOLSIZE)
+    
+    {
+      val pageno: Ref[Int] = Ref[Int](LEBSIZE)
+      ebm_avol.get_leb_size(pageno)
+      LEBSIZE = pageno.get
+    }
+    val N: Int = 5 + 2 * lptlebs(VOLSIZE, LEBSIZE)
     ebm_avol.format(VOLSIZE + N, ERR)
     if (ERR.get != types.error.ESUCCESS) {
       debug("persistence-io: ubi format failed")
@@ -198,15 +201,9 @@ class persistence_io_asm(var LEBSIZE : Int, var LOGOFF : Int, var PAGESIZE : Int
     if (ERR.get == types.error.ESUCCESS) {
       
       {
-        val ino: Ref[Int] = Ref[Int](LEBSIZE)
-        ebm_avol.get_leb_size(ino)
-        LEBSIZE = ino.get
-      }
-      
-      {
-        val ino: Ref[Int] = Ref[Int](PAGESIZE)
-        ebm_avol.get_page_size(ino)
-        PAGESIZE = ino.get
+        val pageno: Ref[Int] = Ref[Int](PAGESIZE)
+        ebm_avol.get_page_size(pageno)
+        PAGESIZE = pageno.get
       }
     }
     if (ERR.get == types.error.ESUCCESS) {
@@ -219,7 +216,7 @@ class persistence_io_asm(var LEBSIZE : Int, var LOGOFF : Int, var PAGESIZE : Int
       val BUF: buffer = new buffer()
       encode_lpt(LPT, BUF, ERR)
       if (ERR.get == types.error.ESUCCESS) {
-        write_lebs(SB.lpt, lptlebs(VOLSIZE), BUF, ERR)
+        write_lebs(SB.lpt, lptlebs(VOLSIZE, LEBSIZE), BUF, ERR)
       }
     }
     if (ERR.get == types.error.ESUCCESS) {
@@ -293,7 +290,7 @@ class persistence_io_asm(var LEBSIZE : Int, var LOGOFF : Int, var PAGESIZE : Int
     ebm_avol.read(0, 0, 0, LEBSIZE, BUF, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       val SIZE = Ref[Int](0)
-      decode_superblock(0, BUF, NEWSB, SIZE, ERR)
+      decode_superblock(0, BUF, PAGESIZE, NEWSB, SIZE, ERR)
     }
   }
 
@@ -304,15 +301,15 @@ class persistence_io_asm(var LEBSIZE : Int, var LOGOFF : Int, var PAGESIZE : Int
     } else {
       
       {
-        val ino: Ref[Int] = Ref[Int](LEBSIZE)
-        ebm_avol.get_leb_size(ino)
-        LEBSIZE = ino.get
+        val pageno: Ref[Int] = Ref[Int](LEBSIZE)
+        ebm_avol.get_leb_size(pageno)
+        LEBSIZE = pageno.get
       }
       
       {
-        val ino: Ref[Int] = Ref[Int](PAGESIZE)
-        ebm_avol.get_page_size(ino)
-        PAGESIZE = ino.get
+        val pageno: Ref[Int] = Ref[Int](PAGESIZE)
+        ebm_avol.get_page_size(pageno)
+        PAGESIZE = pageno.get
       }
       val VOLSIZE = Ref[Int](0)
       ebm_avol.get_volume_size(VOLSIZE)
@@ -335,7 +332,7 @@ class persistence_io_asm(var LEBSIZE : Int, var LOGOFF : Int, var PAGESIZE : Int
       if (ERR.get == types.error.ESUCCESS) {
         VOLSIZE := VOLSIZE.get - SB.main
         val BUF: buffer = new buffer()
-        read_lebs(SB.lpt, lptlebs(VOLSIZE.get), BUF, ERR)
+        read_lebs(SB.lpt, lptlebs(VOLSIZE.get, LEBSIZE), BUF, ERR)
         if (ERR.get == types.error.ESUCCESS) {
           LPT.allocate(VOLSIZE.get, types.lprops.uninit)
           LPT.fill(types.lprops.mklp(0, 0, types.lpropflags.LP_FREE, 0))
@@ -393,10 +390,10 @@ class persistence_io_asm(var LEBSIZE : Int, var LOGOFF : Int, var PAGESIZE : Int
   }
 
   def write_superblock(NEWSB: superblock, ERR: Ref[error]): Unit = {
-    val SIZE = Ref[Int](encoding_size(NEWSB))
+    val SIZE = Ref[Int](encoding_size(NEWSB, PAGESIZE))
     if (SIZE.get <= LEBSIZE) {
       val BUF: buffer = new buffer(SIZE.get).fill(0.toByte)
-      encode_superblock(NEWSB, 0, BUF, SIZE, ERR)
+      encode_superblock(NEWSB, 0, PAGESIZE, BUF, SIZE, ERR)
       if (ERR.get == types.error.ESUCCESS) {
         ebm_avol.change(0, SIZE.get, BUF, ERR)
       }

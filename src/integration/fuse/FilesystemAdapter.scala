@@ -157,7 +157,7 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
     if (tryCommit && log != 0 && free == 0) {
       val (total_bytes, free_bytes) = flashix.computeStats
 
-      if (free_bytes > LEB_SIZE * (4 + free)) {
+      if (free_bytes > flashix.LEB_SIZE * (4 + free)) {
         debug(s"flashix: attempting to free ${free_bytes} bytes from the log")
         journal.commit(ERR)
 

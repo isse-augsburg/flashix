@@ -1,7 +1,3 @@
-// Flashix: a verified file system for flash memory
-// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
-// This code is licensed under MIT license (see LICENSE for details)
-
 package asm
 
 import helpers.scala._
@@ -102,10 +98,12 @@ class btree_asm(var ADRT : address, var RT : znode, val apersistence : apersiste
   override def format(VOLSIZE: Int, MAXINO0: Int, ERR: Ref[error]): Unit = {
     RT = null
     apersistence.format(VOLSIZE, MAXINO0, ERR)
+    val N = Ref[Int](0)
+    apersistence.get_leb_size(N)
     if (ERR.get == types.error.ESUCCESS) {
       val IND: index_node = types.index_node.indexnode(new branch_array(BRANCH_SIZE).fill(types.branch.uninit), true, 0)
       val SIZE: Int = flashsize(IND)
-      if (SIZE > LEB_SIZE) {
+      if (SIZE > N.get) {
         debug("btree: initial index node to large")
         ERR := types.error.ENOSPC
       }
@@ -143,6 +141,10 @@ class btree_asm(var ADRT : address, var RT : znode, val apersistence : apersiste
 
   override def get_gc_block(N: Ref[Int], ERR: Ref[error]): Unit = {
     apersistence.get_gc_block(N, ERR)
+  }
+
+  override def get_leb_size(N: Ref[Int]): Unit = {
+    apersistence.get_leb_size(N)
   }
 
   override def index_contains(KEY: key, EXISTS: Ref[Boolean], ERR: Ref[error]): Unit = {

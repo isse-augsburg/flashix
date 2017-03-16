@@ -1,7 +1,3 @@
-// Flashix: a verified file system for flash memory
-// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
-// This code is licensed under MIT license (see LICENSE for details)
-
 package asm
 
 import helpers.scala._
@@ -92,10 +88,9 @@ class vfs_asm(var MAXINO : Int, val OF : open_files, val afs : afs_interface)(im
       afs.readdir(INODE, NAMES, ERR)
     }
     val C_INODE: inode = types.inode.uninit
-    val DENT = Ref[dentry](types.dentry.uninit)
     while (! NAMES.isEmpty && ERR.get == types.error.ESUCCESS) {
       val NAME: String = NAMES.head
-      DENT := types.dentry.negdentry(NAME)
+      val DENT = Ref[dentry](types.dentry.negdentry(NAME))
       afs.lookup(INODE.ino, DENT, ERR)
       if (ERR.get == types.error.ESUCCESS) {
         afs.iget(DENT.get.ino, C_INODE, ERR)
@@ -123,11 +118,11 @@ class vfs_asm(var MAXINO : Int, val OF : open_files, val afs : afs_interface)(im
       val INODE: inode = types.inode.uninit
       val C_INODE: inode = types.inode.uninit
       val DENT0 = Ref[dentry](types.dentry.negdentry(PATH.last))
-      val N = Ref[Int](ROOT_INO)
+      val OLD_INO = Ref[Int](ROOT_INO)
       val PATH1: path = PATH.init
-      walk(PATH1, USER, N, ERR)
+      walk(PATH1, USER, OLD_INO, ERR)
       if (ERR.get == types.error.ESUCCESS) {
-        may_link(N.get, USER, INODE, DENT0, ERR)
+        may_link(OLD_INO.get, USER, INODE, DENT0, ERR)
       }
       C_INODE := INODE.deepCopy
       OLD_DENT = DENT0.get
@@ -344,8 +339,8 @@ class vfs_asm(var MAXINO : Int, val OF : open_files, val afs : afs_interface)(im
     }
   }
 
-  def read_loop(START: Int, END: Int, INODE: inode, RSYNCED: Boolean, BUF: buffer, TOTAL: Ref[Int], ERR: Ref[error]): Unit = {
-    val DONE = Ref[Boolean](RSYNCED)
+  def read_loop(START: Int, END: Int, INODE: inode, IS_DIR: Boolean, BUF: buffer, TOTAL: Ref[Int], ERR: Ref[error]): Unit = {
+    val DONE = Ref[Boolean](IS_DIR)
     while (ERR.get == types.error.ESUCCESS && DONE.get != true) {
       read_block(START, END, INODE, BUF, TOTAL, DONE, ERR)
     }
@@ -360,11 +355,7 @@ class vfs_asm(var MAXINO : Int, val OF : open_files, val afs : afs_interface)(im
       val MODE: file_mode = types.file_mode.MODE_R
       may_open(INO.get, ISDIR, MODE, USER, INODE, ERR)
       if (ERR.get == types.error.ESUCCESS) {
-        val NAMES0: stringset = new stringset()
-        afs.readdir(INODE, NAMES0, ERR)
-        if (ERR.get == types.error.ESUCCESS) {
-          NAMES := NAMES0
-        }
+        afs.readdir(INODE, NAMES, ERR)
       }
     }
   }
@@ -407,17 +398,16 @@ class vfs_asm(var MAXINO : Int, val OF : open_files, val afs : afs_interface)(im
       val DEL_INODE: inode = types.inode.uninit
       val ISDIR = Ref[Boolean](helpers.scala.Boolean.uninit)
       val DENT0 = Ref[dentry](types.dentry.negdentry(PATH.last))
-      val N = Ref[Int](ROOT_INO)
+      val OLD_INO = Ref[Int](ROOT_INO)
       val PATH1: path = PATH.init
-      walk(PATH1, USER, N, ERR)
+      walk(PATH1, USER, OLD_INO, ERR)
       if (ERR.get == types.error.ESUCCESS) {
         val ISRENAME: Boolean = true
-        may_delete(N.get, ISRENAME, USER, INODE, DENT0, DEL_INODE, ISDIR, ERR)
+        may_delete(OLD_INO.get, ISRENAME, USER, INODE, DENT0, DEL_INODE, ISDIR, ERR)
       }
       OLD_INODE := INODE.deepCopy
       OLD_DENT := DENT0.get
-      val OLD_DENT_INODE: inode = types.inode.uninit
-      OLD_DENT_INODE := DEL_INODE.deepCopy
+      val OLD_DENT_INODE: inode = DEL_INODE
       val NEW_DENT = Ref[dentry](types.dentry.uninit)
       val NEW_DENT_INODE: inode = types.inode.uninit
       val NEW_INODE: inode = types.inode.uninit

@@ -1,7 +1,3 @@
-// Flashix: a verified file system for flash memory
-// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
-// This code is licensed under MIT license (see LICENSE for details)
-
 package asm
 
 import helpers.scala._
@@ -22,6 +18,7 @@ abstract class apersistence_interface {
   def get_gblock_refsize(LNUM: Int, N: Ref[Int])
   def get_gc_block(N: Ref[Int], ERR: Ref[error])
   def get_iblock_refsize(LNUM: Int, N: Ref[Int])
+  def get_leb_size(N: Ref[Int])
   def is_log_empty(EMPTY_ : Ref[Boolean])
   def is_readonly(ROFS: Ref[Boolean])
   def read_gblock_nodes(LNUM: Int, ADRLIST: address_list, GNDLIST: group_node_list, ERR: Ref[error])

@@ -1,7 +1,3 @@
-// Flashix: a verified file system for flash memory
-// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
-// This code is licensed under MIT license (see LICENSE for details)
-
 package asm
 
 import helpers.scala._
@@ -49,9 +45,9 @@ class wbuf_asm(var BUFLEB : bufleb, var PAGESIZE : Int, var ROFS : Boolean, val 
     if (ERR.get == types.error.ESUCCESS) {
       
       {
-        val ino: Ref[Int] = Ref[Int](PAGESIZE)
-        apersistence_io.get_page_size(ino)
-        PAGESIZE = ino.get
+        val pageno: Ref[Int] = Ref[Int](PAGESIZE)
+        apersistence_io.get_page_size(pageno)
+        PAGESIZE = pageno.get
       }
       BUFLEB = types.bufleb.nobuffer
       WBUF.content = new buffer(PAGESIZE)
@@ -106,9 +102,9 @@ class wbuf_asm(var BUFLEB : bufleb, var PAGESIZE : Int, var ROFS : Boolean, val 
     if (ERR.get == types.error.ESUCCESS) {
       
       {
-        val ino: Ref[Int] = Ref[Int](PAGESIZE)
-        apersistence_io.get_page_size(ino)
-        PAGESIZE = ino.get
+        val pageno: Ref[Int] = Ref[Int](PAGESIZE)
+        apersistence_io.get_page_size(pageno)
+        PAGESIZE = pageno.get
       }
       BUFLEB = types.bufleb.nobuffer
       WBUF.content = new buffer(PAGESIZE)

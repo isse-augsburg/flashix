@@ -1,7 +1,3 @@
-// Flashix: a verified file system for flash memory
-// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
-// This code is licensed under MIT license (see LICENSE for details)
-
 package asm
 
 import helpers.scala._
@@ -19,6 +15,7 @@ abstract class index_interface {
   def get_block_free_size(N: Ref[Int])
   def get_gblock_refsize(LNUM: Int, N: Ref[Int])
   def get_gc_block(N: Ref[Int], ERR: Ref[error])
+  def get_leb_size(N: Ref[Int])
   def index_contains(KEY: key, EXISTS: Ref[Boolean], ERR: Ref[error])
   def index_entries(KEY: key, NAMES: stringset, ERR: Ref[error])
   def index_lookup(KEY: key, EXISTS: Ref[Boolean], ADR: Ref[address], ERR: Ref[error])

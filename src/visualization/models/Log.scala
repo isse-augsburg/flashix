@@ -91,7 +91,7 @@ object Log extends Tab {
 
   def apply(flashix: Flashix) {
     val logblocks = flashix.persistence.LOG
-    lebsize = flashix.ops.LEB_SIZE
+    lebsize = flashix.LEB_SIZE
     aligned = encoding.node_header.NODE_HEADER_SIZE(flashix.ops)
 
     var redraw = false

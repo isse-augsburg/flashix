@@ -1,7 +1,3 @@
-// Flashix: a verified file system for flash memory
-// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
-// This code is licensed under MIT license (see LICENSE for details)
-
 package asm
 
 import helpers.scala._
@@ -10,7 +6,7 @@ import helpers.scala.Random._
 import types._
 import types.error.error
 
-class aubifs_asm(val aubifs_core : aubifs_core_interface)(implicit _algebraic_implicit: algebraic.Algebraic) extends logfs_interface {
+class aubifs_asm(val aubifs_core : aubifs_core_interface)(implicit _algebraic_implicit: algebraic.Algebraic) extends afs_interface {
   import _algebraic_implicit._
 
   override def check_commit(ERR: Ref[error]): Unit = {
@@ -18,18 +14,13 @@ class aubifs_asm(val aubifs_core : aubifs_core_interface)(implicit _algebraic_im
   }
 
   override def create(MD: metadata, P_INODE: inode, C_INODE: inode, DENT: Ref[dentry], ERR: Ref[error]): Unit = {
-    var KEY1: key = types.key.uninit
-    KEY1 = types.key.inodekey(P_INODE.ino)
-    var KEY2: key = types.key.uninit
-    KEY2 = types.key.dentrykey(P_INODE.ino, DENT.get.name)
     val KEY3 = Ref[key](types.key.uninit)
     aubifs_core.index_newino(KEY3)
-    var ND1: node = types.node.uninit
-    ND1 = types.node.inodenode(KEY1, P_INODE.meta, P_INODE.directory, P_INODE.nlink, P_INODE.nsubdirs, P_INODE.size + 1)
-    var ND2: node = types.node.uninit
-    ND2 = types.node.dentrynode(KEY2, KEY3.get.ino)
-    var ND3: node = types.node.uninit
-    ND3 = types.node.inodenode(KEY3.get, MD, false, 1, 0, 0)
+    val KEY1: key = types.key.inodekey(P_INODE.ino)
+    val KEY2: key = types.key.dentrykey(P_INODE.ino, DENT.get.name)
+    val ND1: node = types.node.inodenode(KEY1, P_INODE.meta, P_INODE.directory, P_INODE.nlink, P_INODE.nsubdirs, P_INODE.size + 1)
+    val ND2: node = types.node.dentrynode(KEY2, KEY3.get.ino)
+    val ND3: node = types.node.inodenode(KEY3.get, MD, false, 1, 0, 0)
     val ADR1 = Ref[address](types.address.uninit)
     val ADR2 = Ref[address](types.address.uninit)
     val ADR3 = Ref[address](types.address.uninit)
@@ -80,7 +71,7 @@ class aubifs_asm(val aubifs_core : aubifs_core_interface)(implicit _algebraic_im
     ERR := types.error.ESUCCESS
   }
 
-  override def gc(): Unit = {
+  def gc(): Unit = {
     aubifs_core.journal_gc()
   }
 
@@ -92,8 +83,7 @@ class aubifs_asm(val aubifs_core : aubifs_core_interface)(implicit _algebraic_im
 
   def iget_check(INO: Int, EXISTS: Ref[Boolean], INODE: inode, ERR: Ref[error]): Unit = {
     if (ERR.get == types.error.ESUCCESS) {
-      var KEY: key = types.key.uninit
-      KEY = types.key.inodekey(INO)
+      val KEY: key = types.key.inodekey(INO)
       val ND = Ref[node](types.node.uninit)
       aubifs_core.index_lookup(KEY, EXISTS, ND, ERR)
       if (ERR.get == types.error.ESUCCESS && EXISTS.get) {
@@ -103,19 +93,13 @@ class aubifs_asm(val aubifs_core : aubifs_core_interface)(implicit _algebraic_im
   }
 
   override def link(OLD_DENT: dentry, P_INODE: inode, C_INODE: inode, NEW_DENT: Ref[dentry], ERR: Ref[error]): Unit = {
-    var KEY1: key = types.key.uninit
-    KEY1 = types.key.inodekey(P_INODE.ino)
-    var KEY2: key = types.key.uninit
-    KEY2 = types.key.dentrykey(P_INODE.ino, NEW_DENT.get.name)
+    val KEY1: key = types.key.inodekey(P_INODE.ino)
+    val KEY2: key = types.key.dentrykey(P_INODE.ino, NEW_DENT.get.name)
     val INO: Int = C_INODE.ino
-    var KEY3: key = types.key.uninit
-    KEY3 = types.key.inodekey(INO)
-    var ND1: node = types.node.uninit
-    ND1 = types.node.inodenode(KEY1, P_INODE.meta, P_INODE.directory, P_INODE.nlink, P_INODE.nsubdirs, P_INODE.size + 1)
-    var ND2: node = types.node.uninit
-    ND2 = types.node.dentrynode(KEY2, INO)
-    var ND3: node = types.node.uninit
-    ND3 = types.node.inodenode(KEY3, C_INODE.meta, C_INODE.directory, C_INODE.nlink + 1, C_INODE.nsubdirs, C_INODE.size)
+    val KEY3: key = types.key.inodekey(INO)
+    val ND1: node = types.node.inodenode(KEY1, P_INODE.meta, P_INODE.directory, P_INODE.nlink, P_INODE.nsubdirs, P_INODE.size + 1)
+    val ND2: node = types.node.dentrynode(KEY2, INO)
+    val ND3: node = types.node.inodenode(KEY3, C_INODE.meta, C_INODE.directory, C_INODE.nlink + 1, C_INODE.nsubdirs, C_INODE.size)
     val ADR1 = Ref[address](types.address.uninit)
     val ADR2 = Ref[address](types.address.uninit)
     val ADR3 = Ref[address](types.address.uninit)
@@ -132,8 +116,7 @@ class aubifs_asm(val aubifs_core : aubifs_core_interface)(implicit _algebraic_im
 
   override def lookup(P_INO: Int, DENT: Ref[dentry], ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
-    var KEY: key = types.key.uninit
-    KEY = types.key.dentrykey(P_INO, DENT.get.name)
+    val KEY: key = types.key.dentrykey(P_INO, DENT.get.name)
     val ND = Ref[node](types.node.uninit)
     val EXISTS = Ref[Boolean](helpers.scala.Boolean.uninit)
     aubifs_core.index_lookup(KEY, EXISTS, ND, ERR)
@@ -149,18 +132,13 @@ class aubifs_asm(val aubifs_core : aubifs_core_interface)(implicit _algebraic_im
   }
 
   override def mkdir(MD: metadata, P_INODE: inode, C_INODE: inode, DENT: Ref[dentry], ERR: Ref[error]): Unit = {
-    var KEY1: key = types.key.uninit
-    KEY1 = types.key.inodekey(P_INODE.ino)
-    var KEY2: key = types.key.uninit
-    KEY2 = types.key.dentrykey(P_INODE.ino, DENT.get.name)
     val KEY3 = Ref[key](types.key.uninit)
     aubifs_core.index_newino(KEY3)
-    var ND1: node = types.node.uninit
-    ND1 = types.node.inodenode(KEY1, P_INODE.meta, P_INODE.directory, P_INODE.nlink, P_INODE.nsubdirs + 1, P_INODE.size + 1)
-    var ND2: node = types.node.uninit
-    ND2 = types.node.dentrynode(KEY2, KEY3.get.ino)
-    var ND3: node = types.node.uninit
-    ND3 = types.node.inodenode(KEY3.get, MD, true, 1, 0, 0)
+    val KEY1: key = types.key.inodekey(P_INODE.ino)
+    val KEY2: key = types.key.dentrykey(P_INODE.ino, DENT.get.name)
+    val ND1: node = types.node.inodenode(KEY1, P_INODE.meta, P_INODE.directory, P_INODE.nlink, P_INODE.nsubdirs + 1, P_INODE.size + 1)
+    val ND2: node = types.node.dentrynode(KEY2, KEY3.get.ino)
+    val ND3: node = types.node.inodenode(KEY3.get, MD, true, 1, 0, 0)
     val ADR1 = Ref[address](types.address.uninit)
     val ADR2 = Ref[address](types.address.uninit)
     val ADR3 = Ref[address](types.address.uninit)
@@ -176,8 +154,7 @@ class aubifs_asm(val aubifs_core : aubifs_core_interface)(implicit _algebraic_im
   }
 
   override def readdir(INODE: inode, NAMES: stringset, ERR: Ref[error]): Unit = {
-    var KEY: key = types.key.uninit
-    KEY = types.key.inodekey(INODE.ino)
+    val KEY: key = types.key.inodekey(INODE.ino)
     aubifs_core.index_entries(KEY, NAMES, ERR)
   }
 
@@ -185,14 +162,13 @@ class aubifs_asm(val aubifs_core : aubifs_core_interface)(implicit _algebraic_im
     ERR := types.error.ESUCCESS
     val ND = Ref[node](types.node.uninit)
     val EXISTS = Ref[Boolean](helpers.scala.Boolean.uninit)
-    var KEY: key = types.key.uninit
-    KEY = types.key.datakey(INODE.ino, PAGENO)
+    val KEY: key = types.key.datakey(INODE.ino, PAGENO)
     aubifs_core.index_lookup(KEY, EXISTS, ND, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       if (EXISTS.get) {
-        PBUF := ND.get.data.deepCopy
+        PBUF.copy(ND.get.data, 0, 0, VFS_PAGE_SIZE)
       } else {
-        PBUF := zeropage
+        PBUF.fill(zero)
       }
     }
   }
@@ -233,18 +209,12 @@ class aubifs_asm(val aubifs_core : aubifs_core_interface)(implicit _algebraic_im
   }
 
   def rename_new_keep_parent(IS_DIR: Boolean, OLD_CHILD_INODE: inode, PARENT_INODE: inode, OLD_DENT: Ref[dentry], NEW_DENT: Ref[dentry], ERR: Ref[error]): Unit = {
-    var KEY1: key = types.key.uninit
-    KEY1 = types.key.dentrykey(PARENT_INODE.ino, OLD_DENT.get.name)
-    var ND1: node = types.node.uninit
-    ND1 = types.node.dentrynode(KEY1, 0)
-    var KEY2: key = types.key.uninit
-    KEY2 = types.key.dentrykey(PARENT_INODE.ino, NEW_DENT.get.name)
-    var ND2: node = types.node.uninit
-    ND2 = types.node.dentrynode(KEY2, OLD_DENT.get.ino)
-    var KEY3: key = types.key.uninit
-    KEY3 = types.key.inodekey(PARENT_INODE.ino)
-    var ND3: node = types.node.uninit
-    ND3 = types.node.inodenode(KEY3, PARENT_INODE.meta, PARENT_INODE.directory, PARENT_INODE.nlink, PARENT_INODE.nsubdirs, PARENT_INODE.size)
+    val KEY1: key = types.key.dentrykey(PARENT_INODE.ino, OLD_DENT.get.name)
+    val ND1: node = types.node.dentrynode(KEY1, 0)
+    val KEY2: key = types.key.dentrykey(PARENT_INODE.ino, NEW_DENT.get.name)
+    val ND2: node = types.node.dentrynode(KEY2, OLD_DENT.get.ino)
+    val KEY3: key = types.key.inodekey(PARENT_INODE.ino)
+    val ND3: node = types.node.inodenode(KEY3, PARENT_INODE.meta, PARENT_INODE.directory, PARENT_INODE.nlink, PARENT_INODE.nsubdirs, PARENT_INODE.size)
     val ADR2 = Ref[address](types.address.uninit)
     val ADR3 = Ref[address](types.address.uninit)
     val ADR1 = Ref[address](types.address.uninit)
@@ -260,22 +230,14 @@ class aubifs_asm(val aubifs_core : aubifs_core_interface)(implicit _algebraic_im
   }
 
   def rename_new_reparent(IS_DIR: Boolean, OLD_CHILD_INODE: inode, OLD_PARENT_INODE: inode, NEW_PARENT_INODE: inode, OLD_DENT: Ref[dentry], NEW_DENT: Ref[dentry], ERR: Ref[error]): Unit = {
-    var KEY1: key = types.key.uninit
-    KEY1 = types.key.dentrykey(OLD_PARENT_INODE.ino, OLD_DENT.get.name)
-    var ND1: node = types.node.uninit
-    ND1 = types.node.dentrynode(KEY1, 0)
-    var KEY2: key = types.key.uninit
-    KEY2 = types.key.dentrykey(NEW_PARENT_INODE.ino, NEW_DENT.get.name)
-    var ND2: node = types.node.uninit
-    ND2 = types.node.dentrynode(KEY2, OLD_DENT.get.ino)
-    var KEY3: key = types.key.uninit
-    KEY3 = types.key.inodekey(OLD_PARENT_INODE.ino)
-    var ND3: node = types.node.uninit
-    ND3 = types.node.inodenode(KEY3, OLD_PARENT_INODE.meta, OLD_PARENT_INODE.directory, OLD_PARENT_INODE.nlink, OLD_PARENT_INODE.nsubdirs - (if (IS_DIR) 1 else 0), OLD_PARENT_INODE.size - 1)
-    var KEY4: key = types.key.uninit
-    KEY4 = types.key.inodekey(NEW_PARENT_INODE.ino)
-    var ND4: node = types.node.uninit
-    ND4 = types.node.inodenode(KEY4, NEW_PARENT_INODE.meta, NEW_PARENT_INODE.directory, NEW_PARENT_INODE.nlink, NEW_PARENT_INODE.nsubdirs + (if (IS_DIR) 1 else 0), NEW_PARENT_INODE.size + 1)
+    val KEY1: key = types.key.dentrykey(OLD_PARENT_INODE.ino, OLD_DENT.get.name)
+    val ND1: node = types.node.dentrynode(KEY1, 0)
+    val KEY2: key = types.key.dentrykey(NEW_PARENT_INODE.ino, NEW_DENT.get.name)
+    val ND2: node = types.node.dentrynode(KEY2, OLD_DENT.get.ino)
+    val KEY3: key = types.key.inodekey(OLD_PARENT_INODE.ino)
+    val ND3: node = types.node.inodenode(KEY3, OLD_PARENT_INODE.meta, OLD_PARENT_INODE.directory, OLD_PARENT_INODE.nlink, OLD_PARENT_INODE.nsubdirs - (if (IS_DIR) 1 else 0), OLD_PARENT_INODE.size - 1)
+    val KEY4: key = types.key.inodekey(NEW_PARENT_INODE.ino)
+    val ND4: node = types.node.inodenode(KEY4, NEW_PARENT_INODE.meta, NEW_PARENT_INODE.directory, NEW_PARENT_INODE.nlink, NEW_PARENT_INODE.nsubdirs + (if (IS_DIR) 1 else 0), NEW_PARENT_INODE.size + 1)
     val ADR4 = Ref[address](types.address.uninit)
     val ADR2 = Ref[address](types.address.uninit)
     val ADR3 = Ref[address](types.address.uninit)
@@ -297,16 +259,10 @@ class aubifs_asm(val aubifs_core : aubifs_core_interface)(implicit _algebraic_im
     var KEY1: key = types.key.uninit
     val IDENTITY: Boolean = OLD_DENT.get == NEW_DENT.get
     KEY1 = types.key.dentrykey(PARENT_INODE.ino, OLD_DENT.get.name)
-    var ND1: node = types.node.uninit
-    ND1 = types.node.dentrynode(KEY1, 0)
-    var KEY2: key = types.key.uninit
-    KEY2 = types.key.dentrykey(PARENT_INODE.ino, NEW_DENT.get.name)
-    var ND2: node = types.node.uninit
-    ND2 = types.node.dentrynode(KEY2, OLD_DENT.get.ino)
-    var KEY3: key = types.key.uninit
-    KEY3 = types.key.inodekey(PARENT_INODE.ino)
-    var KEY4: key = types.key.uninit
-    KEY4 = types.key.inodekey(NEW_DENT.get.ino)
+    val ND1: node = types.node.dentrynode(KEY1, 0)
+    val KEY2: key = types.key.dentrykey(PARENT_INODE.ino, NEW_DENT.get.name)
+    val KEY3: key = types.key.inodekey(PARENT_INODE.ino)
+    val KEY4: key = types.key.inodekey(NEW_DENT.get.ino)
     var ND3: node = types.node.uninit
     var ND4: node = types.node.uninit
     if (IDENTITY != true) {
@@ -316,6 +272,7 @@ class aubifs_asm(val aubifs_core : aubifs_core_interface)(implicit _algebraic_im
       ND3 = types.node.inodenode(KEY3, PARENT_INODE.meta, PARENT_INODE.directory, PARENT_INODE.nlink, PARENT_INODE.nsubdirs, PARENT_INODE.size)
       ND4 = types.node.inodenode(KEY4, NEW_CHILD_INODE.meta, NEW_CHILD_INODE.directory, NEW_CHILD_INODE.nlink, NEW_CHILD_INODE.nsubdirs, NEW_CHILD_INODE.size)
     }
+    val ND2: node = types.node.dentrynode(KEY2, OLD_DENT.get.ino)
     val ADR4 = Ref[address](types.address.uninit)
     val ADR2 = Ref[address](types.address.uninit)
     val ADR3 = Ref[address](types.address.uninit)
@@ -337,26 +294,16 @@ class aubifs_asm(val aubifs_core : aubifs_core_interface)(implicit _algebraic_im
   }
 
   def rename_overwrite_reparent(IS_DIR: Boolean, OLD_CHILD_INODE: inode, OLD_PARENT_INODE: inode, NEW_PARENT_INODE: inode, NEW_CHILD_INODE: inode, OLD_DENT: Ref[dentry], NEW_DENT: Ref[dentry], ERR: Ref[error]): Unit = {
-    var KEY1: key = types.key.uninit
-    KEY1 = types.key.dentrykey(OLD_PARENT_INODE.ino, OLD_DENT.get.name)
-    var ND1: node = types.node.uninit
-    ND1 = types.node.dentrynode(KEY1, 0)
-    var KEY2: key = types.key.uninit
-    KEY2 = types.key.dentrykey(NEW_PARENT_INODE.ino, NEW_DENT.get.name)
-    var ND2: node = types.node.uninit
-    ND2 = types.node.dentrynode(KEY2, OLD_DENT.get.ino)
-    var KEY3: key = types.key.uninit
-    KEY3 = types.key.inodekey(OLD_PARENT_INODE.ino)
-    var ND3: node = types.node.uninit
-    ND3 = types.node.inodenode(KEY3, OLD_PARENT_INODE.meta, OLD_PARENT_INODE.directory, OLD_PARENT_INODE.nlink, OLD_PARENT_INODE.nsubdirs - (if (IS_DIR) 1 else 0), OLD_PARENT_INODE.size - 1)
-    var KEY4: key = types.key.uninit
-    KEY4 = types.key.inodekey(NEW_PARENT_INODE.ino)
-    var ND4: node = types.node.uninit
-    ND4 = types.node.inodenode(KEY4, NEW_PARENT_INODE.meta, NEW_PARENT_INODE.directory, NEW_PARENT_INODE.nlink, NEW_PARENT_INODE.nsubdirs, NEW_PARENT_INODE.size)
-    var KEY5: key = types.key.uninit
-    KEY5 = types.key.inodekey(NEW_DENT.get.ino)
-    var ND5: node = types.node.uninit
-    ND5 = types.node.inodenode(KEY5, NEW_CHILD_INODE.meta, NEW_CHILD_INODE.directory, NEW_CHILD_INODE.nlink - 1, NEW_CHILD_INODE.nsubdirs, NEW_CHILD_INODE.size)
+    val KEY1: key = types.key.dentrykey(OLD_PARENT_INODE.ino, OLD_DENT.get.name)
+    val ND1: node = types.node.dentrynode(KEY1, 0)
+    val KEY2: key = types.key.dentrykey(NEW_PARENT_INODE.ino, NEW_DENT.get.name)
+    val ND2: node = types.node.dentrynode(KEY2, OLD_DENT.get.ino)
+    val KEY3: key = types.key.inodekey(OLD_PARENT_INODE.ino)
+    val ND3: node = types.node.inodenode(KEY3, OLD_PARENT_INODE.meta, OLD_PARENT_INODE.directory, OLD_PARENT_INODE.nlink, OLD_PARENT_INODE.nsubdirs - (if (IS_DIR) 1 else 0), OLD_PARENT_INODE.size - 1)
+    val KEY4: key = types.key.inodekey(NEW_PARENT_INODE.ino)
+    val ND4: node = types.node.inodenode(KEY4, NEW_PARENT_INODE.meta, NEW_PARENT_INODE.directory, NEW_PARENT_INODE.nlink, NEW_PARENT_INODE.nsubdirs, NEW_PARENT_INODE.size)
+    val KEY5: key = types.key.inodekey(NEW_DENT.get.ino)
+    val ND5: node = types.node.inodenode(KEY5, NEW_CHILD_INODE.meta, NEW_CHILD_INODE.directory, NEW_CHILD_INODE.nlink - 1, NEW_CHILD_INODE.nsubdirs, NEW_CHILD_INODE.size)
     val ADR5 = Ref[address](types.address.uninit)
     val ADR4 = Ref[address](types.address.uninit)
     val ADR2 = Ref[address](types.address.uninit)
@@ -436,19 +383,13 @@ class aubifs_asm(val aubifs_core : aubifs_core_interface)(implicit _algebraic_im
   }
 
   override def rmdir(P_INODE: inode, C_INODE: inode, DENT: Ref[dentry], ERR: Ref[error]): Unit = {
-    var KEY1: key = types.key.uninit
-    KEY1 = types.key.inodekey(P_INODE.ino)
-    var KEY2: key = types.key.uninit
-    KEY2 = types.key.dentrykey(P_INODE.ino, DENT.get.name)
+    val KEY1: key = types.key.inodekey(P_INODE.ino)
+    val KEY2: key = types.key.dentrykey(P_INODE.ino, DENT.get.name)
     val INO: Int = C_INODE.ino
-    var KEY3: key = types.key.uninit
-    KEY3 = types.key.inodekey(C_INODE.ino)
-    var ND1: node = types.node.uninit
-    ND1 = types.node.inodenode(KEY1, P_INODE.meta, P_INODE.directory, P_INODE.nlink, P_INODE.nsubdirs - 1, P_INODE.size - 1)
-    var ND2: node = types.node.uninit
-    ND2 = types.node.dentrynode(KEY2, 0)
-    var ND3: node = types.node.uninit
-    ND3 = types.node.inodenode(KEY3, C_INODE.meta, C_INODE.directory, C_INODE.nlink - 1, C_INODE.nsubdirs, C_INODE.size)
+    val KEY3: key = types.key.inodekey(C_INODE.ino)
+    val ND1: node = types.node.inodenode(KEY1, P_INODE.meta, P_INODE.directory, P_INODE.nlink, P_INODE.nsubdirs - 1, P_INODE.size - 1)
+    val ND2: node = types.node.dentrynode(KEY2, 0)
+    val ND3: node = types.node.inodenode(KEY3, C_INODE.meta, C_INODE.directory, C_INODE.nlink - 1, C_INODE.nsubdirs, C_INODE.size)
     val ADR1 = Ref[address](types.address.uninit)
     val ADR3 = Ref[address](types.address.uninit)
     val ADR2 = Ref[address](types.address.uninit)
@@ -516,19 +457,13 @@ class aubifs_asm(val aubifs_core : aubifs_core_interface)(implicit _algebraic_im
   }
 
   override def unlink(P_INODE: inode, C_INODE: inode, DENT: Ref[dentry], ERR: Ref[error]): Unit = {
-    var KEY1: key = types.key.uninit
-    KEY1 = types.key.inodekey(P_INODE.ino)
-    var KEY2: key = types.key.uninit
-    KEY2 = types.key.dentrykey(P_INODE.ino, DENT.get.name)
+    val KEY1: key = types.key.inodekey(P_INODE.ino)
+    val KEY2: key = types.key.dentrykey(P_INODE.ino, DENT.get.name)
     val INO: Int = C_INODE.ino
-    var KEY3: key = types.key.uninit
-    KEY3 = types.key.inodekey(C_INODE.ino)
-    var ND1: node = types.node.uninit
-    ND1 = types.node.inodenode(KEY1, P_INODE.meta, P_INODE.directory, P_INODE.nlink, P_INODE.nsubdirs, P_INODE.size - 1)
-    var ND2: node = types.node.uninit
-    ND2 = types.node.dentrynode(KEY2, 0)
-    var ND3: node = types.node.uninit
-    ND3 = types.node.inodenode(KEY3, C_INODE.meta, C_INODE.directory, C_INODE.nlink - 1, C_INODE.nsubdirs, C_INODE.size)
+    val KEY3: key = types.key.inodekey(C_INODE.ino)
+    val ND1: node = types.node.inodenode(KEY1, P_INODE.meta, P_INODE.directory, P_INODE.nlink, P_INODE.nsubdirs, P_INODE.size - 1)
+    val ND2: node = types.node.dentrynode(KEY2, 0)
+    val ND3: node = types.node.inodenode(KEY3, C_INODE.meta, C_INODE.directory, C_INODE.nlink - 1, C_INODE.nsubdirs, C_INODE.size)
     val ADR1 = Ref[address](types.address.uninit)
     val ADR3 = Ref[address](types.address.uninit)
     val ADR2 = Ref[address](types.address.uninit)
@@ -547,11 +482,9 @@ class aubifs_asm(val aubifs_core : aubifs_core_interface)(implicit _algebraic_im
   }
 
   override def write_inode(INODE: inode, ERR: Ref[error]): Unit = {
-    var KEY: key = types.key.uninit
-    KEY = types.key.inodekey(INODE.ino)
+    val KEY: key = types.key.inodekey(INODE.ino)
     val ADR = Ref[address](types.address.uninit)
-    var ND: node = types.node.uninit
-    ND = types.node.inodenode(KEY, INODE.meta, INODE.directory, INODE.nlink, INODE.nsubdirs, INODE.size)
+    val ND: node = types.node.inodenode(KEY, INODE.meta, INODE.directory, INODE.nlink, INODE.nsubdirs, INODE.size)
     aubifs_core.journal_add1(ND, ADR, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       aubifs_core.index_store(KEY, ADR.get)
@@ -562,8 +495,7 @@ class aubifs_asm(val aubifs_core : aubifs_core_interface)(implicit _algebraic_im
     var KEY1: key = types.key.uninit
     val INO: Int = INODE.ino
     KEY1 = types.key.datakey(INO, PAGENO)
-    var ND1: node = types.node.uninit
-    ND1 = types.node.datanode(KEY1, PBUF).deepCopy
+    val ND1: node = types.node.datanode(KEY1, PBUF).deepCopy
     val ADR1 = Ref[address](types.address.uninit)
     aubifs_core.journal_add1(ND1, ADR1, ERR)
     if (ERR.get == types.error.ESUCCESS) {
