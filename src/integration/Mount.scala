@@ -45,7 +45,7 @@ object Mount {
     val err = new Ref(error.uninit)
     if (format) {
       val rootmeta = fuse.DirMetadata()
-      flashix.vfs.format(pebs - spare_pebs, dosync, rootmeta, err)
+      flashix.vfs.format(pebs - spare_pebs, dosync, (pages_per_peb - 2) * page_size, rootmeta, err)
       if (err != ESUCCESS)
         println(s"vfs: format failed with error code ${err.get}")
     } else {

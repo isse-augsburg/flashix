@@ -1,3 +1,7 @@
+// Flashix: a verified file system for flash memory
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// This code is licensed under MIT license (see LICENSE for details)
+
 package asm
 
 import helpers.scala._
@@ -10,7 +14,7 @@ abstract class afs_interface {
   def check_commit(ERR: Ref[error])
   def create(MD: metadata, P_INODE: inode, C_INODE: inode, DENT: Ref[dentry], ERR: Ref[error])
   def evict(INODE: inode, ERR: Ref[error])
-  def format(N: Int, DOSYNC: Boolean, MD: metadata, ERR: Ref[error])
+  def format(N: Int, DOSYNC: Boolean, SIZE: Int, MD: metadata, ERR: Ref[error])
   def fsync(INODE: inode, ISDATASYNC: Boolean, ERR: Ref[error])
   def fsyncdir(INODE: inode, ISDATASYNC: Boolean, ERR: Ref[error])
   def iget(INO: Int, INODE: inode, ERR: Ref[error])

@@ -1,3 +1,7 @@
+// Flashix: a verified file system for flash memory
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// This code is licensed under MIT license (see LICENSE for details)
+
 package asm
 
 import helpers.scala._
@@ -49,10 +53,10 @@ class vfs_asm(var MAXINO : Int, val OF : open_files, val afs : afs_interface)(im
     }
   }
 
-  override def format(N: Int, DOSYNC: Boolean, MD: metadata, ERR: Ref[error]): Unit = {
+  override def format(N: Int, DOSYNC: Boolean, SIZE: Int, MD: metadata, ERR: Ref[error]): Unit = {
     OF.clear
     MAXINO = 0
-    afs.format(N, DOSYNC, MD, ERR)
+    afs.format(N, DOSYNC, SIZE, MD, ERR)
   }
 
   override def fsync(PATH: path, ISDATASYNC: Boolean, USER: user, ERR: Ref[error]): Unit = {

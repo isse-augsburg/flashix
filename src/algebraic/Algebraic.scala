@@ -1,3 +1,7 @@
+// Flashix: a verified file system for flash memory
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// This code is licensed under MIT license (see LICENSE for details)
+
 package algebraic
 
 import encoding.group_node._
@@ -192,6 +196,7 @@ trait Algebraic {
   def toStr(param0: Int): String
   def <(param0: key, param1: key): Boolean
   def at(param0: address_list, param1: Int): address
+  def at(param0: group_node_list, param1: Int): group_node
   def checksum(param0: buffer, param1: Int): Int
   def is_open(param0: Int, param1: open_files): Boolean
   def pr(param0: user, param1: metadata): Boolean

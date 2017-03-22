@@ -1,3 +1,7 @@
+// Flashix: a verified file system for flash memory
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// This code is licensed under MIT license (see LICENSE for details)
+
 package asm
 
 import helpers.scala._
@@ -9,7 +13,7 @@ import types.error.error
 abstract class apersistence_io_interface {
   def add_log_leb(LNUM: Int, ERR: Ref[error])
   def commit(LPT: lp_array, PROOTADR0: address, PMAXINO0: Int, ORPHANS: nat_set, ERR: Ref[error])
-  def format(VOLSIZE: Int, LPT: lp_array, PROOTADR0: address, PMAXINO0: Int, ERR: Ref[error])
+  def format(VOLSIZE: Int, SIZE: Int, LPT: lp_array, PROOTADR0: address, PMAXINO0: Int, ERR: Ref[error])
   def get_leb_size(N: Ref[Int])
   def get_page_size(N: Ref[Int])
   def get_volume_size(N: Ref[Int])

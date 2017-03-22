@@ -1,3 +1,7 @@
+// Flashix: a verified file system for flash memory
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// This code is licensed under MIT license (see LICENSE for details)
+
 package asm
 
 import helpers.scala._
@@ -40,8 +44,8 @@ class wbuf_asm(var BUFLEB : bufleb, var PAGESIZE : Int, var ROFS : Boolean, val 
     ROFS = true
   }
 
-  override def format(VOLSIZE: Int, LPT: lp_array, PROOTADR0: address, PMAXINO0: Int, ERR: Ref[error]): Unit = {
-    apersistence_io.format(VOLSIZE, LPT, PROOTADR0, PMAXINO0, ERR)
+  override def format(VOLSIZE: Int, SIZE: Int, LPT: lp_array, PROOTADR0: address, PMAXINO0: Int, ERR: Ref[error]): Unit = {
+    apersistence_io.format(VOLSIZE, SIZE, LPT, PROOTADR0, PMAXINO0, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       
       {

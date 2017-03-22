@@ -1,3 +1,7 @@
+// Flashix: a verified file system for flash memory
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// This code is licensed under MIT license (see LICENSE for details)
+
 package asm
 
 import helpers.scala._
@@ -29,12 +33,12 @@ class gjournal_asm(var DOSYNC : Boolean, var JMAXINO : Int, val JRO : nat_set, v
     }
   }
 
-  override def format(VOLSIZE: Int, DOSYNC0: Boolean, ERR: Ref[error]): Unit = {
+  override def format(VOLSIZE: Int, SIZE: Int, DOSYNC0: Boolean, ERR: Ref[error]): Unit = {
     JMAXINO = ROOT_INO + 1
     SQNUM = 0
     JVALID = true
     DOSYNC = DOSYNC0
-    index.format(VOLSIZE, JMAXINO, ERR)
+    index.format(VOLSIZE, SIZE, JMAXINO, ERR)
     if (ERR.get != types.error.ESUCCESS) {
       debug("gjournal: persistence format failed")
     }
@@ -232,7 +236,7 @@ class gjournal_asm(var DOSYNC : Boolean, var JMAXINO : Int, val JRO : nat_set, v
       index.add_gnds(GNDLIST, ADRLIST, ERR)
     }
     if (ERR.get == types.error.ESUCCESS) {
-      SQNUM = SQNUM + GNDLIST.length
+      SQNUM = SQNUM + NDLIST.length
       if (DOSYNC) {
         val ERR0 = Ref[error](types.error.uninit)
         index.sync(ERR0)

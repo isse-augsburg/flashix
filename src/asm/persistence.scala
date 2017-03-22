@@ -1,3 +1,7 @@
+// Flashix: a verified file system for flash memory
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// This code is licensed under MIT license (see LICENSE for details)
+
 package asm
 
 import encoding.group_node._
@@ -27,7 +31,7 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, var LEBSIZE
       val WBUFLEB0 = Ref[bufleb](types.bufleb.uninit)
       awbuf.get_buf(WBUFLEB0)
       val BUF: buffer = new buffer()
-      encode_group_nodes(WBUFLEB0.get.leb, LPT(WBUFLEB0.get.leb).size, NODELIST, BUF, ADRLIST, ERR)
+      encode_group_nodes(NODELIST, WBUFLEB0.get.leb, LPT(WBUFLEB0.get.leb).size, BUF, ADRLIST, ERR)
       if (ERR.get == types.error.ESUCCESS) {
         if (! (LPT(WBUFLEB0.get.leb).size + BUF.length <= LEBSIZE)) {
           debug("persistence: trying to write beyond LEB size")
@@ -338,18 +342,18 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, var LEBSIZE
     SIZE := 2 * NODE_HEADER_SIZE + ALIGNEDSIZE
   }
 
-  def encode_group_nodes(LNUM: Int, N: Int, GNDLIST: group_node_list, BUF: buffer, ADRLIST: address_list, ERR: Ref[error]): Unit = {
-    val NODELIST: group_node_list = GNDLIST.deepCopy
+  def encode_group_nodes(NODELIST: group_node_list, LNUM: Int, N: Int, BUF: buffer, ADRLIST: address_list, ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
     BUF.allocate(flashsize(NODELIST), 0.toByte)
     ADRLIST.clear
+    var IDX: Int = 0
     var OFFSET: Int = 0
-    val SIZE = Ref[Int](0)
-    while (ERR.get == types.error.ESUCCESS && ! NODELIST.isEmpty) {
-      encode_group_node(NODELIST.head, OFFSET, SIZE, BUF, ERR)
+    while (ERR.get == types.error.ESUCCESS && IDX < NODELIST.length) {
+      val SIZE = Ref[Int](0)
+      encode_group_node(at(NODELIST, IDX), OFFSET, SIZE, BUF, ERR)
       ADRLIST += types.address.at(LNUM, N + OFFSET, SIZE.get)
       OFFSET = OFFSET + SIZE.get
-      NODELIST.removeHead
+      IDX = IDX + 1
     }
   }
 
@@ -383,11 +387,11 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, var LEBSIZE
     BUF.copy(validtrailer, 0, BUF.length - NODE_HEADER_SIZE, NODE_HEADER_SIZE)
   }
 
-  override def format(VOLSIZE: Int, WMAXINO0: Int, ERR: Ref[error]): Unit = {
+  override def format(VOLSIZE: Int, SIZE: Int, WMAXINO0: Int, ERR: Ref[error]): Unit = {
     LPT.allocate(VOLSIZE, types.lprops.uninit)
     LPT.fill(types.lprops.mklp(0, 0, types.lpropflags.LP_FREE, 0))
     val ADR: address = types.address.at(0, 0, 0)
-    awbuf.format(VOLSIZE, LPT, ADR, WMAXINO0, ERR)
+    awbuf.format(VOLSIZE, SIZE, LPT, ADR, WMAXINO0, ERR)
     if (ERR.get != types.error.ESUCCESS) {
       debug("persistence: wbuf format failed")
     } else {

@@ -1,3 +1,7 @@
+// Flashix: a verified file system for flash memory
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// This code is licensed under MIT license (see LICENSE for details)
+
 package asm
 
 import helpers.scala._
@@ -47,8 +51,8 @@ class aubifs_asm(val aubifs_core : aubifs_core_interface)(implicit _algebraic_im
     ERR := types.error.ESUCCESS
   }
 
-  override def format(VOLSIZE: Int, DOSYNC: Boolean, MD: metadata, ERR: Ref[error]): Unit = {
-    aubifs_core.format(VOLSIZE, DOSYNC, ERR)
+  override def format(VOLSIZE: Int, DOSYNC: Boolean, SIZE: Int, MD: metadata, ERR: Ref[error]): Unit = {
+    aubifs_core.format(VOLSIZE, SIZE, DOSYNC, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       val KEY: key = types.key.inodekey(ROOT_INO)
       val ADR = Ref[address](types.address.uninit)

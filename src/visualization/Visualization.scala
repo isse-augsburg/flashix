@@ -82,7 +82,7 @@ object Visualization {
     def format() {
       val rootmeta = fuse.DirMetadata()
       flashix synchronized {
-        flashix.vfs.format(pebs - spare_pebs, doSync, rootmeta, err)
+        flashix.vfs.format(pebs - spare_pebs, doSync, (pages_per_peb - 2) * page_size, rootmeta, err)
       }
       if (err != ESUCCESS)
         println(s"vfs: format failed with error code ${err.get}")

@@ -48,6 +48,7 @@ final class Algebraic(val mtd: MTDSimulation) extends algebraic.Algebraic {
       (param1.isInstanceOf[datakey] && ino0 == param1.ino && part0 < param1.part)
   }
   override def at(param0: address_list, param1: Int): address = param0(param1)
+  override def at(param0: group_node_list, param1: Int): group_node = param0(param1)
   override def checksum(param0: buffer, param1: Int): Int = 0
   override def is_open(ino: Int, of: open_files): Boolean = of.map.exists { _._2.ino == ino }
   override def pr(param0: Byte, param1: metadata): Boolean = true

@@ -1,3 +1,7 @@
+// Flashix: a verified file system for flash memory
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// This code is licensed under MIT license (see LICENSE for details)
+
 package asm
 
 import helpers.scala._
@@ -11,7 +15,7 @@ abstract class awbuf_interface {
   def commit(LPT: lp_array, WROOTADR0: address, WMAXINO0: Int, ORPHANS: nat_set, ERR: Ref[error])
   def destroy_buf(ERR: Ref[error])
   def enter_readonly()
-  def format(VOLSIZE: Int, LPT: lp_array, WROOTADR0: address, WMAXINO0: Int, ERR: Ref[error])
+  def format(VOLSIZE: Int, SIZE: Int, LPT: lp_array, WROOTADR0: address, WMAXINO0: Int, ERR: Ref[error])
   def get_buf(WBUFLEB0: Ref[bufleb])
   def get_leb_size(N: Ref[Int])
   def get_page_size(N: Ref[Int])

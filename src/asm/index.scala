@@ -1,3 +1,7 @@
+// Flashix: a verified file system for flash memory
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// This code is licensed under MIT license (see LICENSE for details)
+
 package asm
 
 import helpers.scala._
@@ -11,7 +15,7 @@ abstract class index_interface {
   def allocate_gnd(ERR: Ref[error])
   def commit(PMAXINO0: Int, P_OS0: nat_set, ERR: Ref[error])
   def deallocate_gnd(N: Int, ERR: Ref[error])
-  def format(VOLSIZE: Int, PMAXINO0: Int, ERR: Ref[error])
+  def format(VOLSIZE: Int, SIZE: Int, PMAXINO0: Int, ERR: Ref[error])
   def get_block_free_size(N: Ref[Int])
   def get_gblock_refsize(LNUM: Int, N: Ref[Int])
   def get_gc_block(N: Ref[Int], ERR: Ref[error])

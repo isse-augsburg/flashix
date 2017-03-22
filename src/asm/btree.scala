@@ -1,3 +1,7 @@
+// Flashix: a verified file system for flash memory
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// This code is licensed under MIT license (see LICENSE for details)
+
 package asm
 
 import helpers.scala._
@@ -95,9 +99,9 @@ class btree_asm(var ADRT : address, var RT : znode, val apersistence : apersiste
     }
   }
 
-  override def format(VOLSIZE: Int, MAXINO0: Int, ERR: Ref[error]): Unit = {
+  override def format(VOLSIZE: Int, SIZE: Int, MAXINO0: Int, ERR: Ref[error]): Unit = {
     RT = null
-    apersistence.format(VOLSIZE, MAXINO0, ERR)
+    apersistence.format(VOLSIZE, SIZE, MAXINO0, ERR)
     val N = Ref[Int](0)
     apersistence.get_leb_size(N)
     if (ERR.get == types.error.ESUCCESS) {

@@ -1,3 +1,7 @@
+// Flashix: a verified file system for flash memory
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// This code is licensed under MIT license (see LICENSE for details)
+
 package asm
 
 import encoding.lprops._
@@ -179,17 +183,19 @@ class persistence_io_asm(var LEBSIZE : Int, var LOGOFF : Int, var PAGESIZE : Int
     }
   }
 
-  override def format(VOLSIZE: Int, LPT: lp_array, INDEXADR0: address, MAXINO0: Int, ERR: Ref[error]): Unit = {
-    
-    {
-      val pageno: Ref[Int] = Ref[Int](LEBSIZE)
-      ebm_avol.get_leb_size(pageno)
-      LEBSIZE = pageno.get
-    }
-    val N: Int = 5 + 2 * lptlebs(VOLSIZE, LEBSIZE)
+  override def format(VOLSIZE: Int, SIZE: Int, LPT: lp_array, INDEXADR0: address, MAXINO0: Int, ERR: Ref[error]): Unit = {
+    val N: Int = 5 + 2 * lptlebs(VOLSIZE, SIZE)
     ebm_avol.format(VOLSIZE + N, ERR)
     if (ERR.get != types.error.ESUCCESS) {
       debug("persistence-io: ubi format failed")
+    }
+    if (ERR.get == types.error.ESUCCESS) {
+      
+      {
+        val pageno: Ref[Int] = Ref[Int](LEBSIZE)
+        ebm_avol.get_leb_size(pageno)
+        LEBSIZE = pageno.get
+      }
     }
     SB.indexaddr = INDEXADR0
     SB.maxino = MAXINO0

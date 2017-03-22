@@ -1,3 +1,7 @@
+// Flashix: a verified file system for flash memory
+// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// This code is licensed under MIT license (see LICENSE for details)
+
 package asm
 
 import helpers.scala._
@@ -9,7 +13,7 @@ import types.error.error
 abstract class aubifs_core_interface {
   def check_commit(ERR: Ref[error])
   def commit(ERR: Ref[error])
-  def format(VOLSIZE: Int, DOSYNC: Boolean, ERR: Ref[error])
+  def format(VOLSIZE: Int, SIZE: Int, DOSYNC: Boolean, ERR: Ref[error])
   def index_contains(KEY: key, EXISTS: Ref[Boolean], ERR: Ref[error])
   def index_entries(KEY: key, NAMES: stringset, ERR: Ref[error])
   def index_lookup(KEY: key, EXISTS: Ref[Boolean], ND: Ref[node], ERR: Ref[error])
