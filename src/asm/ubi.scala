@@ -20,8 +20,9 @@ class ubi_asm(val BFLIPSET : nat_set, val ERASEQ : queue, var LEBSIZE : Int, var
   def atomic_leb_change(VOLID: Byte, LNUM: Int, TO: Int, OLD_INO: Int, BUF: buffer, ERR: Ref[error]): Unit = {
     var N: Int = OLD_INO
     ERR := types.error.ESUCCESS
-    N = datasize(BUF, N)
     val M = Ref[Int](0)
+    datasize_h(BUF, N, M)
+    N = M.get
     next_sqnum(M)
     var AVHDR: avidheader = types.avidheader.avidhdr(VOLID, LNUM, M.get, N, 0)
     if (N != 0) {
@@ -90,6 +91,18 @@ class ubi_asm(val BFLIPSET : nat_set, val ERASEQ : queue, var LEBSIZE : Int, var
         }
       }
     }
+  }
+
+  def datasize(buf: buffer, n: Ref[Int]): Unit = {
+    datasize_h(buf, buf.length, n)
+  }
+
+  def datasize_h(buf: buffer, pageno: Int, m: Ref[Int]): Unit = {
+    var n: Int = pageno
+    while (n != 0 && buf(n - 1) == empty) {
+      n = n - 1
+    }
+    m := n
   }
 
   def decode_vtbl(BUF: buffer, VTBL: vtbl, ERR: Ref[error]): Unit = {
@@ -446,7 +459,9 @@ class ubi_asm(val BFLIPSET : nat_set, val ERASEQ : queue, var LEBSIZE : Int, var
                     if (RECS.contains(LADR)) {
                       N = RECS(LADR).sqn
                     }
-                    if (!  (AVHDR.get.size != 0) || AVHDR.get.size <= datasize(BUF) && AVHDR.get.checksum == checksum(BUF, AVHDR.get.size)) {
+                    val M = Ref[Int](0)
+                    datasize(BUF, M)
+                    if (!  (AVHDR.get.size != 0) || AVHDR.get.size <= M.get && AVHDR.get.checksum == checksum(BUF, AVHDR.get.size)) {
                       SQNUM = max(SQNUM, AVHDR.get.sqn + 1)
                       if (AVHDR.get.sqn >= N) {
                         WLARRAY(PNUM).status = types.wlstatus.used

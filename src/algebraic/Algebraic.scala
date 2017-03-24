@@ -66,36 +66,12 @@ trait Algebraic {
       return (n / m) * m
   }
 
-  def datasize(buf: buffer): Int = {
-    return datasize(buf, buf.length)
-  }
-
-  def datasize(buf: buffer, pageno: Int): Int = {
-    if (pageno == 0)
-      return 0
-    else     if (buf(pageno - 1) == empty)
-      return datasize(buf, pageno - 1)
-    else
-      return (pageno - 1) + 1
-  }
-
   def encoding_size(sb: superblock, m: Int): Int = {
     return alignUp(encoding_size_unaligned(sb), m)
   }
 
   def is_aligned(n: Int, m: Int): Boolean = {
     return n % m == 0
-  }
-
-  def isempty(buf: buffer): Boolean = {
-    return isempty(buf, 0, buf.length)
-  }
-
-  def isempty(buf: buffer, n: Int, pageno: Int): Boolean = {
-    if (pageno == 0)
-      return true
-    else
-      return buf(n + (pageno - 1)) == empty && isempty(buf, n, pageno - 1)
   }
 
   def load(br: branch): zbranch = {
@@ -138,13 +114,6 @@ trait Algebraic {
     val buf0: buffer = buf
     buf0.fill(zero)
     return buf0
-  }
-
-  def rangeeq(buf: buffer, n0: Int, buf0: buffer, n1: Int, pageno: Int): Boolean = {
-    if (pageno == 0)
-      return n0 <= buf.length && n1 <= buf0.length
-    else
-      return buf(n0) == buf0(n1) && rangeeq(buf, n0 + 1, buf0, n1 + 1, pageno - 1)
   }
 
   def save(zbr: zbranch): branch = {
@@ -204,4 +173,5 @@ trait Algebraic {
   def px(param0: user, param1: metadata): Boolean
   def to_vtbl(param0: volumes): vtbl
   def ⊑(param0: path, param1: path): Boolean
+  def datasize(buf: buffer, m0: Int): Int
 }

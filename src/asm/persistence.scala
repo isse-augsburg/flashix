@@ -276,15 +276,21 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, var LEBSIZE
           ERR := types.error.EINVAL
         }
       }
-      if (ERR.get == types.error.ESUCCESS && ! rangeeq(BUF, OFFSET + (NODE_HEADER_SIZE + alignUp(NDHD.get.size, 2 * NODE_HEADER_SIZE)), validtrailer, 0, NODE_HEADER_SIZE)) {
-        debug("persistence: decode_node no validtrailer")
-        ERR := types.error.EIO
+      if (ERR.get == types.error.ESUCCESS) {
+        val EQUALS_ = Ref[Boolean](helpers.scala.Boolean.uninit)
+        rangeeq(BUF, OFFSET + (NODE_HEADER_SIZE + alignUp(NDHD.get.size, 2 * NODE_HEADER_SIZE)), validtrailer, 0, NODE_HEADER_SIZE, EQUALS_)
+        if (EQUALS_.get != true) {
+          debug("persistence: decode_node no validtrailer")
+          ERR := types.error.EIO
+        }
       }
     }
   }
 
   def decode_header(n: Int, buf: buffer, ndhd: Ref[node_header], err: Ref[error]): Unit = {
-    if (isempty(buf, n, NODE_HEADER_SIZE)) {
+    val boolvar = Ref[Boolean](helpers.scala.Boolean.uninit)
+    isempty_h(buf, n, NODE_HEADER_SIZE, boolvar)
+    if (boolvar.get) {
       err := types.error.EINVAL
     } else {
       val m = Ref[Int](0)
@@ -320,9 +326,13 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, var LEBSIZE
           ERR := types.error.EINVAL
         }
       }
-      if (ERR.get == types.error.ESUCCESS && ! rangeeq(BUF, OFFSET + (NODE_HEADER_SIZE + alignUp(NDHD.get.size, 2 * NODE_HEADER_SIZE)), validtrailer, 0, NODE_HEADER_SIZE)) {
-        debug("persistence: decode_node no validtrailer")
-        ERR := types.error.EIO
+      if (ERR.get == types.error.ESUCCESS) {
+        val EQUALS_ = Ref[Boolean](helpers.scala.Boolean.uninit)
+        rangeeq(BUF, OFFSET + (NODE_HEADER_SIZE + alignUp(NDHD.get.size, 2 * NODE_HEADER_SIZE)), validtrailer, 0, NODE_HEADER_SIZE, EQUALS_)
+        if (EQUALS_.get != true) {
+          debug("persistence: decode_node no validtrailer")
+          ERR := types.error.EIO
+        }
       }
     }
   }
@@ -360,9 +370,13 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, var LEBSIZE
   def encode_header(ndhd: node_header, n: Int, buf: buffer, err: Ref[error]): Unit = {
     val m = Ref[Int](0)
     encode_header_empty(ndhd, n, buf, m, err)
-    if (err.get == types.error.ESUCCESS && isempty(buf, n, m.get)) {
-      debug("encoding_nonempty: encoding is empty")
-      err := types.error.EINVAL
+    if (err.get == types.error.ESUCCESS) {
+      val boolvar = Ref[Boolean](helpers.scala.Boolean.uninit)
+      isempty_h(buf, n, m.get, boolvar)
+      if (boolvar.get) {
+        debug("encoding_nonempty: encoding is empty")
+        err := types.error.EINVAL
+      }
     }
   }
 
@@ -512,38 +526,60 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, var LEBSIZE
     awbuf.is_readonly(ROFS)
   }
 
+  def rangeeq(buf0: buffer, n0: Int, buf: buffer, n1: Int, pageno: Int, boolvar: Ref[Boolean]): Unit = {
+    var n: Int = pageno
+    if (n0 + n <= buf0.length && n1 + n <= buf.length) {
+      while (n != 0 && buf0((n0 + n) - 1) == buf((n1 + n) - 1)) {
+        n = n - 1
+      }
+      boolvar := (n == 0)
+    } else {
+      boolvar := false
+    }
+  }
+
   override def read_gblock_nodes(LNUM: Int, ADRLIST: address_list, NODELIST: group_node_list, ERR: Ref[error]): Unit = {
     val BUF: buffer = new buffer(LEBSIZE).fill(0.toByte)
     awbuf.read_buf(LNUM, 0, LEBSIZE, BUF, ERR)
     var OFFSET: Int = 0
+    val EMPTY_ = Ref[Boolean](helpers.scala.Boolean.uninit)
     while (ERR.get == types.error.ESUCCESS && OFFSET < LEBSIZE) {
-      if (! (OFFSET + NODE_HEADER_SIZE <= BUF.length) || isempty(BUF, OFFSET, NODE_HEADER_SIZE)) {
+      if (! (OFFSET + NODE_HEADER_SIZE <= BUF.length)) {
         ERR := types.error.ENOENT
       } else {
-        val NDHD = Ref[node_header](types.node_header.uninit)
-        decode_header(OFFSET, BUF, NDHD, ERR)
-        if (ERR.get != types.error.ESUCCESS) {
-          debug("persistence: read_gblock_nodes could not decode header in LEB " + (toStr(LNUM) + (" at offset " + toStr(OFFSET))))
+        isempty_h(BUF, OFFSET, NODE_HEADER_SIZE, EMPTY_)
+        if (EMPTY_.get) {
+          ERR := types.error.ENOENT
         } else {
-          val SIZE: Int = 2 * NODE_HEADER_SIZE + alignUp(NDHD.get.size, 2 * NODE_HEADER_SIZE)
-          if (OFFSET + SIZE > LEBSIZE) {
-            debug("persistence: read_gblock_nodes ignoring node of size " + (toStr(SIZE) + (" at offset " + (toStr(OFFSET) + (" in LEB " + toStr(LNUM))))))
-            ERR := types.error.ENOENT
-          } else           if (! rangeeq(BUF, OFFSET + (NODE_HEADER_SIZE + alignUp(NDHD.get.size, 2 * NODE_HEADER_SIZE)), validtrailer, 0, NODE_HEADER_SIZE)) {
-            ERR := types.error.ENOENT
-            debug("persistence: read_gblock_nodes partial node at offset " + (toStr(OFFSET) + (" in LEB " + toStr(LNUM))))
-          } else           if (! NDHD.get.ispadding) {
-            val GND = Ref[group_node](types.group_node.uninit)
-            decode_group_node(OFFSET, SIZE, BUF, GND, ERR)
-            if (ERR.get != types.error.ESUCCESS) {
-              debug("persistence: read_gblock_nodes could not decode node at offset " + (toStr(OFFSET) + (" in LEB " + toStr(LNUM))))
+          val NDHD = Ref[node_header](types.node_header.uninit)
+          decode_header(OFFSET, BUF, NDHD, ERR)
+          if (ERR.get != types.error.ESUCCESS) {
+            debug("persistence: read_gblock_nodes could not decode header in LEB " + (toStr(LNUM) + (" at offset " + toStr(OFFSET))))
+          } else {
+            val SIZE: Int = 2 * NODE_HEADER_SIZE + alignUp(NDHD.get.size, 2 * NODE_HEADER_SIZE)
+            if (OFFSET + SIZE > LEBSIZE) {
+              debug("persistence: read_gblock_nodes ignoring node of size " + (toStr(SIZE) + (" at offset " + (toStr(OFFSET) + (" in LEB " + toStr(LNUM))))))
+              ERR := types.error.ENOENT
             } else {
-              NODELIST += GND.get
-              ADRLIST += types.address.at(LNUM, OFFSET, SIZE)
+              val EQUALS_ = Ref[Boolean](helpers.scala.Boolean.uninit)
+              rangeeq(BUF, OFFSET + (NODE_HEADER_SIZE + alignUp(NDHD.get.size, 2 * NODE_HEADER_SIZE)), validtrailer, 0, NODE_HEADER_SIZE, EQUALS_)
+              if (EQUALS_.get != true) {
+                ERR := types.error.ENOENT
+                debug("persistence: read_gblock_nodes partial node at offset " + (toStr(OFFSET) + (" in LEB " + toStr(LNUM))))
+              } else               if (! NDHD.get.ispadding) {
+                val GND = Ref[group_node](types.group_node.uninit)
+                decode_group_node(OFFSET, SIZE, BUF, GND, ERR)
+                if (ERR.get != types.error.ESUCCESS) {
+                  debug("persistence: read_gblock_nodes could not decode node at offset " + (toStr(OFFSET) + (" in LEB " + toStr(LNUM))))
+                } else {
+                  NODELIST += GND.get
+                  ADRLIST += types.address.at(LNUM, OFFSET, SIZE)
+                }
+              }
             }
-          }
-          if (ERR.get == types.error.ESUCCESS) {
-            OFFSET = OFFSET + SIZE
+            if (ERR.get == types.error.ESUCCESS) {
+              OFFSET = OFFSET + SIZE
+            }
           }
         }
       }

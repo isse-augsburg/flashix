@@ -375,7 +375,11 @@ class vfs_asm(var MAXINO : Int, val OF : open_files, val afs : afs_interface)(im
           MD := INODE.meta
           SIZE := INODE.size
           if (INODE.directory) {
-            NLINK := INODE.nsubdirs + 2
+            if (PATH.isEmpty) {
+              NLINK := INODE.nsubdirs + 1
+            } else {
+              NLINK := INODE.nsubdirs + 2
+            }
           } else {
             NLINK := INODE.nlink
           }

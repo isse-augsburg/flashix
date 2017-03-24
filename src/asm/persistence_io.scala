@@ -113,7 +113,9 @@ class persistence_io_asm(var LEBSIZE : Int, var LOGOFF : Int, var PAGESIZE : Int
   }
 
   def decode_ref_node_nonempty(n: Int, buf: buffer, rnd: Ref[ref_node], err: Ref[error]): Unit = {
-    if (isempty(buf, n, ENCODED_REF_NODE_SIZE)) {
+    val boolvar = Ref[Boolean](helpers.scala.Boolean.uninit)
+    isempty_h(buf, n, ENCODED_REF_NODE_SIZE, boolvar)
+    if (boolvar.get) {
       err := types.error.EINVAL
     } else {
       val m = Ref[Int](0)
@@ -170,9 +172,13 @@ class persistence_io_asm(var LEBSIZE : Int, var LOGOFF : Int, var PAGESIZE : Int
   def encode_ref_node_nonempty(rnd: ref_node, n: Int, buf: buffer, err: Ref[error]): Unit = {
     val m = Ref[Int](0)
     encode_ref_node_empty(rnd, n, buf, m, err)
-    if (err.get == types.error.ESUCCESS && isempty(buf, n, m.get)) {
-      debug("encoding_nonempty: encoding is empty")
-      err := types.error.EINVAL
+    if (err.get == types.error.ESUCCESS) {
+      val boolvar = Ref[Boolean](helpers.scala.Boolean.uninit)
+      isempty_h(buf, n, m.get, boolvar)
+      if (boolvar.get) {
+        debug("encoding_nonempty: encoding is empty")
+        err := types.error.EINVAL
+      }
     }
   }
 
@@ -266,7 +272,9 @@ class persistence_io_asm(var LEBSIZE : Int, var LOGOFF : Int, var PAGESIZE : Int
     while (ERR.get == types.error.ESUCCESS && LOGOFF < LEBSIZE) {
       ebm_avol.read(SB.log, LOGOFF, 0, PAGESIZE, BUF, ERR)
       if (ERR.get == types.error.ESUCCESS) {
-        if (isempty(BUF)) {
+        val EMPTY_ = Ref[Boolean](helpers.scala.Boolean.uninit)
+        isempty(BUF, EMPTY_)
+        if (EMPTY_.get) {
           ERR := types.error.ENOENT
         } else {
           val RND = Ref[ref_node](types.ref_node.uninit)

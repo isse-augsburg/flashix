@@ -26,7 +26,9 @@ class ubi_io_asm(var PAGESIZE : Int, val mtd_asm : mtd_asm_interface)(implicit _
   }
 
   def decode_echeader_nonempty(n: Int, buf: buffer, ehdr: Ref[echeader], err: Ref[error]): Unit = {
-    if (isempty(buf, n, ENCODED_EC_HEADER_SIZE)) {
+    val boolvar = Ref[Boolean](helpers.scala.Boolean.uninit)
+    isempty_h(buf, n, ENCODED_EC_HEADER_SIZE, boolvar)
+    if (boolvar.get) {
       err := types.error.EINVAL
     } else {
       val m = Ref[Int](0)
@@ -43,7 +45,9 @@ class ubi_io_asm(var PAGESIZE : Int, val mtd_asm : mtd_asm_interface)(implicit _
   }
 
   def decode_vidheader_nonempty(n: Int, buf: buffer, vhdr: Ref[vidheader], err: Ref[error]): Unit = {
-    if (isempty(buf, n, ENCODED_VIDHEADER_SIZE)) {
+    val boolvar = Ref[Boolean](helpers.scala.Boolean.uninit)
+    isempty_h(buf, n, ENCODED_VIDHEADER_SIZE, boolvar)
+    if (boolvar.get) {
       err := types.error.EINVAL
     } else {
       val m = Ref[Int](0)
@@ -62,9 +66,13 @@ class ubi_io_asm(var PAGESIZE : Int, val mtd_asm : mtd_asm_interface)(implicit _
   def encode_echeader_nonempty(ehdr: echeader, n: Int, buf: buffer, err: Ref[error]): Unit = {
     val m = Ref[Int](0)
     encode_echeader_empty(ehdr, n, buf, m, err)
-    if (err.get == types.error.ESUCCESS && isempty(buf, n, m.get)) {
-      debug("encoding_nonempty: encoding is empty")
-      err := types.error.EINVAL
+    if (err.get == types.error.ESUCCESS) {
+      val boolvar = Ref[Boolean](helpers.scala.Boolean.uninit)
+      isempty_h(buf, n, m.get, boolvar)
+      if (boolvar.get) {
+        debug("encoding_nonempty: encoding is empty")
+        err := types.error.EINVAL
+      }
     }
   }
 
@@ -79,9 +87,13 @@ class ubi_io_asm(var PAGESIZE : Int, val mtd_asm : mtd_asm_interface)(implicit _
   def encode_vidheader_nonempty(vhdr: vidheader, n: Int, buf: buffer, err: Ref[error]): Unit = {
     val m = Ref[Int](0)
     encode_vidheader_empty(vhdr, n, buf, m, err)
-    if (err.get == types.error.ESUCCESS && isempty(buf, n, m.get)) {
-      debug("encoding_nonempty: encoding is empty")
-      err := types.error.EINVAL
+    if (err.get == types.error.ESUCCESS) {
+      val boolvar = Ref[Boolean](helpers.scala.Boolean.uninit)
+      isempty_h(buf, n, m.get, boolvar)
+      if (boolvar.get) {
+        debug("encoding_nonempty: encoding is empty")
+        err := types.error.EINVAL
+      }
     }
   }
 
@@ -157,7 +169,9 @@ class ubi_io_asm(var PAGESIZE : Int, val mtd_asm : mtd_asm_interface)(implicit _
     val BUF: buffer = new buffer(PAGESIZE).fill(0.toByte)
     read(PNUM, 0, 0, PAGESIZE, BUF, BITFLIPS, ERR)
     if (ERR.get == types.error.ESUCCESS) {
-      if (isempty(BUF)) {
+      val EMPTY_ = Ref[Boolean](helpers.scala.Boolean.uninit)
+      isempty(BUF, EMPTY_)
+      if (EMPTY_.get) {
         AEHDR := types.aecheader.empty
       } else {
         val EHDR = Ref[echeader](types.echeader.uninit)
@@ -173,7 +187,9 @@ class ubi_io_asm(var PAGESIZE : Int, val mtd_asm : mtd_asm_interface)(implicit _
     val BUF: buffer = new buffer(PAGESIZE).fill(0.toByte)
     read(PNUM, PAGESIZE, 0, PAGESIZE, BUF, BITFLIPS, ERR)
     if (ERR.get == types.error.ESUCCESS) {
-      if (isempty(BUF)) {
+      val EMPTY_ = Ref[Boolean](helpers.scala.Boolean.uninit)
+      isempty(BUF, EMPTY_)
+      if (EMPTY_.get) {
         AVHDR := types.avidheader.empty
       } else {
         val VHDR = Ref[vidheader](types.vidheader.uninit)
