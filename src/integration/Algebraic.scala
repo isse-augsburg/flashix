@@ -47,8 +47,6 @@ final class Algebraic(val mtd: MTDSimulation) extends algebraic.Algebraic {
       ino0 < param1.ino ||
       (param1.isInstanceOf[datakey] && ino0 == param1.ino && part0 < param1.part)
   }
-  override def at(param0: address_list, param1: Int): address = param0(param1)
-  override def at(param0: group_node_list, param1: Int): group_node = param0(param1)
   override def checksum(param0: buffer, param1: Int): Int = 0
   override def is_open(ino: Int, of: open_files): Boolean = of.map.exists { _._2.ino == ino }
   override def pr(param0: Byte, param1: metadata): Boolean = true
@@ -66,15 +64,6 @@ final class Algebraic(val mtd: MTDSimulation) extends algebraic.Algebraic {
   //
   // Fixed the following implementations
   //
-
-  override def datasize(buf: buffer, m0: Int): Int = {
-    // The generated implementation is recursive and leads to a stack overflow
-    var cur = m0
-    while (cur != 0 && buf(cur - 1) == empty) {
-      cur = cur - 1
-    }
-    return cur
-  }
 
   override def keys(fns: nat_set): key_set = {
     if (fns.isEmpty)

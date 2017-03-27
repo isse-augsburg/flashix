@@ -164,8 +164,6 @@ trait Algebraic {
   def keys(param0: nat_set): key_set
   def toStr(param0: Int): String
   def <(param0: key, param1: key): Boolean
-  def at(param0: address_list, param1: Int): address
-  def at(param0: group_node_list, param1: Int): group_node
   def checksum(param0: buffer, param1: Int): Int
   def is_open(param0: Int, param1: open_files): Boolean
   def pr(param0: user, param1: metadata): Boolean
@@ -173,5 +171,4 @@ trait Algebraic {
   def px(param0: user, param1: metadata): Boolean
   def to_vtbl(param0: volumes): vtbl
   def ⊑(param0: path, param1: path): Boolean
-  def datasize(buf: buffer, m0: Int): Int
 }
