@@ -67,14 +67,15 @@ final class Algebraic(val mtd: MTDSimulation) extends algebraic.Algebraic {
   // Fixed the following implementations
   //
 
-  override def datasize(buf: buffer, m0: Int): Int = {
+  // unused?
+  /*override def datasize(buf: buffer, m0: Int): Int = {
     // The generated implementation is recursive and leads to a stack overflow
     var cur = m0
     while (cur != 0 && buf(cur - 1) == empty) {
       cur = cur - 1
     }
     return cur
-  }
+  }*/
 
   override def keys(fns: nat_set): key_set = {
     if (fns.isEmpty)
@@ -84,5 +85,27 @@ final class Algebraic(val mtd: MTDSimulation) extends algebraic.Algebraic {
       ro += types.key.inodekey(fns.head)
       return ro
     }
+  }
+  
+  override def truncate(param0: Int, param1: Int, param2: pcache): pcache = {
+    val pcache = param2
+    for (key <- pcache.keys) {
+      key match {
+        case datakey(ino, pageno) => if(ino == param0 &&  param1 <= pageno * VFS_PAGE_SIZE) pcache -= key
+        case _ => pcache -= key
+      }
+    }
+    pcache
+  }
+  
+  override def evict(param0: Int, param1: pcache): pcache = {
+    val pcache = param1
+    for (key <- pcache.keys) {
+      key match {
+        case datakey(ino, pageno) => if(ino == param0) pcache -= key
+        case _ => pcache -= key
+      }
+    }
+    pcache
   }
 }

@@ -476,5 +476,10 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
     }
   }
 
-  def fsync(path: String, fh: AnyRef, isDatasync: Boolean): Int = 0
+  def fsync(path: String, fh: AnyRef, isDatasync: Boolean): Int = {
+    val FH(fd, _) = fh.asInstanceOf[FH]
+    runAlways {
+      posix.fsync(fd, isDatasync, user, _)
+    }
+  }
 }

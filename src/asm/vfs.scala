@@ -59,21 +59,24 @@ class vfs_asm(var MAXINO : Int, val OF : open_files, val afs : afs_interface)(im
     afs.format(N, DOSYNC, SIZE, MD, ERR)
   }
 
-  override def fsync(PATH: path, ISDATASYNC: Boolean, USER: user, ERR: Ref[error]): Unit = {
+  override def fsync(FD: Int, ISDATASYNC: Boolean, USER: user, ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
-    val INO = Ref[Int](ROOT_INO)
-    walk(PATH, USER, INO, ERR)
-    val INODE: inode = types.inode.uninit
-    if (ERR.get == types.error.ESUCCESS) {
-      val MODE: file_mode = types.file_mode.MODE_R
-      val ISDIR: Boolean = false
-      may_open(INO.get, ISDIR, MODE, USER, INODE, ERR)
-    }
-    if (ERR.get == types.error.ESUCCESS) {
-      afs.fsync(INODE, ISDATASYNC, ERR)
-    }
-    if (ERR.get == types.error.ESUCCESS) {
-      afs.sync(ERR)
+    if (! OF.contains(FD)) {
+      ERR := types.error.EBADFD
+    } else {
+      val INODE: inode = types.inode.uninit
+      afs.iget(OF(FD).ino, INODE, ERR)
+      if (ERR.get == types.error.ESUCCESS) {
+        if (INODE.directory) {
+          ERR := types.error.EISDIR
+        }
+        if (ERR.get == types.error.ESUCCESS) {
+          afs.fsync(INODE, ISDATASYNC, ERR)
+        }
+        if (ERR.get == types.error.ESUCCESS) {
+          afs.sync(ERR)
+        }
+      }
     }
   }
 
