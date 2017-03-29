@@ -164,8 +164,6 @@ trait Algebraic {
   def keys(param0: nat_set): key_set
   def toStr(param0: Int): String
   def <(param0: key, param1: key): Boolean
-  def at(param0: address_list, param1: Int): address
-  def at(param0: group_node_list, param1: Int): group_node
   def checksum(param0: buffer, param1: Int): Int
   def evict(param0: Int, param1: pcache): pcache
   def is_open(param0: Int, param1: open_files): Boolean

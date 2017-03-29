@@ -360,7 +360,7 @@ class persistence_asm(val FREELIST : nat_list, val GCHEAP : binheap, var LEBSIZE
     var OFFSET: Int = 0
     while (ERR.get == types.error.ESUCCESS && IDX < NODELIST.length) {
       val SIZE = Ref[Int](0)
-      encode_group_node(at(NODELIST, IDX), OFFSET, SIZE, BUF, ERR)
+      encode_group_node(NODELIST(IDX), OFFSET, SIZE, BUF, ERR)
       ADRLIST += types.address.at(LNUM, N + OFFSET, SIZE.get)
       OFFSET = OFFSET + SIZE.get
       IDX = IDX + 1

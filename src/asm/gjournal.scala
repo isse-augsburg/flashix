@@ -163,7 +163,7 @@ class gjournal_asm(var DOSYNC : Boolean, var JMAXINO : Int, val JRO : nat_set, v
     ND1 +=: NDLIST
     journal_addn(NDLIST, ADRLIST, ERR)
     if (ERR.get == types.error.ESUCCESS) {
-      ADR1 := at(ADRLIST, 0)
+      ADR1 := ADRLIST(0)
     }
   }
 
@@ -174,8 +174,8 @@ class gjournal_asm(var DOSYNC : Boolean, var JMAXINO : Int, val JRO : nat_set, v
     ND1 +=: NDLIST
     journal_addn(NDLIST, ADRLIST, ERR)
     if (ERR.get == types.error.ESUCCESS) {
-      ADR1 := at(ADRLIST, 0)
-      ADR2 := at(ADRLIST, 1)
+      ADR1 := ADRLIST(0)
+      ADR2 := ADRLIST(1)
     }
   }
 
@@ -187,9 +187,9 @@ class gjournal_asm(var DOSYNC : Boolean, var JMAXINO : Int, val JRO : nat_set, v
     ND1 +=: NDLIST
     journal_addn(NDLIST, ADRLIST, ERR)
     if (ERR.get == types.error.ESUCCESS) {
-      ADR1 := at(ADRLIST, 0)
-      ADR2 := at(ADRLIST, 1)
-      ADR3 := at(ADRLIST, 2)
+      ADR1 := ADRLIST(0)
+      ADR2 := ADRLIST(1)
+      ADR3 := ADRLIST(2)
     }
   }
 
@@ -202,10 +202,10 @@ class gjournal_asm(var DOSYNC : Boolean, var JMAXINO : Int, val JRO : nat_set, v
     ND1 +=: NDLIST
     journal_addn(NDLIST, ADRLIST, ERR)
     if (ERR.get == types.error.ESUCCESS) {
-      ADR1 := at(ADRLIST, 0)
-      ADR2 := at(ADRLIST, 1)
-      ADR3 := at(ADRLIST, 2)
-      ADR4 := at(ADRLIST, 3)
+      ADR1 := ADRLIST(0)
+      ADR2 := ADRLIST(1)
+      ADR3 := ADRLIST(2)
+      ADR4 := ADRLIST(3)
     }
   }
 
@@ -219,11 +219,11 @@ class gjournal_asm(var DOSYNC : Boolean, var JMAXINO : Int, val JRO : nat_set, v
     ND1 +=: NDLIST
     journal_addn(NDLIST, ADRLIST, ERR)
     if (ERR.get == types.error.ESUCCESS) {
-      ADR1 := at(ADRLIST, 0)
-      ADR2 := at(ADRLIST, 1)
-      ADR3 := at(ADRLIST, 2)
-      ADR4 := at(ADRLIST, 3)
-      ADR5 := at(ADRLIST, 4)
+      ADR1 := ADRLIST(0)
+      ADR2 := ADRLIST(1)
+      ADR3 := ADRLIST(2)
+      ADR4 := ADRLIST(3)
+      ADR5 := ADRLIST(4)
     }
   }
 
