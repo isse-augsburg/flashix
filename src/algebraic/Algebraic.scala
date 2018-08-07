@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2018 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package algebraic
@@ -12,7 +12,7 @@ import encoding.superblock._
 import helpers.scala._
 import helpers.scala.Encoding._
 import helpers.scala.Random._
-import sorts._
+import java.util.concurrent.locks._
 import types._
 
 /**
@@ -36,20 +36,30 @@ trait Algebraic {
   def SB_ORPH: Int = 3
   def zeropage: buffer = mkzbuf(VFS_PAGE_SIZE)
 
-  def alignedsize(gnd: group_node): Int = {
-    return alignUp(group_node_size_headerless(gnd), 2 * NODE_HEADER_SIZE)
+  def alignedsize(nd: group_node): Int = {
+    return alignUp(group_node_size_headerless(nd), 2 * NODE_HEADER_SIZE)
   }
 
-  def alignedsize(ind: index_node): Int = {
-    return alignUp(index_node_size_headerless(ind), 2 * NODE_HEADER_SIZE)
+  def alignedsize(nd: index_node): Int = {
+    return alignUp(index_node_size_headerless(nd), 2 * NODE_HEADER_SIZE)
   }
 
-  def flashsize(gnd: group_node): Int = {
-    return 2 * NODE_HEADER_SIZE + alignedsize(gnd)
+  def flashsize(nd: group_node): Int = {
+    return 2 * NODE_HEADER_SIZE + alignedsize(nd)
   }
 
-  def flashsize(ind: index_node): Int = {
-    return 2 * NODE_HEADER_SIZE + alignedsize(ind)
+  def flashsize(nd: index_node): Int = {
+    return 2 * NODE_HEADER_SIZE + alignedsize(nd)
+  }
+
+  def keys(nat_set_variable0: nat_set): key_set = {
+    if (nat_set_variable0.isEmpty)
+      return new key_set()
+    else {
+      val key_set_variable0: key_set = keys(nat_set_variable0.tail).deepCopy
+      key_set_variable0 += types.key.inodekey(nat_set_variable0.head)
+      return key_set_variable0
+    }
   }
 
   def alignUp(n: Int, m: Int): Int = {
@@ -66,16 +76,16 @@ trait Algebraic {
       return (n / m) * m
   }
 
-  def encoding_size(sb: superblock, m: Int): Int = {
-    return alignUp(encoding_size_unaligned(sb), m)
+  def encoding_size(a: superblock, m: Int): Int = {
+    return alignUp(encoding_size_unaligned(a), m)
   }
 
   def is_aligned(n: Int, m: Int): Boolean = {
     return n % m == 0
   }
 
-  def load(br: branch): zbranch = {
-    br match {
+  def load(branch_variable0: branch): zbranch = {
+    branch_variable0 match {
       case types.branch.mkbranch(key, adr) =>
         return types.zbranch.mkzbranch(key, adr, null)
       case types.branch.mkentry(key, adr) =>
@@ -110,14 +120,14 @@ trait Algebraic {
   }
 
   def mkzbuf(n: Int): buffer = {
-    val buf: buffer = new buffer(n).fill(0.toByte)
-    val buf0: buffer = buf
-    buf0.fill(zero)
-    return buf0
+    val buffer_variable0: buffer = new buffer(n).fill(0.toByte)
+    val buffer_variable1: buffer = buffer_variable0
+    buffer_variable1.fill(zero)
+    return buffer_variable1
   }
 
-  def save(zbr: zbranch): branch = {
-    zbr match {
+  def save(zbranch_variable0: zbranch): branch = {
+    zbranch_variable0 match {
       case types.zbranch.mkzbranch(key, adr, r) =>
         return types.branch.mkbranch(key, adr)
       case types.zbranch.mkzentry(key, adr) =>
@@ -129,13 +139,13 @@ trait Algebraic {
     return types.index_node.indexnode(save(znd.zbranches, 0, znd.usedsize), znd.leaf, znd.usedsize)
   }
 
-  def save(zbrar: zbranch_array, m: Int, pageno: Int): branch_array = {
-    if (pageno == 0)
+  def save(zbrar: zbranch_array, m: Int, mode: Int): branch_array = {
+    if (mode == 0)
       return new branch_array(BRANCH_SIZE).fill(types.branch.uninit)
     else {
-      val brar: branch_array = save(zbrar, m + 1, pageno - 1).deepCopy
-      brar(m) = save(zbrar(m))
-      return brar
+      val branch_array_variable0: branch_array = save(zbrar, m + 1, mode - 1).deepCopy
+      branch_array_variable0(m) = save(zbrar(m))
+      return branch_array_variable0
     }
   }
 
@@ -147,9 +157,7 @@ trait Algebraic {
 
   def MIN_SIZE: Int
   def ROOT_INO: Int
-  def UBI_ERASE_RETRIES: Int
   def UBI_READ_RETRIES: Int
-  def UBI_WRITE_RETRIES: Int
   def VFS_PAGE_SIZE: Int
   def VTBL_LNUM: Int
   def VTBL_VOLID: Byte
@@ -161,16 +169,14 @@ trait Algebraic {
 
   def flashsize(param0: group_node_list): Int
   def flashsize(param0: node): Int
-  def keys(param0: nat_set): key_set
   def toStr(param0: Int): String
   def <(param0: key, param1: key): Boolean
   def checksum(param0: buffer, param1: Int): Int
   def evict(param0: Int, param1: pcache): pcache
   def is_open(param0: Int, param1: open_files): Boolean
-  def pr(param0: user, param1: metadata): Boolean
-  def pw(param0: user, param1: metadata): Boolean
-  def px(param0: user, param1: metadata): Boolean
-  def to_vtbl(param0: volumes): vtbl
+  def pr(param0: Byte, param1: metadata): Boolean
+  def pw(param0: Byte, param1: metadata): Boolean
+  def px(param0: Byte, param1: metadata): Boolean
   def truncate(param0: Int, param1: Int, param2: pcache): pcache
   def ⊑(param0: path, param1: path): Boolean
 }

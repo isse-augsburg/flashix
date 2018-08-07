@@ -102,7 +102,7 @@ object WL extends Tab {
   val page = tab("Wear Leveling", scrollPane)
 
   def apply(flashix: Flashix) {
-    data = flashix.ubi.WLARRAY.array.map {
+    data = flashix.ubiwl.Wl.array.map {
       wle => Entry(wle.ec, wle.status)
     }
 

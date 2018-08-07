@@ -3,7 +3,7 @@
 The Flashix project aims at the construction and verification of a
 state-of-the-art file system for flash memory.
 
-(c) 2016 Institute for Software & Systems Engineering <http://isse.de>.
+(c) 2015-2018 Institute for Software & Systems Engineering <http://isse.de>.
 This code is licensed under MIT license (see LICENSE for details).
 
 The work is part of the project [*Verifcation of Flash File Systems*](http://isse.de/flashix)
@@ -97,7 +97,7 @@ FUSE-J to work around this issue.
 - `patches/jni/duplicate-array.patch` removes a duplicate line in the JNI bindings
 - `patches/jni/build.xml` applies this patch automatically during build time
 
-Please contact Gidon Ernst <ernst@isse.de> or Jörg Pfähler <pfaehler@isse.de> if you have any trouble.
+Please contact Stefan Bodenmüller <bodenmueller@isse.de>, Jörg Pfähler <pfaehler@isse.de> or Gidon Ernst <ernst@isse.de> if you have any trouble.
 
 ## Code Structure
 

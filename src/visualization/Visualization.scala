@@ -106,7 +106,8 @@ object Visualization {
 
     def wearleveling() {
       flashix.synchronized {
-        flashix.ubi.wear_leveling_worker(err)
+        val iswl = new Ref(false)
+        flashix.ubi.wear_leveling_worker(err, iswl)
       }
       if (err != ESUCCESS)
         println(s"ubi: wear-leveling failed with error code ${err.get}")

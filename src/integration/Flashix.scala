@@ -5,7 +5,7 @@ import types._
 import types.error._
 import helpers.scala._
 
-class Flashix(mtd: mtd_asm_interface)(implicit val ops: algebraic.Algebraic, val procs: proc.Procedures) {
+class Flashix(mtd: MtdInterface)(implicit val ops: algebraic.Algebraic, val procs: proc.Procedures) {
   import ops._
   import procs._
 
@@ -21,26 +21,25 @@ class Flashix(mtd: mtd_asm_interface)(implicit val ops: algebraic.Algebraic, val
     lebsize.get - 2 * EB_PAGE_SIZE
   }
 
-  // Check axioms
-  procs.flashix_check_axioms
-
-  val ubiio = new ubi_io_asm(0, mtd)
-  val ubi = new ubi_asm(new nat_set(), new queue(), 0, 0, 0, new volumes(), 0, new wlarray(), ubiio)
-  val ebm_vol = new ebm_vol_asm(0, ubi)
-  val persistence_io = new persistence_io_asm(0, 0, 0, superblock.uninit, ebm_vol)
-  val wbuf = new wbuf_asm(bufleb.nobuffer, 0, false, types.wbuf.uninit, persistence_io)
-  val persistence = new persistence_asm(new nat_list(), binheap(new key_array(), 0), 0, new nat_list(), new lp_array(), wbuf)
-  val btree = new btree_asm(address(0, 0, 0), znode.uninit, persistence) with DebugUBIFSJournal
+  val ubiio = new UbiIoAsm(0, mtd)
+  val ubiwl = new UbiCwl(new nat_set(), new wlarray(), new FreeTreeInterface with WearLevelingTree, new UsedTreeInterface with WearLevelingTree, ubiio)
+  val ubi = new Cubi(null, null, new queue(), 0, null, 0, 0, new volume_locks(), new volumes(), 0, ubiwl)
+  val ebm_vol = new EbmVolCasm(0, ubi)
+  val persistence_io = new PersistenceIo(0, 0, 0, superblock.uninit, ebm_vol)
+  val wbuf = new Wbuf(bufleb.nobuffer, 0, false, types.wbuf.uninit, persistence_io)
+  val persistence = new Persistence(new nat_list(), binheap(new key_array(), 0), new gc_array(0), 0, new nat_list(), new lp_array(), wbuf)
+  val btree = new Btree(address(0, 0, 0), znode.uninit, persistence) with DebugUBIFSJournal
   // TODO: option for dosync
-  val journal = new gjournal_asm(false, 0, new nat_set(), true, 0, btree)
-  val aubifs = new aubifs_asm(journal)
-  val icache = new icache_asm(new icache())
-  val dcache = new dcache_asm(new dcache())
-  val pcache = new pcache_asm(new pcache())
-  val cache = new cache_asm(false, aubifs, icache, dcache, pcache)
-  val vfs = new vfs_asm(0, new open_files(), cache)
+  val journal = new Gjournal(false, 0, new nat_set(), true, 0, btree)
+  val aubifs = new Aubifs(journal)
+  val tcache = new Tcache(new tcache())
+  val icache = new Icache(new icache(), new mscache())
+  val dcache = new Dcache(new dcache())
+  val pcache = new Pcache(new pcache())
+  val cache = new Cache(false, false, tcache, pcache, icache, dcache, aubifs)
+  val vfs = new Vfs(0, new open_files(), cache)
 
-  def posix: posix_interface = vfs
+  def posix: PosixInterface = vfs
 
   def percentOf(percent: Int, amount: Int) = amount * percent / 100
 

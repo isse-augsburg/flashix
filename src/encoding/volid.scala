@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2018 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package encoding
@@ -7,7 +7,7 @@ package encoding
 import helpers.scala._
 import helpers.scala.Encoding._
 import helpers.scala.Random._
-import sorts._
+import java.util.concurrent.locks._
 import types._
 import types.error.error
 import types.file_mode.file_mode

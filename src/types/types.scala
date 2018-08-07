@@ -1,10 +1,11 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2018 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 import helpers.scala._
 import helpers.scala.Encoding._
 import helpers.scala.Random._
+import java.util.concurrent.locks._
 
 package object types {
   type address_list = helpers.scala.ListWrapper[address]
@@ -23,20 +24,28 @@ package object types {
   implicit object address_setRandomizer extends helpers.scala.Random.SetWrapperRandomizer[address]
   type key_set = helpers.scala.SetWrapper[key]
   implicit object key_setRandomizer extends helpers.scala.Random.SetWrapperRandomizer[key]
+  type ms_set = helpers.scala.SetWrapper[Int]
+  implicit object ms_setRandomizer extends helpers.scala.Random.SetWrapperRandomizer[Int]
   type nat_set = helpers.scala.SetWrapper[Int]
   implicit object nat_setRandomizer extends helpers.scala.Random.SetWrapperRandomizer[Int]
   type stringset = helpers.scala.SetWrapper[String]
   implicit object stringsetRandomizer extends helpers.scala.Random.SetWrapperRandomizer[String]
+  type volids = helpers.scala.SetWrapper[Byte]
+  implicit object volidsRandomizer extends helpers.scala.Random.SetWrapperRandomizer[Byte]
   type branch_array = helpers.scala.ArrayWrapper[branch]
   implicit object branch_arrayRandomizer extends helpers.scala.Random.ArrayWrapperRandomizer[branch]
   type buffer = helpers.scala.ArrayWrapper[Byte]
   implicit object bufferRandomizer extends helpers.scala.Random.ArrayWrapperRandomizer[Byte]
   type ebatbl = helpers.scala.ArrayWrapper[ebaentry]
   implicit object ebatblRandomizer extends helpers.scala.Random.ArrayWrapperRandomizer[ebaentry]
+  type gc_array = helpers.scala.ArrayWrapper[Int]
+  implicit object gc_arrayRandomizer extends helpers.scala.Random.ArrayWrapperRandomizer[Int]
   type key_array = helpers.scala.ArrayWrapperDeep[keyindex]
   implicit object key_arrayRandomizer extends helpers.scala.Random.ArrayWrapperDeepRandomizer[keyindex]
   type lp_array = helpers.scala.ArrayWrapperDeep[lprops]
   implicit object lp_arrayRandomizer extends helpers.scala.Random.ArrayWrapperDeepRandomizer[lprops]
+  type rwlock_array = helpers.scala.ArrayWrapper[ReentrantReadWriteLock]
+  implicit object rwlock_arrayRandomizer extends helpers.scala.Random.ArrayWrapperRandomizer[ReentrantReadWriteLock]
   type wlarray = helpers.scala.ArrayWrapperDeep[wlentry]
   implicit object wlarrayRandomizer extends helpers.scala.Random.ArrayWrapperDeepRandomizer[wlentry]
   type zbranch_array = helpers.scala.ArrayWrapper[zbranch]
@@ -45,12 +54,18 @@ package object types {
   implicit object dcacheRandomizer extends helpers.scala.Random.MapWrapperRandomizer[key, dentry]
   type icache = helpers.scala.MapWrapperDeep[Int, icache_entry]
   implicit object icacheRandomizer extends helpers.scala.Random.MapWrapperDeepRandomizer[Int, icache_entry]
+  type mscache = helpers.scala.MapWrapper[Int, meta_size]
+  implicit object mscacheRandomizer extends helpers.scala.Random.MapWrapperRandomizer[Int, meta_size]
   type open_files = helpers.scala.MapWrapperDeep[Int, file]
   implicit object open_filesRandomizer extends helpers.scala.Random.MapWrapperDeepRandomizer[Int, file]
   type pcache = helpers.scala.MapWrapperDeep[key, pcache_entry]
   implicit object pcacheRandomizer extends helpers.scala.Random.MapWrapperDeepRandomizer[key, pcache_entry]
   type recoveryentries = helpers.scala.MapWrapper[lebadress, recoveryentry]
   implicit object recoveryentriesRandomizer extends helpers.scala.Random.MapWrapperRandomizer[lebadress, recoveryentry]
+  type tcache = helpers.scala.MapWrapper[Int, Int]
+  implicit object tcacheRandomizer extends helpers.scala.Random.MapWrapperRandomizer[Int, Int]
+  type volume_locks = helpers.scala.MapWrapperDeep[Byte, rwlock_array]
+  implicit object volume_locksRandomizer extends helpers.scala.Random.MapWrapperDeepRandomizer[Byte, rwlock_array]
   type volumes = helpers.scala.MapWrapperDeep[Byte, ebatbl]
   implicit object volumesRandomizer extends helpers.scala.Random.MapWrapperDeepRandomizer[Byte, ebatbl]
   type vtbl = helpers.scala.MapWrapper[Byte, Int]

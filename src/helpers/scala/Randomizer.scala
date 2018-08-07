@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2018 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 // Flashix: a verified file system for flash memory
@@ -7,6 +7,8 @@
 // This code is licensed under MIT license (see LICENSE for details)
 
 package helpers.scala
+
+import java.util.concurrent.locks.ReentrantReadWriteLock
 
 trait Randomizer[T] {
   def random(): T
@@ -35,6 +37,11 @@ object Random {
   // TODO
   implicit object StringRandomizer extends Randomizer[String] {
     override def random(): String = ??? // generator.nextString(10)
+  }
+
+  // TODO
+  implicit object ReentrantReadWriteLockRandomizer extends Randomizer[ReentrantReadWriteLock] {
+    override def random(): ReentrantReadWriteLock = ???
   }
 
   // TODO

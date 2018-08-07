@@ -10,7 +10,7 @@ import types._
 import types.error._
 import java.util.Arrays
 
-class MTDSimulation private(val file: RandomAccessFile, val PEBS: Int, val PAGES_PER_PEB: Int, val EB_PAGE_SIZE: Int) extends asm.mtd_asm_interface {
+class MTDSimulation private(val file: RandomAccessFile, val PEBS: Int, val PAGES_PER_PEB: Int, val EB_PAGE_SIZE: Int) extends asm.MtdInterface {
 
   val empty: Byte = 0xFF.toByte
   val PEB_SIZE: Int = PAGES_PER_PEB * EB_PAGE_SIZE

@@ -17,9 +17,9 @@ final class Algebraic(val mtd: MTDSimulation) extends algebraic.Algebraic {
 
   override def MIN_SIZE: Int = 4
   override def ROOT_INO: Int = 1
-  override def UBI_ERASE_RETRIES: Int = 5
+  // override def UBI_ERASE_RETRIES: Int = 5
   override def UBI_READ_RETRIES: Int = 5
-  override def UBI_WRITE_RETRIES: Int = 5
+  // override def UBI_WRITE_RETRIES: Int = 5
   override def VFS_PAGE_SIZE: Int = 4 * 1024
   override def VTBL_LNUM: Int = 0
   override def VTBL_VOLID: Byte = 0xFF.toByte
@@ -52,6 +52,7 @@ final class Algebraic(val mtd: MTDSimulation) extends algebraic.Algebraic {
   override def pr(param0: Byte, param1: metadata): Boolean = true
   override def pw(param0: Byte, param1: metadata): Boolean = true
   override def px(param0: Byte, param1: metadata): Boolean = true
+/*
   override def to_vtbl(param0: volumes): vtbl = {
     val vtbl = new vtbl()
     param0.map.foreach { case (volumeid, vol) =>
@@ -59,21 +60,12 @@ final class Algebraic(val mtd: MTDSimulation) extends algebraic.Algebraic {
     }
     vtbl
   }
+*/
   override def ⊑(param0: path, param1: path): Boolean = param0.startsWith(param1)
 
   //
   // Fixed the following implementations
   //
-
-  // unused?
-  /*override def datasize(buf: buffer, m0: Int): Int = {
-    // The generated implementation is recursive and leads to a stack overflow
-    var cur = m0
-    while (cur != 0 && buf(cur - 1) == empty) {
-      cur = cur - 1
-    }
-    return cur
-  }*/
 
   override def keys(fns: nat_set): key_set = {
     if (fns.isEmpty)

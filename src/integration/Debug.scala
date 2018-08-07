@@ -24,12 +24,12 @@ object Debug {
 }
 
 trait DebugUBIFSJournal {
-  this: btree_asm =>
+  this: Btree =>
 
   def check_invariant {
     import Debug._
     val refsizeperblock = index._2.filter { ! _._1.dirty }.values.refsizes
-    val lpt = apersistence.asInstanceOf[persistence_asm].LPT
+    val lpt = apersistence.asInstanceOf[Persistence].LPT
     for (i <- 0 until lpt.length) {
       assert(! refsizeperblock.contains(i) || (lpt(i).flags == LP_INDEX_NODES) , "wrong index block " + i)
       if (refsizeperblock.contains(i))

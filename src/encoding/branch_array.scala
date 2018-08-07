@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2017 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2018 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package encoding
@@ -8,7 +8,7 @@ import encoding.branch._
 import helpers.scala._
 import helpers.scala.Encoding._
 import helpers.scala.Random._
-import sorts._
+import java.util.concurrent.locks._
 import types._
 import types.error.error
 import types.file_mode.file_mode
@@ -55,9 +55,9 @@ object branch_array {
       while (err.get == types.error.ESUCCESS && arindex < decodedsize.get) {
         
         {
-          val br: Ref[branch] = Ref[branch](elem(arindex))
-          decode_branch(index + nbytes.get, buf, br, tmpsize, err)
-          elem(arindex) = br.get
+          val branch_variable0: Ref[branch] = Ref[branch](elem(arindex))
+          decode_branch(index + nbytes.get, buf, branch_variable0, tmpsize, err)
+          elem(arindex) = branch_variable0.get
         }
         if (err.get == types.error.ESUCCESS) {
           nbytes := nbytes.get + tmpsize.get
