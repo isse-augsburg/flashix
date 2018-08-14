@@ -70,14 +70,25 @@ this file at this location if you want to use the prebuilt binary.
 You can for example link the file as follows:
 
     $ locate libjvm.so
-    /usr/lib/jvm/java-7-openjdk/jre/lib/amd64/libjava.so
+    /usr/lib/jvm/java-8-oracle/jre/lib/amd64/server/libjvm.so
     ...
 
-    $ ln -s /usr/lib/jvm/java-7-openjdk/jre/lib/amd64/libjava.so /usr/lib/libjvm.so
+    $ ln -s /usr/lib/jvm/java-8-oracle/jre/lib/amd64/server/libjvm.so /usr/lib/libjvm.so
 
 The respective licenses apply:
 FUSE-J is distributed under the LGPL.
 Apache Commons Logging is distributed under the Apache License v2.0.
+
+Also make sure that the fuse header file (`fuse.h`) is located under:
+
+    /usr/include
+
+and the fuse shared library (`libfuse.so.2`) under:
+
+    /usr/lib
+
+If not available there, create symbolic links to the appropriate locations. Otherwise
+`libjavafs.so` won't find the corresponding fuse function symbols.
 
 `fuse-j-2.4-prerelease1` has a compile bug with Java 7. You can copy the updated
 build script files in folder `patches` and the patch to the `jni` subfolder of
