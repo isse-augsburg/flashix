@@ -111,7 +111,7 @@ object Visualization {
       if (err != ESUCCESS)
         println(s"ubi: wear-leveling failed with error code ${err.get}")
     }
-    
+
     def dogc() {
       filesystem.doGC("user", err, -1)
     }
@@ -158,7 +158,7 @@ object Visualization {
 
     update()
 
-    val syncargs = Array("-s") ++ args
+    val syncargs = Array("-f", "-s") ++ args
     FuseMount.mount(syncargs, filesystem, null)
 
     mtd.close
