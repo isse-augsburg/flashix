@@ -1,2 +1,4 @@
 /bin
 .cache
+.cache-main
+flash-device
