@@ -269,6 +269,9 @@ class Cubi(var DoErase : Condition, var DoWl : Condition, val Eraseq : queue, va
       ubi_awl.get_page_size(mode)
       PAGESIZE = mode.get
     }
+    Lock = new ReentrantLock()
+    DoErase = Lock.newCondition()
+    DoWl = Lock.newCondition()
     val RECS: recoveryentries = new recoveryentries()
     val INVALIDECS: nat_list = new nat_list()
     val VALIDCOUNT = Ref[Int](0)
