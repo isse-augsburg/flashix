@@ -257,8 +257,9 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
   }
 
   def rename_overwrite_keep_parent(IS_DIR: Boolean, OLD_CHILD_INODE: inode, PARENT_INODE: inode, NEW_CHILD_INODE: inode, OLD_DENT: Ref[dentry], NEW_DENT: Ref[dentry], ERR: Ref[error]): Unit = {
-    val KEY1: key = types.key.uninit
+    var KEY1: key = types.key.uninit
     val IDENTITY: Boolean = OLD_DENT.get == NEW_DENT.get
+    KEY1 = types.key.dentrykey(PARENT_INODE.ino, OLD_DENT.get.name)
     val ND1: node = types.node.dentrynode(KEY1, 0)
     val KEY2: key = types.key.dentrykey(PARENT_INODE.ino, NEW_DENT.get.name)
     val KEY3: key = types.key.inodekey(PARENT_INODE.ino)
@@ -501,7 +502,9 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
   }
 
   override def writepage(INODE: inode, PAGENO: Int, PBUF: buffer, ERR: Ref[error]): Unit = {
-    val KEY1: key = types.key.uninit
+    var KEY1: key = types.key.uninit
+    val INO: Int = INODE.ino
+    KEY1 = types.key.datakey(INO, PAGENO)
     val ND1: node = types.node.datanode(KEY1, PBUF).deepCopy
     val ADR1 = Ref[address](types.address.uninit)
     aubifs_core.journal_add1(ND1, ADR1, ERR)

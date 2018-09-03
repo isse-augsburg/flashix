@@ -403,6 +403,8 @@ class Btree(var ADRT : address, var RT : znode, val apersistence : ApersistenceI
         }
       }
       io_dirty(R.get, ADR0, DIRTY.get, ERR)
+    } else {
+      EXISTS := false
     }
   }
 

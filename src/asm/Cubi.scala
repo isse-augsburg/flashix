@@ -24,9 +24,9 @@ class Cubi(var DoErase : Condition, var DoWl : Condition, val Eraseq : queue, va
     datasize_h(BUF, N, N0)
     val M = Ref[Int](0)
     next_sqnum(M)
-    val AVHDR: avidheader = types.avidheader.avidhdr(VOLID, LNUM, M.get, N0.get, 0)
+    var AVHDR: avidheader = types.avidheader.avidhdr(VOLID, LNUM, M.get, N0.get, 0)
     if (N0.get != 0) {
-      
+      AVHDR = AVHDR.updated_checksum(checksum(BUF, N0.get))
     }
     ubi_awl.write_vidhdr(TO, AVHDR, ERR)
     if (ERR.get == types.error.ESUCCESS && N0.get > 0) {
@@ -79,6 +79,7 @@ class Cubi(var DoErase : Condition, var DoWl : Condition, val Eraseq : queue, va
     ERR := types.error.EIO
     val N = Ref[Int](0)
     ubi_awl.get_ec(PNUM, N)
+    N := N.get + 1
     ubi_awl.set_ec(PNUM, N.get)
     ubi_awl.sync_erase(PNUM, ERR)
     if (ERR.get == types.error.ESUCCESS) {

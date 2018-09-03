@@ -54,6 +54,9 @@ class Gjournal(var DOSYNC : Boolean, var JMAXINO : Int, val JRO : nat_set, var J
       index.is_log_empty(EMPTY_)
       if (EMPTY_.get != true) {
         index.get_block_free_size(SIZE)
+        if (SIZE.get < flashsize(NDLIST.head)) {
+          SIZE := 0
+        }
       }
       val NDLIST0: node_list = new node_list()
       val N = Ref[Int](0)

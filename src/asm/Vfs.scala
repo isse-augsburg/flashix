@@ -121,7 +121,7 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
     if (PATH.isEmpty || PATH_.isEmpty) {
       ERR := types.error.EISDIR
     } else {
-      val OLD_DENT: dentry = types.dentry.uninit
+      var OLD_DENT: dentry = types.dentry.uninit
       val INODE: inode = types.inode.uninit
       val C_INODE: inode = types.inode.uninit
       val DENT1 = Ref[dentry](types.dentry.negdentry(PATH.last))
@@ -131,6 +131,8 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
       if (ERR.get == types.error.ESUCCESS) {
         may_link(INO1.get, USER, INODE, DENT1, ERR)
       }
+      C_INODE := INODE.deepCopy
+      OLD_DENT = DENT1.get
       val NEW_DENT = Ref[dentry](types.dentry.uninit)
       val NEW_INODE: inode = types.inode.uninit
       if (ERR.get == types.error.ESUCCESS) {
@@ -141,6 +143,8 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
         if (ERR.get == types.error.ESUCCESS) {
           may_create(INO.get, DENT, USER, INODE, ERR)
         }
+        NEW_INODE := INODE
+        NEW_DENT := DENT
       }
       if (ERR.get == types.error.ESUCCESS) {
         afs.check_commit(ERR)
@@ -413,6 +417,8 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
         val ISRENAME: Boolean = true
         may_delete(INO1.get, ISRENAME, USER, INODE, DENT1, DEL_INODE, ISDIR, ERR)
       }
+      OLD_INODE := INODE.deepCopy
+      OLD_DENT := DENT1.get
       val OLD_DENT_INODE: inode = DEL_INODE
       val NEW_DENT = Ref[dentry](types.dentry.uninit)
       val NEW_DENT_INODE: inode = types.inode.uninit
@@ -433,7 +439,9 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
             may_delete_check(INO.get, USER, INODE, ISDIR, DENT, DEL_INODE, ERR)
           }
         }
+        NEW_INODE := INODE
         NEW_DENT := DENT.get
+        NEW_DENT_INODE := DEL_INODE
       }
       if (ERR.get == types.error.ESUCCESS) {
         afs.check_commit(ERR)
@@ -508,9 +516,9 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
     if (ERR.get == types.error.ESUCCESS) {
       afs.check_commit(ERR)
     }
-    val PAGENO: Int = 0
+    var PAGENO: Int = 0
     if (ERR.get == types.error.ESUCCESS) {
-      
+      PAGENO = INODE.size / VFS_PAGE_SIZE
     }
     if (ERR.get == types.error.ESUCCESS) {
       val PBUF_OPT = Ref[buffer_opt](types.buffer_opt.none)
@@ -572,9 +580,9 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
         if (INODE.directory) {
           ERR := types.error.EISDIR
         } else {
-          val PAGENO: Int = 0
+          var PAGENO: Int = 0
           if (ERR.get == types.error.ESUCCESS) {
-            
+            PAGENO = INODE.size / VFS_PAGE_SIZE
           }
           if (ERR.get == types.error.ESUCCESS) {
             val PBUF_OPT = Ref[buffer_opt](types.buffer_opt.none)
@@ -658,6 +666,7 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
       afs.check_commit(ERR)
     }
     if (ERR.get == types.error.ESUCCESS) {
+      PBUF.copy(BUF, TOTAL, OFFSET, N)
       afs.writepage(INODE, PAGENO, PBUF, ERR)
     }
   }

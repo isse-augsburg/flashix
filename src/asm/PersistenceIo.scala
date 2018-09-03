@@ -93,11 +93,12 @@ class PersistenceIo(var LEBSIZE : Int, var LOGOFF : Int, var PAGESIZE : Int, val
     } else {
       ERR := types.error.ESUCCESS
       BUF.allocate(alignUp(ORPHANS.size * ENCODED_NAT_SIZE, PAGESIZE), 0.toByte)
-      val OFFSET: Int = 0
+      var OFFSET: Int = 0
       val SIZE = Ref[Int](0)
       while (ERR.get == types.error.ESUCCESS && ! ORPHANS.isEmpty) {
         val N: Int = ORPHANS.head
         encode_nat(N, OFFSET, BUF, SIZE, ERR)
+        OFFSET = OFFSET + ENCODED_NAT_SIZE
         ORPHANS -= N
       }
     }

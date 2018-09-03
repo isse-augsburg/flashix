@@ -301,6 +301,9 @@ class Cache(var READ_ONLY_MODE : Boolean, var SYNC : Boolean, val tcache : Tcach
             if (MODIFIED) {
               PBUF.fill(zero, OFFSET, VFS_PAGE_SIZE - OFFSET)
             }
+            DIRTY := (PAGENO == SIZE / VFS_PAGE_SIZE)
+          } else {
+            DIRTY := false
           }
           pcache.set(INO, PAGENO, PBUF, DIRTY.get, ERR)
         }
@@ -551,9 +554,10 @@ class Cache(var READ_ONLY_MODE : Boolean, var SYNC : Boolean, val tcache : Tcach
     if (READ_ONLY_MODE) {
       ERR := types.error.EROFS
     } else {
-      val DIRTY: Boolean = true
+      var DIRTY: Boolean = true
       if (SYNC) {
         afs.writepage(INODE, PAGENO, PBUF, ERR)
+        DIRTY = false
       } else {
         ERR := types.error.ESUCCESS
       }

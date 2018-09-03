@@ -132,7 +132,9 @@ class Wbuf(var BUFLEB : bufleb, var PAGESIZE : Int, var ROFS : Boolean, val WBUF
       val N0: Int = alignDown(WBUF.nbytes + N, PAGESIZE)
       val N1: Int = N0 - WBUF.nbytes
       val BUF0: buffer = new buffer(N0).fill(0.toByte)
+      BUF0.copy(WBUF.content, 0, 0, WBUF.nbytes)
       val N2: Int = N - N1
+      BUF0.copy(BUF, 0, WBUF.nbytes, N1)
       apersistence_io.write(BUFLEB.leb, WBUF.offset, 0, N0, BUF0, ERR)
       if (ERR.get == types.error.ESUCCESS) {
         WBUF.content.copy(BUF, N1, 0, N2)
