@@ -19,7 +19,7 @@ object Mount {
     println("usage:")
     println("  flashix [-odebug] [-obig_writes] <mountpoint>")
   }
-  
+
   def main(args: Array[String]) {
 
     if (args.size <= 0) {
@@ -40,6 +40,7 @@ object Mount {
     implicit val algebraic = new Algebraic(mtd)
     implicit val procedures = new Procedures()
 
+    // Format/Recover Flashix File System
     val flashix = new Flashix(mtd)
     val dosync = false
     val err = new Ref(error.uninit)
@@ -57,12 +58,62 @@ object Mount {
     if (err != ESUCCESS)
       System.exit(1)
 
-    val filesystem = new fuse.FilesystemAdapter(flashix)
+    // Start concurrent erase/wear-leveling
+    val wearleveling = new Thread {
+      override def run {
+        try {
+          while (!this.isInterrupted()) {
+            println("ubi: waiting for wear-leveling")
+            val err: Ref[error] = Ref(error.ESUCCESS)
+            val iswl: Ref[Boolean] = Ref(false)
+            flashix.ubi.wear_leveling_worker(err, iswl)
+            println("ubi: performed wear-leveling, err = " + err.get)
+          }
+        } catch {
+          case _: InterruptedException =>
+            println("ubi: wear-leveling thread interrupted")
+        }
+      }
+    }
+    val erase = new Thread {
+      override def run {
+        try {
+          while (!this.isInterrupted()) {
+            println("ubi: waiting for erase")
+            flashix.ubi.erase_worker
+            println("ubi: performed erasing")
+          }
+        } catch {
+          case _: InterruptedException =>
+            println("ubi: erase thread interrupted")
+        }
+      }
+    }
+    wearleveling.start
+    erase.start
 
+    // FUSE integration
+    val filesystem = new fuse.FilesystemAdapter(flashix)
     val syncargs = Array("-s") ++ args
     FuseMount.mount(syncargs, filesystem, null)
 
+    // Shutdown concurrent threads
+/* TODO: does not seem to work
+    def closeThread(t: Thread, name: String) {
+      while (t.isAlive()) {
+        println(s"flashix: interrupting ${name}")
+        t.interrupt
+        println(s"flashix: joining ${name}")
+        t.join(100)
+      }
+    }
+    closeThread(erase, "erase")
+    closeThread(wearleveling, "wear-leveling")
+*/
+
+    // Close MTD simulation
     mtd.close
+
     System.exit(0)
   }
 }
