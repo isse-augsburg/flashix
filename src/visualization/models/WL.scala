@@ -27,7 +27,11 @@ object WL extends Tab {
 
   object view extends JPanel {
     def interpolate(scale: Int, min: Int, cur: Int, max: Int) = {
-      scale * (cur - min) / (max - min)
+      val diff = max - min
+      if (diff == 0)
+        0
+      else
+        scale * (cur - min) / diff
     }
 
     override def getPreferredSize = dimension

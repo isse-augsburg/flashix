@@ -101,7 +101,7 @@ object Visualization {
         flashix.journal.commit(err)
       }
       if (err != ESUCCESS)
-        println(s"vfs: recovery failed with error code ${err.get}")
+        println(s"vfs: commit failed with error code ${err.get}")
     }
 
     def dogc() {
