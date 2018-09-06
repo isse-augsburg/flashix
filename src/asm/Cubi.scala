@@ -72,6 +72,11 @@ class Cubi(var DoErase : Condition, var DoWl : Condition, val Eraseq : queue, va
         Eraseq.removeHead
       }
     }
+    val ShouldWl = Ref[Boolean](helpers.scala.Boolean.uninit)
+    ubi_awl.check_wl(ShouldWl)
+    if (ShouldWl.get) {
+      DoWl.signal
+    }
     Lock.unlock
   }
 
@@ -416,7 +421,7 @@ class Cubi(var DoErase : Condition, var DoWl : Condition, val Eraseq : queue, va
     val VALID = Ref[Boolean](helpers.scala.Boolean.uninit)
     ubi_awl.get_leb_for_wl(FROM, AVHDR, VALID)
     Lock.unlock
-    if (VALID.get && (ERR.get == types.error.ESUCCESS && (AVHDR.get.isInstanceOf[types.avidheader.avidhdr] && (Vols.contains(AVHDR.get.vol) && AVHDR.get.leb < Vols(AVHDR.get.vol).length)))) {
+    if (VALID.get && (AVHDR.get.isInstanceOf[types.avidheader.avidhdr] && (Vols.contains(AVHDR.get.vol) && AVHDR.get.leb < Vols(AVHDR.get.vol).length))) {
       VolLocks(AVHDR.get.vol)(AVHDR.get.leb).writeLock().lock()
       Lock.lock
       if (Vols(AVHDR.get.vol)(AVHDR.get.leb) == types.ebaentry.embed(FROM.get)) {

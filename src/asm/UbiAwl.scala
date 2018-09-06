@@ -14,6 +14,7 @@ import types.wlstatus.wlstatus
 
 abstract class UbiAwlInterface extends ASM {
   def bitflips(PNUM: Int)
+  def check_wl(ShouldWl: Ref[Boolean])
   def format(ERR: Ref[error])
   def get_blockcount(N: Ref[Int])
   def get_ec(PNUM: Int, N: Ref[Int])

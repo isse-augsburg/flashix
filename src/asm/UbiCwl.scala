@@ -19,6 +19,13 @@ class UbiCwl(val Bflips : nat_set, val Wl : wlarray, val free_tree : FreeTreeInt
     Bflips += PNUM
   }
 
+  override def check_wl(ShouldWl: Ref[Boolean]): Unit = {
+    val IsWl = Ref[Boolean](helpers.scala.Boolean.uninit)
+    val FROM = Ref[Int](0)
+    val TO = Ref[Int](0)
+    get_pebs_for_wl(TO, FROM, ShouldWl, IsWl)
+  }
+
   override def format(ERR: Ref[error]): Unit = {
     used_tree.init()
     free_tree.init()
@@ -88,7 +95,6 @@ class UbiCwl(val Bflips : nat_set, val Wl : wlarray, val free_tree : FreeTreeInt
       if (! Bflips.isEmpty) {
         val N0: Int = Bflips.head
         FROM := N0
-        Bflips -= N0
         VALID := true
         IsWl := false
       } else {
