@@ -436,7 +436,7 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
   }
 
   def read(path: String, fh: AnyRef, bbuf: ByteBuffer, offset: Long): Int = {
-    val n = new Ref(bbuf.limit)
+    val n = new Ref(bbuf.limit())
     val FH(fd, _) = fh.asInstanceOf[FH]
     val buf = new buffer(n.get)
 
@@ -453,7 +453,7 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
   }
 
   def write(path: String, fh: AnyRef, isWritepage: Boolean, bbuf: ByteBuffer, offset: Long): Int = {
-    val n = new Ref(bbuf.limit)
+    val n = new Ref(bbuf.limit())
     val FH(fd, isAppend) = fh.asInstanceOf[FH]
     val buf = new buffer(n.get)
     bbuf.get(buf.array)
