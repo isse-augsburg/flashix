@@ -159,9 +159,6 @@ object Visualization {
 
     update()
 
-    // Start concurrent ops
-    flashix.startConcurrentOps
-
     val syncargs = Array("-f", "-s") ++ args
     FuseMount.mount(syncargs, filesystem, null)
 
