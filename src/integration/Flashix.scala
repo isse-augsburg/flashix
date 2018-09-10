@@ -5,7 +5,7 @@ import types._
 import types.error._
 import helpers.scala._
 
-class Flashix(mtd: MtdInterface)(implicit val ops: algebraic.Algebraic, val procs: proc.Procedures) {
+class Flashix(cachingStrategy: Flashix.CachingStrategy, mtd: MtdInterface)(implicit val ops: algebraic.Algebraic, val procs: proc.Procedures) {
   import ops._
   import procs._
 
@@ -29,15 +29,19 @@ class Flashix(mtd: MtdInterface)(implicit val ops: algebraic.Algebraic, val proc
   val wbuf = new Wbuf(bufleb.nobuffer, 0, false, types.wbuf.uninit, persistence_io)
   val persistence = new Persistence(new nat_list(), binheap(new key_array(), 0), new gc_array(0), 0, new nat_list(), new lp_array(), wbuf)
   val btree = new Btree(address(0, 0, 0), znode.uninit, persistence) with DebugUBIFSJournal
-  // TODO: option for dosync
-  val journal = new Gjournal(false, 0, new nat_set(), true, 0, btree)
+  val journal = new Gjournal(cachingStrategy != Flashix.NoCaching, 0, new nat_set(), true, 0, btree)
   val aubifs = new Aubifs(journal)
-  val tcache = new Tcache(new tcache())
-  val icache = new Icache(new icache(), new mscache())
-  val dcache = new Dcache(new dcache())
-  val pcache = new Pcache(new pcache())
-  val cache = new Cache(false, false, tcache, pcache, icache, dcache, aubifs)
-  val vfs = new Vfs(0, new open_files(), cache)
+  val cachedAubifs = {
+    if (cachingStrategy == Flashix.AfsCaching) {
+      val tcache = new Tcache(new tcache())
+      val icache = new Icache(new icache(), new mscache())
+      val dcache = new Dcache(new dcache())
+      val pcache = new Pcache(new pcache())
+      new Cache(false, false, tcache, pcache, icache, dcache, aubifs)
+    } else
+      aubifs
+  }
+  val vfs = new Vfs(0, new open_files(), cachedAubifs)
 
   def posix: PosixInterface = vfs
 
@@ -125,7 +129,7 @@ class Flashix(mtd: MtdInterface)(implicit val ops: algebraic.Algebraic, val proc
   }
 
   def joinConcurrentOps {
-/* TODO: does not seem to work
+    /* TODO: does not seem to work
     def closeThread(t: Thread, name: String) {
       while (t.isAlive()) {
         println(s"flashix: interrupting ${name}")
@@ -137,5 +141,30 @@ class Flashix(mtd: MtdInterface)(implicit val ops: algebraic.Algebraic, val proc
     closeThread(erase, "erase")
     closeThread(wearleveling, "wear-leveling")
 */
+  }
+}
+
+object Flashix {
+  abstract class CachingStrategy
+  case object NoCaching extends CachingStrategy
+  case object WbufCaching extends CachingStrategy
+  case object AfsCaching extends CachingStrategy
+
+  def filterArgs(args: Array[String]): (Array[String], CachingStrategy) = {
+    var cachingStrategy: CachingStrategy = WbufCaching
+    val remainingsArgs = args.filter {
+      case "-caching=none" =>
+        cachingStrategy = NoCaching
+        false
+      case "-caching=wbuf" =>
+        cachingStrategy = WbufCaching
+        false
+      case "-caching=afs" =>
+        cachingStrategy = AfsCaching
+        false
+      case _ =>
+        true
+    }
+    (args, cachingStrategy)
   }
 }

@@ -29,13 +29,15 @@ object Visualization {
     println("  flashix [-odebug] [-obig_writes] <mountpoint>")
   }
 
-  def main(args: Array[String]) {
+  def main(initialArgs: Array[String]) {
     val err = new Ref(error.uninit)
 
-    if (args.size <= 0) {
+    if (initialArgs.size <= 0) {
       printHelp
       System.exit(1)
     }
+
+    val (args, cachingStrategy) = Flashix.filterArgs(initialArgs)
 
     // Implicit configuration options
     val deviceFile = new File("flash-device")
@@ -51,7 +53,7 @@ object Visualization {
     implicit val algebraic = new Algebraic(mtd)
     implicit val procedures = new Procedures()
 
-    val flashix = new Flashix(mtd)
+    val flashix = new Flashix(cachingStrategy, mtd)
 
     object observable extends Observable[Flashix]
 

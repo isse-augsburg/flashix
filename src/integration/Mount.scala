@@ -17,15 +17,17 @@ object Mount {
 
   def printHelp {
     println("usage:")
-    println("  flashix [-odebug] [-obig_writes] <mountpoint>")
+    println("  flashix [-caching=none/wbuf/afs] [-odebug] [-obig_writes] <mountpoint>")
   }
 
-  def main(args: Array[String]) {
+  def main(initialArgs: Array[String]) {
 
-    if (args.size <= 0) {
+    if (initialArgs.size <= 0) {
       printHelp
       System.exit(1)
     }
+
+    val (args, cachingStrategy) = Flashix.filterArgs(initialArgs)
 
     // Implicit configuration options
     val deviceFile = new File("flash-device")
@@ -41,7 +43,7 @@ object Mount {
     implicit val procedures = new Procedures()
 
     // Format/Recover Flashix File System
-    val flashix = new Flashix(mtd)
+    val flashix = new Flashix(cachingStrategy, mtd)
     val dosync = false
     val err = new Ref(error.uninit)
     if (format) {
