@@ -64,7 +64,8 @@ class Cubi(var DoErase : Condition, var DoWl : Condition, val Eraseq : queue, va
 
   def erase_worker(): Unit = {
     Lock.lock
-    DoErase.await
+    if (Eraseq.isEmpty)
+      DoErase.await
     val ERR = Ref[error](types.error.ESUCCESS)
     while (! Eraseq.isEmpty && ERR.get == types.error.ESUCCESS) {
       val EQENT: erasequeueentry = Eraseq.head
