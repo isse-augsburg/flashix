@@ -395,7 +395,8 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
   }
 
   def chown(path: String, uid: Int, gid: Int): Int = {
-    setattr(path, _.chown(uid, gid))
+    // TODO: setattr(path, _.chown(uid, gid))
+    setattr(path, _.chown(0, 0))
   }
 
   def truncate(path: String, size: Long): Int = {

@@ -54,13 +54,12 @@ class gjournal_asm(var DOSYNC : Boolean, var JMAXINO : Int, val JRO : nat_set, v
       if (EMPTY_.get != true) {
         index.get_block_free_size(SIZE)
         if (SIZE.get < flashsize(NDLIST.head)) {
-          SIZE := 0
+          index.get_leb_size(SIZE)
         }
-      }
+      } else
+        index.get_leb_size(SIZE)
       val NDLIST0: node_list = new node_list()
-      val N = Ref[Int](0)
-      index.get_leb_size(N)
-      split_nodes(N.get - SIZE.get, NDLIST, NDLIST0)
+      split_nodes(SIZE.get, NDLIST, NDLIST0)
       if (NDLIST0.isEmpty) {
         ERR := types.error.EINVAL
       } else {

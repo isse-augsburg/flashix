@@ -34,11 +34,11 @@ class Flashix(mtd: mtd_asm_interface)(implicit val ops: algebraic.Algebraic, val
   // TODO: option for dosync
   val journal = new gjournal_asm(false, 0, new nat_set(), true, 0, btree)
   val aubifs = new aubifs_asm(journal)
-  val icache = new icache_asm(new icache())
+/*  val icache = new icache_asm(new icache())
   val dcache = new dcache_asm(new dcache())
   val pcache = new pcache_asm(new pcache())
-  val cache = new cache_asm(false, aubifs, icache, dcache, pcache)
-  val vfs = new vfs_asm(0, new open_files(), cache)
+  val cache = new cache_asm(false, aubifs, icache, dcache, pcache)*/
+  val vfs = new vfs_asm(0, new open_files(), aubifs)
 
   def posix: posix_interface = vfs
 
