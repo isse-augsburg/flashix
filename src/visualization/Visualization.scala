@@ -84,7 +84,9 @@ object Visualization {
     def format() {
       val rootmeta = fuse.DirMetadata()
       flashix synchronized {
+        flashix.joinConcurrentOps
         flashix.vfs.format(pebs - spare_pebs, doSync, (pages_per_peb - 2) * page_size, rootmeta, err)
+        flashix.startConcurrentOps
       }
       if (err != ESUCCESS)
         println(s"vfs: format failed with error code ${err.get}")
@@ -92,7 +94,9 @@ object Visualization {
 
     def recover() {
       flashix synchronized {
+        flashix.joinConcurrentOps
         flashix.vfs.recover(doSync, err)
+        flashix.startConcurrentOps
       }
       if (err != ESUCCESS)
         println(s"vfs: recovery failed with error code ${err.get}")
