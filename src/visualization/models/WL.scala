@@ -106,9 +106,12 @@ object WL extends Tab {
   val page = tab("Wear Leveling", scrollPane)
 
   def apply(flashix: Flashix) {
+    // Hold UBI main lock, because we are accessing wear-leveling array, which is protected by this lock
+    flashix.ubi.Lock.lock()
     data = flashix.ubiwl.Wl.array.map {
       wle => Entry(wle.ec, wle.status)
     }
+    flashix.ubi.Lock.unlock()
 
     val length = data.length
     rows = Math.sqrt(length).toInt

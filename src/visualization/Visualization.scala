@@ -58,10 +58,7 @@ object Visualization {
     val flashix = new Flashix(cachingStrategy, update0, mtd)
     def update() {
       flashix synchronized {
-        // Hold UBI main lock, because we are accessing wear-leveling array, which is protected by this lock
-        flashix.ubi.Lock.lock()
         update0(flashix)
-        flashix.ubi.Lock.unlock()
       }
     }
 
