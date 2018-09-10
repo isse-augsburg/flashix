@@ -111,15 +111,15 @@ class Cubi(var DoErase : Condition, var DoWl : Condition, val Eraseq : queue, va
     ubi_awl.format(ERR)
     
     {
-      val mode: Ref[Int] = Ref[Int](LEBSIZE)
-      ubi_awl.get_leb_size(mode)
-      LEBSIZE = mode.get
+      val nat_variable0: Ref[Int] = Ref[Int](LEBSIZE)
+      ubi_awl.get_leb_size(nat_variable0)
+      LEBSIZE = nat_variable0.get
     }
     
     {
-      val mode: Ref[Int] = Ref[Int](PAGESIZE)
-      ubi_awl.get_page_size(mode)
-      PAGESIZE = mode.get
+      val nat_variable0: Ref[Int] = Ref[Int](PAGESIZE)
+      ubi_awl.get_page_size(nat_variable0)
+      PAGESIZE = nat_variable0.get
     }
     Lock = new ReentrantLock()
     DoErase = Lock.newCondition()
@@ -153,9 +153,9 @@ class Cubi(var DoErase : Condition, var DoWl : Condition, val Eraseq : queue, va
       if (ERR.get == types.error.ESUCCESS) {
         
         {
-          val mode: Ref[Int] = Ref[Int](VtblPnum)
-          ubi_awl.get_free_peb(mode, ERR)
-          VtblPnum = mode.get
+          val nat_variable0: Ref[Int] = Ref[Int](VtblPnum)
+          ubi_awl.get_free_peb(nat_variable0, ERR)
+          VtblPnum = nat_variable0.get
         }
         if (ERR.get == types.error.ESUCCESS) {
           ubi_awl.write_vidhdr(VtblPnum, types.avidheader.avidhdr(VTBL_VOLID, VTBL_LNUM, 0, 0, 0), ERR)
@@ -264,15 +264,15 @@ class Cubi(var DoErase : Condition, var DoWl : Condition, val Eraseq : queue, va
     VolLocks.clear
     
     {
-      val mode: Ref[Int] = Ref[Int](LEBSIZE)
-      ubi_awl.get_leb_size(mode)
-      LEBSIZE = mode.get
+      val nat_variable0: Ref[Int] = Ref[Int](LEBSIZE)
+      ubi_awl.get_leb_size(nat_variable0)
+      LEBSIZE = nat_variable0.get
     }
     
     {
-      val mode: Ref[Int] = Ref[Int](PAGESIZE)
-      ubi_awl.get_page_size(mode)
-      PAGESIZE = mode.get
+      val nat_variable0: Ref[Int] = Ref[Int](PAGESIZE)
+      ubi_awl.get_page_size(nat_variable0)
+      PAGESIZE = nat_variable0.get
     }
     Lock = new ReentrantLock()
     DoErase = Lock.newCondition()

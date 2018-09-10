@@ -523,9 +523,9 @@ trait Procedures {
       SIZE = SIZE - 1
     }
   }
-  def rangeeq(ar0: buffer, n0: Int, ar1: buffer, n1: Int, mode: Int, boolvar: Ref[Boolean])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+  def rangeeq(ar0: buffer, n0: Int, ar1: buffer, n1: Int, n2: Int, boolvar: Ref[Boolean])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
     import _algebraic_implicit._
-    var n: Int = mode
+    var n: Int = n2
     if (n0 + n <= ar0.length && n1 + n <= ar1.length) {
       while (n != 0 && ar0((n0 + n) - 1) == ar1((n1 + n) - 1)) {
         n = n - 1

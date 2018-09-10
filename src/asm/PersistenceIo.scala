@@ -113,9 +113,9 @@ class PersistenceIo(var LEBSIZE : Int, var LOGOFF : Int, var PAGESIZE : Int, val
     if (ERR.get == types.error.ESUCCESS) {
       
       {
-        val mode: Ref[Int] = Ref[Int](LEBSIZE)
-        ebm_avol.get_leb_size(mode)
-        LEBSIZE = mode.get
+        val nat_variable0: Ref[Int] = Ref[Int](LEBSIZE)
+        ebm_avol.get_leb_size(nat_variable0)
+        LEBSIZE = nat_variable0.get
       }
     }
     SB.indexaddr = INDEXADR0
@@ -128,9 +128,9 @@ class PersistenceIo(var LEBSIZE : Int, var LOGOFF : Int, var PAGESIZE : Int, val
     if (ERR.get == types.error.ESUCCESS) {
       
       {
-        val mode: Ref[Int] = Ref[Int](PAGESIZE)
-        ebm_avol.get_page_size(mode)
-        PAGESIZE = mode.get
+        val nat_variable0: Ref[Int] = Ref[Int](PAGESIZE)
+        ebm_avol.get_page_size(nat_variable0)
+        PAGESIZE = nat_variable0.get
       }
     }
     if (ERR.get == types.error.ESUCCESS) {
@@ -222,15 +222,15 @@ class PersistenceIo(var LEBSIZE : Int, var LOGOFF : Int, var PAGESIZE : Int, val
     } else {
       
       {
-        val mode: Ref[Int] = Ref[Int](LEBSIZE)
-        ebm_avol.get_leb_size(mode)
-        LEBSIZE = mode.get
+        val nat_variable0: Ref[Int] = Ref[Int](LEBSIZE)
+        ebm_avol.get_leb_size(nat_variable0)
+        LEBSIZE = nat_variable0.get
       }
       
       {
-        val mode: Ref[Int] = Ref[Int](PAGESIZE)
-        ebm_avol.get_page_size(mode)
-        PAGESIZE = mode.get
+        val nat_variable0: Ref[Int] = Ref[Int](PAGESIZE)
+        ebm_avol.get_page_size(nat_variable0)
+        PAGESIZE = nat_variable0.get
       }
       val VOLSIZE = Ref[Int](0)
       ebm_avol.get_volume_size(VOLSIZE)

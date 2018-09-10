@@ -20,9 +20,9 @@ class UbiIoAsm(var PAGESIZE : Int, val mtd : MtdInterface)(implicit _algebraic_i
     mtd.init(Err)
     
     {
-      val mode: Ref[Int] = Ref[Int](PAGESIZE)
-      mtd.get_page_size(mode)
-      PAGESIZE = mode.get
+      val nat_variable0: Ref[Int] = Ref[Int](PAGESIZE)
+      mtd.get_page_size(nat_variable0)
+      PAGESIZE = nat_variable0.get
     }
     if (Err.get == types.error.ESUCCESS) {
       val N = Ref[Int](0)
@@ -123,9 +123,9 @@ class UbiIoAsm(var PAGESIZE : Int, val mtd : MtdInterface)(implicit _algebraic_i
   override def recovery(): Unit = {
     
     {
-      val mode: Ref[Int] = Ref[Int](PAGESIZE)
-      mtd.get_page_size(mode)
-      PAGESIZE = mode.get
+      val nat_variable0: Ref[Int] = Ref[Int](PAGESIZE)
+      mtd.get_page_size(nat_variable0)
+      PAGESIZE = nat_variable0.get
     }
   }
 

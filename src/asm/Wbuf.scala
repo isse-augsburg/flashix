@@ -50,9 +50,9 @@ class Wbuf(var BUFLEB : bufleb, var PAGESIZE : Int, var ROFS : Boolean, val WBUF
     if (ERR.get == types.error.ESUCCESS) {
       
       {
-        val mode: Ref[Int] = Ref[Int](PAGESIZE)
-        apersistence_io.get_page_size(mode)
-        PAGESIZE = mode.get
+        val nat_variable0: Ref[Int] = Ref[Int](PAGESIZE)
+        apersistence_io.get_page_size(nat_variable0)
+        PAGESIZE = nat_variable0.get
       }
       BUFLEB = types.bufleb.nobuffer
       WBUF.content = new buffer(PAGESIZE)
@@ -103,9 +103,9 @@ class Wbuf(var BUFLEB : bufleb, var PAGESIZE : Int, var ROFS : Boolean, val WBUF
     if (ERR.get == types.error.ESUCCESS) {
       
       {
-        val mode: Ref[Int] = Ref[Int](PAGESIZE)
-        apersistence_io.get_page_size(mode)
-        PAGESIZE = mode.get
+        val nat_variable0: Ref[Int] = Ref[Int](PAGESIZE)
+        apersistence_io.get_page_size(nat_variable0)
+        PAGESIZE = nat_variable0.get
       }
       BUFLEB = types.bufleb.nobuffer
       WBUF.content = new buffer(PAGESIZE)

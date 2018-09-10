@@ -139,11 +139,11 @@ trait Algebraic {
     return types.index_node.indexnode(save(znd.zbranches, 0, znd.usedsize), znd.leaf, znd.usedsize)
   }
 
-  def save(zbrar: zbranch_array, m: Int, mode: Int): branch_array = {
-    if (mode == 0)
+  def save(zbrar: zbranch_array, m: Int, nat_variable0: Int): branch_array = {
+    if (nat_variable0 == 0)
       return new branch_array(BRANCH_SIZE).fill(types.branch.uninit)
     else {
-      val branch_array_variable0: branch_array = save(zbrar, m + 1, mode - 1).deepCopy
+      val branch_array_variable0: branch_array = save(zbrar, m + 1, nat_variable0 - 1).deepCopy
       branch_array_variable0(m) = save(zbrar(m))
       return branch_array_variable0
     }

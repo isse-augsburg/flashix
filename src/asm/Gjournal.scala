@@ -354,9 +354,9 @@ class Gjournal(var DOSYNC : Boolean, var JMAXINO : Int, val JRO : nat_set, var J
     val JNL: nat_list = new nat_list()
     
     {
-      val mode: Ref[Int] = Ref[Int](JMAXINO)
-      index.recover(mode, JNL, JRO, ERR)
-      JMAXINO = mode.get
+      val nat_variable0: Ref[Int] = Ref[Int](JMAXINO)
+      index.recover(nat_variable0, JNL, JRO, ERR)
+      JMAXINO = nat_variable0.get
     }
     if (ERR.get != types.error.ESUCCESS) {
       debug("gjournal: persistence recover failed")

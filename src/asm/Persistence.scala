@@ -207,9 +207,9 @@ class Persistence(val FREELIST : nat_list, val GCHEAP : binheap, val Gcarray : g
     } else {
       
       {
-        val mode: Ref[Int] = Ref[Int](LEBSIZE)
-        awbuf.get_leb_size(mode)
-        LEBSIZE = mode.get
+        val nat_variable0: Ref[Int] = Ref[Int](LEBSIZE)
+        awbuf.get_leb_size(nat_variable0)
+        LEBSIZE = nat_variable0.get
       }
       LOG.clear
       create_freelist()
@@ -340,9 +340,9 @@ class Persistence(val FREELIST : nat_list, val GCHEAP : binheap, val Gcarray : g
     } else {
       
       {
-        val mode: Ref[Int] = Ref[Int](LEBSIZE)
-        awbuf.get_leb_size(mode)
-        LEBSIZE = mode.get
+        val nat_variable0: Ref[Int] = Ref[Int](LEBSIZE)
+        awbuf.get_leb_size(nat_variable0)
+        LEBSIZE = nat_variable0.get
       }
       val LOG0: nat_list = LOG.deepCopy
       replay_log(LOG0)

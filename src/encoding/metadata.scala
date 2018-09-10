@@ -16,8 +16,8 @@ import types.seekflag.seekflag
 import types.wlstatus.wlstatus
 
 object metadata {
-  def ENCODED_METADATA_SIZE(implicit _algebraic_implicit: algebraic.Algebraic): Int = {
-    return (((((((ENCODED_NAT_SIZE + ENCODED_NAT_SIZE) + ENCODED_NAT_SIZE) + ENCODED_NAT_SIZE) + ENCODED_NAT_SIZE) + ENCODED_NAT_SIZE) + ENCODED_NAT_SIZE) + ENCODED_NAT_SIZE) + ENCODED_NAT_SIZE
+  def flashsize_metadata(elem: metadata)(implicit _algebraic_implicit: algebraic.Algebraic): Int = {
+    return (((((((flashsize_int(elem.mode) + flashsize_int(elem.uid)) + flashsize_int(elem.gid)) + flashsize_int(elem.atime)) + flashsize_int(elem.atimesec)) + flashsize_int(elem.mtime)) + flashsize_int(elem.mtimesec)) + flashsize_int(elem.ctime)) + flashsize_int(elem.ctimesec)
   }
 
   def encode_metadata(elem: metadata, index: Int, buf: buffer, nbytes: Ref[Int], err: Ref[error])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
@@ -26,39 +26,39 @@ object metadata {
     val tmpsize = Ref[Int](0)
     err := types.error.ESUCCESS
     if (err.get == types.error.ESUCCESS) {
-      encode_nat(elem.mode, index + nbytes.get, buf, tmpsize, err)
+      encode_int(elem.mode, index + nbytes.get, buf, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
-      encode_nat(elem.uid, index + nbytes.get, buf, tmpsize, err)
+      encode_int(elem.uid, index + nbytes.get, buf, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
-      encode_nat(elem.gid, index + nbytes.get, buf, tmpsize, err)
+      encode_int(elem.gid, index + nbytes.get, buf, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
-      encode_nat(elem.atime, index + nbytes.get, buf, tmpsize, err)
+      encode_int(elem.atime, index + nbytes.get, buf, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
-      encode_nat(elem.atimesec, index + nbytes.get, buf, tmpsize, err)
+      encode_int(elem.atimesec, index + nbytes.get, buf, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
-      encode_nat(elem.mtime, index + nbytes.get, buf, tmpsize, err)
+      encode_int(elem.mtime, index + nbytes.get, buf, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
-      encode_nat(elem.mtimesec, index + nbytes.get, buf, tmpsize, err)
+      encode_int(elem.mtimesec, index + nbytes.get, buf, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
-      encode_nat(elem.ctime, index + nbytes.get, buf, tmpsize, err)
+      encode_int(elem.ctime, index + nbytes.get, buf, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
-      encode_nat(elem.ctimesec, index + nbytes.get, buf, tmpsize, err)
+      encode_int(elem.ctimesec, index + nbytes.get, buf, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get
     }
   }
@@ -78,39 +78,39 @@ object metadata {
     val ctime = Ref[Int](0)
     val ctimesec = Ref[Int](0)
     if (err.get == types.error.ESUCCESS) {
-      decode_nat(index + nbytes.get, buf, mode, tmpsize, err)
+      decode_int(index + nbytes.get, buf, mode, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
-      decode_nat(index + nbytes.get, buf, uid, tmpsize, err)
+      decode_int(index + nbytes.get, buf, uid, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
-      decode_nat(index + nbytes.get, buf, gid, tmpsize, err)
+      decode_int(index + nbytes.get, buf, gid, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
-      decode_nat(index + nbytes.get, buf, atime, tmpsize, err)
+      decode_int(index + nbytes.get, buf, atime, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
-      decode_nat(index + nbytes.get, buf, atimesec, tmpsize, err)
+      decode_int(index + nbytes.get, buf, atimesec, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
-      decode_nat(index + nbytes.get, buf, mtime, tmpsize, err)
+      decode_int(index + nbytes.get, buf, mtime, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
-      decode_nat(index + nbytes.get, buf, mtimesec, tmpsize, err)
+      decode_int(index + nbytes.get, buf, mtimesec, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
-      decode_nat(index + nbytes.get, buf, ctime, tmpsize, err)
+      decode_int(index + nbytes.get, buf, ctime, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS) {
-      decode_nat(index + nbytes.get, buf, ctimesec, tmpsize, err)
+      decode_int(index + nbytes.get, buf, ctimesec, tmpsize, err)
       nbytes := nbytes.get + tmpsize.get
     }
     if (err.get == types.error.ESUCCESS)

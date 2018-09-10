@@ -21,7 +21,7 @@ import types.wlstatus.wlstatus
 object node {
   def flashsize_node(elem: node)(implicit _algebraic_implicit: algebraic.Algebraic): Int = {
     if (elem.isInstanceOf[types.node.inodenode])
-      return 1 + (((((flashsize_key(elem.key) + ENCODED_METADATA_SIZE) + ENCODED_BOOL_SIZE) + ENCODED_NAT_SIZE) + ENCODED_NAT_SIZE) + ENCODED_NAT_SIZE)
+      return 1 + (((((flashsize_key(elem.key) + flashsize_metadata(elem.meta)) + ENCODED_BOOL_SIZE) + ENCODED_NAT_SIZE) + ENCODED_NAT_SIZE) + ENCODED_NAT_SIZE)
     else     if (! elem.isInstanceOf[types.node.inodenode] && elem.isInstanceOf[types.node.dentrynode])
       return 1 + (flashsize_key(elem.key) + ENCODED_NAT_SIZE)
     else     if (! elem.isInstanceOf[types.node.inodenode] && (! elem.isInstanceOf[types.node.dentrynode] && elem.isInstanceOf[types.node.datanode]))
