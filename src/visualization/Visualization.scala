@@ -53,12 +53,16 @@ object Visualization {
     implicit val algebraic = new Algebraic(mtd)
     implicit val procedures = new Procedures()
 
-    val flashix = new Flashix(cachingStrategy, mtd)
-
     object observable extends Observable[Flashix]
-
+    def update0(flashix: Flashix) = { observable update flashix }
+    val flashix = new Flashix(cachingStrategy, update0, mtd)
     def update() {
-      observable update flashix
+      flashix synchronized {
+        // Hold UBI main lock, because we are accessing wear-leveling array, which is protected by this lock
+        flashix.ubi.Lock.lock()
+        update0(flashix)
+        flashix.ubi.Lock.unlock()
+      }
     }
 
     val refresh = check("Refresh", true, { if (_) update() })
@@ -151,7 +155,7 @@ object Visualization {
     if (err != ESUCCESS)
       System.exit(1)
 
-    vis foreach (observable += _)
+    vis foreach { observable += _ }
 
     update()
 

@@ -43,7 +43,7 @@ object Mount {
     implicit val procedures = new Procedures()
 
     // Format/Recover Flashix File System
-    val flashix = new Flashix(cachingStrategy, mtd)
+    val flashix = new Flashix(cachingStrategy, {flashix => }, mtd)
     val dosync = false
     val err = new Ref(error.uninit)
     if (format) {

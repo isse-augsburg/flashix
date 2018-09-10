@@ -4,8 +4,9 @@ import asm._
 import types._
 import types.error._
 import helpers.scala._
+import visualization.Observable
 
-class Flashix(cachingStrategy: Flashix.CachingStrategy, mtd: MtdInterface)(implicit val ops: algebraic.Algebraic, val procs: proc.Procedures) {
+class Flashix(cachingStrategy: Flashix.CachingStrategy, concurrentUpdate: Flashix => Unit, mtd: MtdInterface)(implicit val ops: algebraic.Algebraic, val procs: proc.Procedures) {
   import ops._
   import procs._
 
@@ -93,6 +94,7 @@ class Flashix(cachingStrategy: Flashix.CachingStrategy, mtd: MtdInterface)(impli
   private var erase: Thread = _
 
   def startConcurrentOps {
+    val flashix = this
     // Start concurrent erase/wear-leveling
     wearleveling = new Thread {
       override def run {
@@ -103,6 +105,8 @@ class Flashix(cachingStrategy: Flashix.CachingStrategy, mtd: MtdInterface)(impli
             val iswl: Ref[Boolean] = Ref(false)
             ubi.wear_leveling_worker(err, iswl)
             println("ubi: performed wear-leveling, err = " + err.get)
+
+            concurrentUpdate(flashix)
           }
         } catch {
           case _: InterruptedException =>
@@ -117,6 +121,8 @@ class Flashix(cachingStrategy: Flashix.CachingStrategy, mtd: MtdInterface)(impli
             println("ubi: waiting for erase")
             ubi.erase_worker
             println("ubi: performed erasing")
+
+            concurrentUpdate(flashix)
           }
         } catch {
           case _: InterruptedException =>
