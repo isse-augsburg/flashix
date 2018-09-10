@@ -39,8 +39,8 @@ object Visualization {
 
     // Implicit configuration options
     val deviceFile = new File("flash-device")
-    val pebs = 1024
-    val pages_per_peb = 256
+    val pebs = 512
+    val pages_per_peb = 32
     val page_size = 2048
     val spare_pebs = 5
     val doFormat = !deviceFile.exists()
