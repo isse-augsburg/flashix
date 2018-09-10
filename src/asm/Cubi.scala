@@ -57,6 +57,7 @@ class Cubi(var DoErase : Condition, var DoWl : Condition, val Eraseq : queue, va
     if (ERR.get == types.error.ESUCCESS) {
       atomic_leb_change(VOLID, LNUM, TO.get, N, BUF, ERR)
     }
+    DoErase.signal
     VolLocks(VOLID)(LNUM).writeLock().unlock()
     Lock.unlock
   }
