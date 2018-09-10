@@ -421,6 +421,7 @@ class Cubi(var DoErase : Condition, var DoWl : Condition, val Eraseq : queue, va
     val VALID = Ref[Boolean](helpers.scala.Boolean.uninit)
     ubi_awl.get_leb_for_wl(FROM, AVHDR, VALID)
     Lock.unlock
+    val BITFLIPS = Ref[Boolean](helpers.scala.Boolean.uninit)
     if (VALID.get && (AVHDR.get.isInstanceOf[types.avidheader.avidhdr] && (Vols.contains(AVHDR.get.vol) && AVHDR.get.leb < Vols(AVHDR.get.vol).length))) {
       VolLocks(AVHDR.get.vol)(AVHDR.get.leb).writeLock().lock()
       Lock.lock
@@ -430,7 +431,6 @@ class Cubi(var DoErase : Condition, var DoWl : Condition, val Eraseq : queue, va
         ubi_awl.get_pebs_for_wl(TO, PNUM, VALID, IsWl)
         if (PNUM.get == FROM.get && VALID.get) {
           val BUF: buffer = new buffer(LEBSIZE).fill(0.toByte)
-          val BITFLIPS = Ref[Boolean](helpers.scala.Boolean.uninit)
           ubi_awl.read_data(FROM.get, 0, 0, LEBSIZE, BUF, BITFLIPS, ERR)
           if (ERR.get == types.error.ESUCCESS) {
             atomic_leb_change(AVHDR.get.vol, AVHDR.get.leb, TO.get, LEBSIZE, BUF, ERR)
@@ -439,6 +439,17 @@ class Cubi(var DoErase : Condition, var DoWl : Condition, val Eraseq : queue, va
       }
       VolLocks(AVHDR.get.vol)(AVHDR.get.leb).writeLock().unlock()
       Lock.unlock
+    } else     if (VALID.get && (AVHDR.get.isInstanceOf[types.avidheader.avidhdr] && (AVHDR.get.vol == VTBL_VOLID && (AVHDR.get.leb == VTBL_LNUM && FROM.get == VtblPnum)))) {
+      val PNUM = Ref[Int](0)
+      val TO = Ref[Int](0)
+      ubi_awl.get_pebs_for_wl(TO, PNUM, VALID, IsWl)
+      if (PNUM.get == FROM.get && VALID.get) {
+        val BUF: buffer = new buffer(LEBSIZE).fill(0.toByte)
+        ubi_awl.read_data(FROM.get, 0, 0, LEBSIZE, BUF, BITFLIPS, ERR)
+        if (ERR.get == types.error.ESUCCESS) {
+          atomic_leb_change(AVHDR.get.vol, AVHDR.get.leb, TO.get, LEBSIZE, BUF, ERR)
+        }
+      }
     } else {
       ERR := types.error.ENOSPC
       IsWl := false
