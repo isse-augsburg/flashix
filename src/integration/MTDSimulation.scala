@@ -10,7 +10,7 @@ import types._
 import types.error._
 import java.util.Arrays
 
-class MTDSimulation private(val file: RandomAccessFile, val PEBS: Int, val PAGES_PER_PEB: Int, val EB_PAGE_SIZE: Int) extends asm.MtdInterface {
+class MTDSimulation private (val file: RandomAccessFile, val PEBS: Int, val PAGES_PER_PEB: Int, val EB_PAGE_SIZE: Int) extends asm.MtdInterface {
 
   val empty: Byte = 0xFF.toByte
   val PEB_SIZE: Int = PAGES_PER_PEB * EB_PAGE_SIZE
@@ -25,8 +25,10 @@ class MTDSimulation private(val file: RandomAccessFile, val PEBS: Int, val PAGES
       empty_peb(i) = empty
     }
     try {
-      file.seek(PNUM * PEB_SIZE)
-      file.write(empty_peb)
+      file synchronized {
+        file.seek(PNUM * PEB_SIZE)
+        file.write(empty_peb)
+      }
       ERR := ESUCCESS
     } catch {
       case e: Exception =>
@@ -60,8 +62,10 @@ class MTDSimulation private(val file: RandomAccessFile, val PEBS: Int, val PAGES
 
   final override def read(PNUM: Int, OFFSET: Int, N0: Int, N: Int, BUF: buffer, BITFLIPS: Ref[Boolean], ERR: Ref[error]) {
     try {
-      file.seek(PNUM * PEB_SIZE + OFFSET)
-      file.read(BUF.array, N0, N)
+      file synchronized {
+        file.seek(PNUM * PEB_SIZE + OFFSET)
+        file.read(BUF.array, N0, N)
+      }
       ERR := ESUCCESS
     } catch {
       case e: Exception =>
@@ -74,8 +78,10 @@ class MTDSimulation private(val file: RandomAccessFile, val PEBS: Int, val PAGES
 
   final override def write(PNUM: Int, OFFSET: Int, N0: Int, N: Int, BUF: buffer, ERR: Ref[error]) {
     try {
-      file.seek(PNUM * PEB_SIZE + OFFSET)
-      file.write(BUF.array, N0, N)
+      file synchronized {
+        file.seek(PNUM * PEB_SIZE + OFFSET)
+        file.write(BUF.array, N0, N)
+      }
       ERR := ESUCCESS
     } catch {
       case e: Exception =>
