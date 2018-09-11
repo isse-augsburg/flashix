@@ -26,7 +26,7 @@ trait Tab extends Component with Observer[Flashix] {
 object Visualization {
   def printHelp {
     println("usage:")
-    println("  flashix [-odebug] [-obig_writes] <mountpoint>")
+    println("  flashix [-caching=none/wbuf/afs] [-odebug] [-obig_writes] <mountpoint>")
   }
 
   def main(initialArgs: Array[String]) {
@@ -54,13 +54,13 @@ object Visualization {
     implicit val procedures = new Procedures()
 
     object observable extends Observable[Flashix]
-    def update0(flashix: Flashix) = { observable update flashix }
-    val flashix = new Flashix(cachingStrategy, update0, mtd)
-    def update() {
+    def update0(flashix: Flashix) = {
       flashix synchronized {
-        update0(flashix)
+        observable update flashix
       }
     }
+    val flashix = new Flashix(cachingStrategy, update0, mtd)
+    def update() { update0(flashix) }
 
     val refresh = check("Refresh", true, { if (_) update() })
 
