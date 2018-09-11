@@ -152,36 +152,36 @@ class Cubi(var DoErase : Condition, var DoWl : Condition, val Eraseq : queue, va
         }
         PNUM = PNUM + 1
       }
+    }
+    if (ERR.get == types.error.ESUCCESS) {
+      
+      {
+        val nat_variable0: Ref[Int] = Ref[Int](VtblPnum)
+        ubi_awl.get_free_peb(nat_variable0, ERR)
+        VtblPnum = nat_variable0.get
+      }
       if (ERR.get == types.error.ESUCCESS) {
-        
-        {
-          val nat_variable0: Ref[Int] = Ref[Int](VtblPnum)
-          ubi_awl.get_free_peb(nat_variable0, ERR)
-          VtblPnum = nat_variable0.get
-        }
+        ubi_awl.write_vidhdr(VtblPnum, types.avidheader.avidhdr(VTBL_VOLID, VTBL_LNUM, 0, 0, 0), ERR)
         if (ERR.get == types.error.ESUCCESS) {
-          ubi_awl.write_vidhdr(VtblPnum, types.avidheader.avidhdr(VTBL_VOLID, VTBL_LNUM, 0, 0, 0), ERR)
-          if (ERR.get == types.error.ESUCCESS) {
-            if (ENCODED_NAT_SIZE + (ENCODED_VOLID_SIZE + ENCODED_NAT_SIZE) > LEBSIZE) {
-              ERR := types.error.ENOSPC
-            } else {
-              val BUF: buffer = new buffer(LEBSIZE).fill(0.toByte)
-              val VTBL: vtbl = new vtbl()
-              VTBL(VOLID) = N.get
-              encode_vtbl(VTBL, BUF, ERR)
-              if (ERR.get == types.error.ESUCCESS) {
-                ubi_awl.write_data(VtblPnum, 0, 0, LEBSIZE, BUF, ERR)
-              }
+          if (ENCODED_NAT_SIZE + (ENCODED_VOLID_SIZE + ENCODED_NAT_SIZE) > LEBSIZE) {
+            ERR := types.error.ENOSPC
+          } else {
+            val BUF: buffer = new buffer(LEBSIZE).fill(0.toByte)
+            val VTBL: vtbl = new vtbl()
+            VTBL(VOLID) = N
+            encode_vtbl(VTBL, BUF, ERR)
+            if (ERR.get == types.error.ESUCCESS) {
+              ubi_awl.write_data(VtblPnum, 0, 0, LEBSIZE, BUF, ERR)
             }
           }
-          ubi_awl.set_status(VtblPnum, types.wlstatus.used)
-          Vols.clear
-          Vols(VOLID) = new ebatbl(N.get)
-          Vols(VOLID).fill(types.ebaentry.unmapped)
-          VolLocks.clear
-          init_vollocks(VOLID, N.get)
-          Eraseq.clear
         }
+        ubi_awl.set_status(VtblPnum, types.wlstatus.used)
+        Vols.clear
+        Vols(VOLID) = new ebatbl(N)
+        Vols(VOLID).fill(types.ebaentry.unmapped)
+        VolLocks.clear
+        init_vollocks(VOLID, N)
+        Eraseq.clear
       }
     }
   }

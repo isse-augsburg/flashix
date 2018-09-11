@@ -57,8 +57,9 @@ class Gjournal(var DOSYNC : Boolean, var JMAXINO : Int, val JRO : nat_set, var J
         if (SIZE.get < flashsize(NDLIST.head)) {
           index.get_leb_size(SIZE)
         }
-      } else
+      } else {
         index.get_leb_size(SIZE)
+      }
       val NDLIST0: node_list = new node_list()
       gjournal_split_nodes(SIZE.get, NDLIST, NDLIST0)
       if (NDLIST0.isEmpty) {
