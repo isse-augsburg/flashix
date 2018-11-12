@@ -11,11 +11,13 @@ import java.util.concurrent.locks._
 import types._
 import types.error.error
 
-class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit: algebraic.Algebraic) extends AfsInterface {
+class Aubifs(var DoGc: Condition, var Lock: ReentrantReadWriteLock, val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit: algebraic.Algebraic) extends AfsInterface {
   import _algebraic_implicit._
 
   override def check_commit(ERR: Ref[error]): Unit = {
+    Lock.writeLock().lock()
     aubifs_core.check_commit(ERR)
+    Lock.writeLock().unlock()
   }
 
   override def create(MD: metadata, P_INODE: inode, C_INODE: inode, DENT: Ref[dentry], ERR: Ref[error]): Unit = {
@@ -29,11 +31,18 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
     val ADR1 = Ref[address](types.address.uninit)
     val ADR2 = Ref[address](types.address.uninit)
     val ADR3 = Ref[address](types.address.uninit)
+
+    Lock.writeLock().lock()
     aubifs_core.journal_add3(ND1, ND2, ND3, ADR1, ADR2, ADR3, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       aubifs_core.index_store(KEY1, ADR1.get)
       aubifs_core.index_store(KEY2, ADR2.get)
       aubifs_core.index_store(KEY3.get, ADR3.get)
+    }
+    DoGc.signal()
+    Lock.writeLock().unlock()
+
+    if (ERR.get == types.error.ESUCCESS) {
       DENT := types.dentry.mkdentry(DENT.get.name, KEY3.get.ino)
       P_INODE := types.inode.mkinode(P_INODE.ino, ND1.meta, ND1.directory, ND1.nlink, ND1.nsubdirs, ND1.size)
       C_INODE := types.inode.mkinode(KEY3.get.ino, ND3.meta, ND3.directory, ND3.nlink, ND3.nsubdirs, ND3.size)
@@ -43,16 +52,29 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
   override def evict(INODE: inode, ERR: Ref[error]): Unit = {
     val KEY: key = types.key.inodekey(INODE.ino)
     val EXISTS = Ref[Boolean](helpers.scala.Boolean.uninit)
+
+    Lock.writeLock().lock()
     aubifs_core.orphans_contains(KEY, EXISTS)
     if (EXISTS.get) {
       aubifs_core.index_truncate(KEY, 0)
       aubifs_core.orphans_remove(KEY)
       aubifs_core.index_remove(KEY)
     }
+    DoGc.signal()
+    Lock.writeLock().unlock()
+
     ERR := types.error.ESUCCESS
   }
 
   override def format(VOLSIZE: Int, DOSYNC: Boolean, SIZE: Int, MD: metadata, ERR: Ref[error]): Unit = {
+    if (Lock != null) {
+      Lock.writeLock().lock() // make sure nobody else still has this lock
+    }
+
+    Lock = new ReentrantReadWriteLock()
+    DoGc = Lock.writeLock().newCondition()
+
+    Lock.writeLock().lock()
     aubifs_core.format(VOLSIZE, SIZE, DOSYNC, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       val KEY: key = types.key.inodekey(ROOT_INO)
@@ -66,6 +88,7 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
         aubifs_core.journal_sync(ERR)
       }
     }
+    Lock.writeLock().unlock()
   }
 
   override def fsync(INODE: inode, ISDATASYNC: Boolean, ERR: Ref[error]): Unit = {
@@ -77,7 +100,80 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
   }
 
   def gc(): Unit = {
+    Lock.writeLock().lock()
     aubifs_core.journal_gc()
+    Lock.writeLock().unlock()
+  }
+
+  private def percent_of(percent: Int, amount: Int): Int = amount * percent / 100
+
+  def do_gc(is_easy: Boolean, ERR: Ref[error], free_lebs: Int): Unit = {
+    println("flashix: attempting garbage collection with %d LEBs (%s)" format (free_lebs, if (is_easy) "easy" else "critical"))
+
+    check_commit(ERR)
+
+    if (ERR.get == error.ESUCCESS) {
+      Lock.writeLock().lock()
+      aubifs_core.journal_gc()
+      Lock.writeLock().unlock()
+    } else {
+      println(s"flashix: garbage collection impossible")
+    }
+  }
+
+  def gc_critical(tryCommit: Boolean, free: Int, log: Int, ERR: Ref[error]): Unit = {
+    if (tryCommit && log != 0 && free == 0) {
+      val total_bytes = Ref[Int](0)
+      val free_bytes = Ref[Int](0)
+      val LEB_SIZE = Ref[Int](0)
+
+      aubifs_core.compute_stats(total_bytes, free_bytes, LEB_SIZE)
+
+      if (free_bytes.get > LEB_SIZE.get * (4 + free)) {
+        println(s"flashix: attempting to free $free_bytes bytes from the log")
+        Lock.writeLock().lock()
+        aubifs_core.commit(ERR)
+        Lock.writeLock().unlock()
+
+        gc_loop(tryCommit, log, ERR)
+      }
+    } else {
+      println(s"flashix: no blocks available for garbage collection")
+    }
+  }
+
+  // adapted from: integration/fuse/FilesystemAdapter GCloop
+  def gc_loop(tryCommit: Boolean, log: Int, ERR: Ref[error]): Unit = {
+    val (total, free) = (Ref[Int](0), Ref[Int](0))
+    aubifs_core.main_area_LEBs(total, free)
+    val isCritical = free.get < percent_of(10, total.get)
+
+    val N = new Ref[Int](0)
+    aubifs_core.get_gc_block(N, ERR)
+
+    if (ERR.get == error.ESUCCESS) {
+      val isEasy = false // lp.ref_size < percent_of(30, LEB_SIZE)
+      val eligible = Ref[Boolean](false)
+      aubifs_core.is_block_eligible_for_gc(N.get, eligible)
+
+      if (!eligible.get) {
+        if (isCritical) gc_critical(tryCommit, free.get, log, ERR)
+      } else if (isEasy || isCritical) {
+        do_gc(isEasy, ERR, free.get)
+        if (ERR.get == error.ESUCCESS)
+          gc_loop(tryCommit, log, ERR)
+      }
+    } else {
+      gc_critical(tryCommit, free.get, log, ERR)
+    }
+  }
+
+  def gc_worker(tryCommit: Boolean, log: Int, ERR: Ref[error]): Unit = {
+    Lock.writeLock().lock()
+    DoGc.await()
+    Lock.writeLock().unlock()
+
+    gc_loop(tryCommit, log, ERR)
   }
 
   override def iget(INO: Int, INODE: inode, ERR: Ref[error]): Unit = {
@@ -90,7 +186,11 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
     if (ERR.get == types.error.ESUCCESS) {
       val KEY: key = types.key.inodekey(INO)
       val ND = Ref[node](types.node.uninit)
+
+      Lock.readLock().lock()
       aubifs_core.index_lookup(KEY, EXISTS, ND, ERR)
+      Lock.readLock().unlock()
+
       if (ERR.get == types.error.ESUCCESS && EXISTS.get) {
         INODE := types.inode.mkinode(INO, ND.get.meta, ND.get.directory, ND.get.nlink, if (ND.get.directory) ND.get.nsubdirs else 0, ND.get.size)
       }
@@ -108,11 +208,18 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
     val ADR1 = Ref[address](types.address.uninit)
     val ADR2 = Ref[address](types.address.uninit)
     val ADR3 = Ref[address](types.address.uninit)
+
+    Lock.writeLock().lock()
     aubifs_core.journal_add3(ND1, ND2, ND3, ADR1, ADR2, ADR3, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       aubifs_core.index_store(KEY1, ADR1.get)
       aubifs_core.index_store(KEY2, ADR2.get)
       aubifs_core.index_store(KEY3, ADR3.get)
+    }
+    DoGc.signal()
+    Lock.writeLock().unlock()
+
+    if (ERR.get == types.error.ESUCCESS) {
       NEW_DENT := types.dentry.mkdentry(NEW_DENT.get.name, INO)
       P_INODE := types.inode.mkinode(P_INODE.ino, ND1.meta, ND1.directory, ND1.nlink, ND1.nsubdirs, ND1.size)
       C_INODE := types.inode.mkinode(INO, ND3.meta, ND3.directory, ND3.nlink, ND3.nsubdirs, ND3.size)
@@ -124,7 +231,11 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
     val KEY: key = types.key.dentrykey(P_INO, DENT.get.name)
     val ND = Ref[node](types.node.uninit)
     val EXISTS = Ref[Boolean](helpers.scala.Boolean.uninit)
+
+    Lock.readLock().lock()
     aubifs_core.index_lookup(KEY, EXISTS, ND, ERR)
+    Lock.readLock().unlock()
+
     if (ERR.get == types.error.ESUCCESS) {
       if (EXISTS.get) {
         ERR := types.error.ESUCCESS
@@ -147,11 +258,18 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
     val ADR1 = Ref[address](types.address.uninit)
     val ADR2 = Ref[address](types.address.uninit)
     val ADR3 = Ref[address](types.address.uninit)
+
+    Lock.writeLock().lock()
     aubifs_core.journal_add3(ND1, ND2, ND3, ADR1, ADR2, ADR3, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       aubifs_core.index_store(KEY1, ADR1.get)
       aubifs_core.index_store(KEY2, ADR2.get)
       aubifs_core.index_store(KEY3.get, ADR3.get)
+    }
+    DoGc.signal()
+    Lock.writeLock().unlock()
+
+    if (ERR.get == types.error.ESUCCESS) {
       DENT := types.dentry.mkdentry(DENT.get.name, KEY3.get.ino)
       P_INODE := types.inode.mkinode(P_INODE.ino, ND1.meta, ND1.directory, ND1.nlink, ND1.nsubdirs, ND1.size)
       C_INODE := types.inode.mkinode(KEY3.get.ino, ND3.meta, ND3.directory, ND3.nlink, ND3.nsubdirs, ND3.size)
@@ -160,14 +278,21 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
 
   override def readdir(INODE: inode, NAMES: stringset, ERR: Ref[error]): Unit = {
     val KEY: key = types.key.inodekey(INODE.ino)
+
+    Lock.readLock().lock()
     aubifs_core.index_entries(KEY, NAMES, ERR)
+    Lock.readLock().unlock()
   }
 
   override def readpage(INODE: inode, PAGENO: Int, PBUF: buffer, EXISTS: Ref[Boolean], ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
     val ND = Ref[node](types.node.uninit)
     val KEY: key = types.key.datakey(INODE.ino, PAGENO)
+
+    Lock.readLock().lock()
     aubifs_core.index_lookup(KEY, EXISTS, ND, ERR)
+    Lock.readLock().unlock()
+
     if (ERR.get == types.error.ESUCCESS) {
       if (EXISTS.get) {
         PBUF.copy(ND.get.data, 0, 0, VFS_PAGE_SIZE)
@@ -180,6 +305,14 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
   override def recovery(DOSYNC: Boolean, ERR: Ref[error]): Unit = {
     val AX: address_list = new address_list()
     val KS: key_set = new key_set()
+
+    if (Lock != null) {
+      Lock.writeLock().lock() // make sure nobody else still has this lock
+    }
+    Lock = new ReentrantReadWriteLock()
+    DoGc = Lock.writeLock().newCondition()
+
+    Lock.writeLock().lock()
     aubifs_core.recover(DOSYNC, AX, KS, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       replayorphans(KS)
@@ -187,6 +320,7 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
     if (ERR.get == types.error.ESUCCESS) {
       replaylog(AX, ERR)
     }
+    Lock.writeLock().unlock()
   }
 
   override def rename(OLD_CHILD_INODE: inode, OLD_PARENT_INODE: inode, NEW_PARENT_INODE: inode, NEW_CHILD_INODE: inode, OLD_DENT: Ref[dentry], NEW_DENT: Ref[dentry], ERR: Ref[error]): Unit = {
@@ -219,11 +353,18 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
     val ADR2 = Ref[address](types.address.uninit)
     val ADR3 = Ref[address](types.address.uninit)
     val ADR1 = Ref[address](types.address.uninit)
+
+    Lock.writeLock().lock()
     aubifs_core.journal_add3(ND1, ND2, ND3, ADR1, ADR2, ADR3, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       aubifs_core.index_remove(KEY1)
       aubifs_core.index_store(KEY2, ADR2.get)
       aubifs_core.index_store(KEY3, ADR3.get)
+    }
+    DoGc.signal()
+    Lock.writeLock().unlock()
+
+    if (ERR.get == types.error.ESUCCESS) {
       NEW_DENT := types.dentry.mkdentry(NEW_DENT.get.name, OLD_DENT.get.ino)
       OLD_DENT := types.dentry.negdentry(OLD_DENT.get.name)
       PARENT_INODE := types.inode.mkinode(PARENT_INODE.ino, ND3.meta, ND3.directory, ND3.nlink, ND3.nsubdirs, ND3.size)
@@ -243,12 +384,19 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
     val ADR2 = Ref[address](types.address.uninit)
     val ADR3 = Ref[address](types.address.uninit)
     val ADR1 = Ref[address](types.address.uninit)
+
+    Lock.writeLock().lock()
     aubifs_core.journal_add4(ND1, ND2, ND3, ND4, ADR1, ADR2, ADR3, ADR4, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       aubifs_core.index_remove(KEY1)
       aubifs_core.index_store(KEY2, ADR2.get)
       aubifs_core.index_store(KEY3, ADR3.get)
       aubifs_core.index_store(KEY4, ADR4.get)
+    }
+    DoGc.signal()
+    Lock.writeLock().unlock()
+
+    if (ERR.get == types.error.ESUCCESS) {
       NEW_DENT := types.dentry.mkdentry(NEW_DENT.get.name, OLD_DENT.get.ino)
       OLD_DENT := types.dentry.negdentry(OLD_DENT.get.name)
       OLD_PARENT_INODE := types.inode.mkinode(OLD_PARENT_INODE.ino, ND3.meta, ND3.directory, ND3.nlink, ND3.nsubdirs, ND3.size)
@@ -278,6 +426,8 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
     val ADR2 = Ref[address](types.address.uninit)
     val ADR3 = Ref[address](types.address.uninit)
     val ADR1 = Ref[address](types.address.uninit)
+
+    Lock.writeLock().lock()
     aubifs_core.journal_add4(ND1, ND2, ND3, ND4, ADR1, ADR2, ADR3, ADR4, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       aubifs_core.index_remove(KEY1)
@@ -287,6 +437,11 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
       if (ND4.nlink == 0) {
         aubifs_core.orphans_insert(KEY4)
       }
+    }
+    DoGc.signal()
+    Lock.writeLock().unlock()
+
+    if (ERR.get == types.error.ESUCCESS) {
       NEW_DENT := types.dentry.mkdentry(NEW_DENT.get.name, OLD_DENT.get.ino)
       OLD_DENT := types.dentry.negdentry(OLD_DENT.get.name)
       PARENT_INODE := types.inode.mkinode(PARENT_INODE.ino, ND3.meta, ND3.directory, ND3.nlink, ND3.nsubdirs, ND3.size)
@@ -310,6 +465,8 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
     val ADR2 = Ref[address](types.address.uninit)
     val ADR3 = Ref[address](types.address.uninit)
     val ADR1 = Ref[address](types.address.uninit)
+
+    Lock.writeLock().lock()
     aubifs_core.journal_add5(ND1, ND2, ND3, ND4, ND5, ADR1, ADR2, ADR3, ADR4, ADR5, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       aubifs_core.index_remove(KEY1)
@@ -320,6 +477,11 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
       if (ND5.nlink == 0) {
         aubifs_core.orphans_insert(KEY5)
       }
+    }
+    DoGc.signal()
+    Lock.writeLock().unlock()
+
+    if (ERR.get == types.error.ESUCCESS) {
       NEW_DENT := types.dentry.mkdentry(NEW_DENT.get.name, OLD_DENT.get.ino)
       OLD_DENT := types.dentry.negdentry(OLD_DENT.get.name)
       OLD_PARENT_INODE := types.inode.mkinode(OLD_PARENT_INODE.ino, ND3.meta, ND3.directory, ND3.nlink, ND3.nsubdirs, ND3.size)
@@ -394,12 +556,19 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
     val ADR1 = Ref[address](types.address.uninit)
     val ADR3 = Ref[address](types.address.uninit)
     val ADR2 = Ref[address](types.address.uninit)
+
+    Lock.writeLock().lock()
     aubifs_core.journal_add3(ND1, ND2, ND3, ADR1, ADR2, ADR3, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       aubifs_core.index_store(KEY1, ADR1.get)
       aubifs_core.index_remove(KEY2)
       aubifs_core.index_store(KEY3, ADR3.get)
       aubifs_core.orphans_insert(KEY3)
+    }
+    DoGc.signal()
+    Lock.writeLock().unlock()
+
+    if (ERR.get == types.error.ESUCCESS) {
       DENT := types.dentry.negdentry(DENT.get.name)
       P_INODE := types.inode.mkinode(P_INODE.ino, ND1.meta, ND1.directory, ND1.nlink, ND1.nsubdirs, ND1.size)
       C_INODE := types.inode.mkinode(INO, ND3.meta, ND3.directory, ND3.nlink, ND3.nsubdirs, ND3.size)
@@ -407,7 +576,9 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
   }
 
   override def sync(ERR: Ref[error]): Unit = {
+    Lock.writeLock().lock()
     aubifs_core.journal_sync(ERR)
+    Lock.writeLock().unlock()
   }
 
   override def truncate(N: Int, PAGENO: Int, PBUF_OPT: Ref[buffer_opt], INODE: inode, ERR: Ref[error]): Unit = {
@@ -422,6 +593,8 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
     val KEY3: key = types.key.datakey(INODE.ino, PAGENO)
     val ND2: node = types.node.inodenode(KEY2, INODE.meta, INODE.directory, INODE.nlink, INODE.nsubdirs, N)
     val ND3 = Ref[node](types.node.uninit)
+
+    Lock.writeLock().lock()
     if (INODE.size <= N && OFFSET != 0) {
       if (PBUF_OPT.get.isInstanceOf[types.buffer_opt.some]) {
         ND3 := types.node.datanode(KEY3, PBUF_OPT.get.buf).deepCopy
@@ -449,6 +622,11 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
     if (ERR.get == types.error.ESUCCESS) {
       aubifs_core.index_store(KEY2, ADR2.get)
       aubifs_core.index_truncate(KEY1, SIZE)
+    }
+    DoGc.signal()
+    Lock.writeLock().unlock()
+
+    if (ERR.get == types.error.ESUCCESS) {
       INODE := types.inode.mkinode(INODE.ino, ND2.meta, ND2.directory, ND2.nlink, ND2.nsubdirs, ND2.size)
       if (EXISTS.get) {
         PBUF_OPT := types.buffer_opt.some(ND3.get.data).deepCopy
@@ -467,6 +645,8 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
     val ADR1 = Ref[address](types.address.uninit)
     val ADR3 = Ref[address](types.address.uninit)
     val ADR2 = Ref[address](types.address.uninit)
+
+    Lock.writeLock().lock()
     aubifs_core.journal_add3(ND1, ND2, ND3, ADR1, ADR2, ADR3, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       aubifs_core.index_store(KEY1, ADR1.get)
@@ -475,6 +655,11 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
       if (C_INODE.nlink == 1) {
         aubifs_core.orphans_insert(KEY3)
       }
+    }
+    DoGc.signal()
+    Lock.writeLock().unlock()
+
+    if (ERR.get == types.error.ESUCCESS) {
       DENT := types.dentry.negdentry(DENT.get.name)
       P_INODE := types.inode.mkinode(P_INODE.ino, ND1.meta, ND1.directory, ND1.nlink, ND1.nsubdirs, ND1.size)
       C_INODE := types.inode.mkinode(INO, ND3.meta, ND3.directory, ND3.nlink, ND3.nsubdirs, ND3.size)
@@ -485,20 +670,28 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
     val KEY: key = types.key.inodekey(INODE.ino)
     val ADR = Ref[address](types.address.uninit)
     val ND: node = types.node.inodenode(KEY, MD, INODE.directory, INODE.nlink, INODE.nsubdirs, INODE.size)
+
+    Lock.writeLock().lock()
     aubifs_core.journal_add1(ND, ADR, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       aubifs_core.index_store(KEY, ADR.get)
     }
+    DoGc.signal()
+    Lock.writeLock().unlock()
   }
 
   override def write_size(INODE: inode, SIZE: Int, ERR: Ref[error]): Unit = {
     val KEY: key = types.key.inodekey(INODE.ino)
     val ADR = Ref[address](types.address.uninit)
     val ND: node = types.node.inodenode(KEY, INODE.meta, INODE.directory, INODE.nlink, INODE.nsubdirs, SIZE)
+
+    Lock.writeLock().lock()
     aubifs_core.journal_add1(ND, ADR, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       aubifs_core.index_store(KEY, ADR.get)
     }
+    DoGc.signal()
+    Lock.writeLock().unlock()
   }
 
   override def writepage(INODE: inode, PAGENO: Int, PBUF: buffer, ERR: Ref[error]): Unit = {
@@ -507,6 +700,8 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
     KEY1 = types.key.datakey(INO, PAGENO)
     val ND1: node = types.node.datanode(KEY1, PBUF).deepCopy
     val ADR1 = Ref[address](types.address.uninit)
+
+    Lock.writeLock().lock()
     aubifs_core.journal_add1(ND1, ADR1, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       aubifs_core.index_store(KEY1, ADR1.get)
@@ -516,6 +711,8 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
         aubifs_core.index_remove(KEY1)
       }
     }
+    DoGc.signal()
+    Lock.writeLock().unlock()
   }
 
 }

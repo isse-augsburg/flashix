@@ -428,4 +428,56 @@ class Persistence(val FREELIST : nat_list, val GCHEAP : binheap, val Gcarray : g
     }
   }
 
+  private def percentOf(percent: Int, amount: Int): Int = amount * percent / 100
+
+  override def main_area_LEBs(TOTAL: Ref[Int], FREE: Ref[Int]): Unit = {
+    val _total = LPT.length
+    val _free = FREELIST.length
+    val reserved = percentOf(10, _total)
+
+    // from: intregration/Flashix mainAreaLEBs
+    TOTAL.set(_total - reserved)
+    FREE.set(if (reserved <= _free) _free - reserved else 0)
+  }
+
+  override def is_block_eligible_for_gc(N: Int, ISELIGIBLE: Ref[Boolean]): Unit = {
+    val lp = LPT(N)
+    val LEB_SIZE = Ref[Int](0)
+    awbuf.get_leb_size(LEB_SIZE)
+
+    // from: integration/Flashix isBlockEligibleForGC
+    ISELIGIBLE := (lp.ref_size < LEB_SIZE.get - 2 * VFS_PAGE_SIZE)
+  }
+
+  // adapted from: integration/Flashix computeStats
+  override def compute_stats(TOTAL_BYTES: Ref[Int], FREE_BYTES: Ref[Int], LEB_SIZE: Ref[Int]): Unit = {
+    var used_bytes = 0
+    val total = LPT.length
+
+    val eligible = Ref[Boolean](false)
+    val avail = Ref[Int](0)
+    val free = Ref[Int](0)
+    main_area_LEBs(avail, free)
+
+    for (i <- 0 until total) {
+      val lp = LPT(i)
+      is_block_eligible_for_gc(i, eligible)
+
+      lp.flags match {
+        case lpropflags.LP_FREE =>
+          used_bytes += 0
+        case lpropflags.LP_INDEX_NODES =>
+          used_bytes += LEBSIZE
+        case lpropflags.LP_GROUP_NODES =>
+          if (eligible.get)
+            used_bytes += lp.ref_size
+          else
+            used_bytes += LEBSIZE
+      }
+    }
+
+    TOTAL_BYTES.set(avail.get * LEBSIZE)
+    FREE_BYTES.set(TOTAL_BYTES.get - used_bytes)
+    LEB_SIZE.set(LEBSIZE)
+  }
 }

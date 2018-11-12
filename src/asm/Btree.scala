@@ -471,4 +471,9 @@ class Btree(var ADRT : address, var RT : znode, val apersistence : ApersistenceI
     io_dirty(R.get, ADR0, DIRTY.get, ERR)
   }
 
+  override def main_area_LEBs(TOTAL: Ref[Int], FREE: Ref[Int]): Unit = apersistence.main_area_LEBs(TOTAL, FREE)
+
+  override def is_block_eligible_for_gc(N: Int, ISELIGIBLE: Ref[Boolean]): Unit = apersistence.is_block_eligible_for_gc(N, ISELIGIBLE)
+
+  override def compute_stats(TOTAL_BYTES: Ref[Int], FREE_BYTES: Ref[Int], LEB_SIZE: Ref[Int]): Unit = apersistence.compute_stats(TOTAL_BYTES, FREE_BYTES, LEB_SIZE)
 }

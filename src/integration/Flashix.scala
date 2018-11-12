@@ -31,7 +31,7 @@ class Flashix(cachingStrategy: Flashix.CachingStrategy, concurrentUpdate: Flashi
   val persistence = new Persistence(new nat_list(), binheap(new key_array(), 0), new gc_array(0), 0, new nat_list(), new lp_array(), wbuf)
   val btree = new Btree(address(0, 0, 0), znode.uninit, persistence) with DebugUBIFSJournal
   val journal = new Gjournal(cachingStrategy != Flashix.NoCaching, 0, new nat_set(), true, 0, btree)
-  val aubifs = new Aubifs(journal)
+  val aubifs = new Aubifs(null, null, journal)
   val cachedAubifs = {
     if (cachingStrategy == Flashix.AfsCaching) {
       val tcache = new Tcache(new tcache())
@@ -92,6 +92,31 @@ class Flashix(cachingStrategy: Flashix.CachingStrategy, concurrentUpdate: Flashi
 
   private var wearleveling: Thread = _
   private var erase: Thread = _
+  private var garbageCollection: Thread = _
+
+  def start_concurrent_gc(): Unit = {
+    val flashix = this
+
+    garbageCollection = new Thread {
+      override def run(): Unit = {
+        try {
+          val log = persistence_io.LOGOFF / EB_PAGE_SIZE
+
+          while (!isInterrupted) {
+            val err: Ref[error] = Ref(error.ESUCCESS)
+            aubifs.gc_worker(true, log, err)
+
+            concurrentUpdate(flashix)
+          }
+        } catch {
+          case _: InterruptedException =>
+            println("ubi: garbage collection thread interrupted")
+            interrupt()
+        }
+      }
+    }
+    garbageCollection.start()
+  }
 
   def startConcurrentOps {
     val flashix = this
@@ -132,6 +157,7 @@ class Flashix(cachingStrategy: Flashix.CachingStrategy, concurrentUpdate: Flashi
     }
     wearleveling.start
     erase.start
+    start_concurrent_gc()
   }
 
   def joinConcurrentOps {

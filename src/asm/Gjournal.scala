@@ -402,4 +402,11 @@ class Gjournal(var DOSYNC : Boolean, var JMAXINO : Int, val JRO : nat_set, var J
     }
   }
 
+  override def main_area_LEBs(TOTAL: Ref[Int], FREE: Ref[Int]): Unit = index.main_area_LEBs(TOTAL, FREE)
+
+  override def get_gc_block(N: Ref[Int], ERR: Ref[error]): Unit = index.get_gc_block(N, ERR)
+
+  override def is_block_eligible_for_gc(N: Int, ISELIGIBLE: Ref[Boolean]): Unit = index.is_block_eligible_for_gc(N, ISELIGIBLE)
+
+  override def compute_stats(TOTAL_BYTES: Ref[Int], FREE_BYTES: Ref[Int], LEB_SIZE: Ref[Int]): Unit = index.compute_stats(TOTAL_BYTES, FREE_BYTES, LEB_SIZE)
 }

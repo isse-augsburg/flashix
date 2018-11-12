@@ -34,4 +34,8 @@ abstract class ApersistenceInterface extends ASM {
   def set_gblock_refsize(LNUM: Int, N: Int)
   def set_iblock_refsize(LNUM: Int, N: Int)
   def sync(ERR: Ref[error])
+
+  def main_area_LEBs(TOTAL: Ref[Int], FREE: Ref[Int]): Unit
+  def is_block_eligible_for_gc(N: Int, ISELIGIBLE: Ref[Boolean]): Unit
+  def compute_stats(TOTAL_BYTES: Ref[Int], FREE_BYTES: Ref[Int], LEB_SIZE: Ref[Int])
 }

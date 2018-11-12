@@ -230,12 +230,14 @@ class FilesystemAdapter(flashix: Flashix)(implicit _algebraic_implicit: algebrai
   }
 */
   def _run(force: Boolean, operation: Ref[error] => Unit): Int = {
+    /*
     try {
       checkGC()
     } catch {
       case e: Throwable =>
         e.printStackTrace(System.out)
     }
+    */
 
     if (isFull && !force) {
       throw new FuseException().initErrno(Errno.ENOSPC)
