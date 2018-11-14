@@ -428,12 +428,10 @@ class Persistence(val FREELIST : nat_list, val GCHEAP : binheap, val Gcarray : g
     }
   }
 
-  private def percentOf(percent: Int, amount: Int): Int = amount * percent / 100
-
   override def main_area_LEBs(TOTAL: Ref[Int], FREE: Ref[Int]): Unit = {
     val _total = LPT.length
     val _free = FREELIST.length
-    val reserved = percentOf(10, _total)
+    val reserved = percent_of(10, _total)
 
     // from: intregration/Flashix mainAreaLEBs
     TOTAL.set(_total - reserved)

@@ -126,6 +126,8 @@ trait Algebraic {
     return buffer_variable1
   }
 
+  def percent_of(percent: Int, amount: Int): Int = amount * percent / 100
+
   def save(zbranch_variable0: zbranch): branch = {
     zbranch_variable0 match {
       case types.zbranch.mkzbranch(key, adr, r) =>

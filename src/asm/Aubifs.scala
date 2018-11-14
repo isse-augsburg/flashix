@@ -105,8 +105,6 @@ class Aubifs(var DoGc: Condition, var Lock: ReentrantReadWriteLock, val aubifs_c
     Lock.writeLock().unlock()
   }
 
-  private def percent_of(percent: Int, amount: Int): Int = amount * percent / 100
-
   def do_gc(is_easy: Boolean, ERR: Ref[error], free_lebs: Int): Unit = {
     println("flashix: attempting garbage collection with %d LEBs (%s)" format (free_lebs, if (is_easy) "easy" else "critical"))
 
