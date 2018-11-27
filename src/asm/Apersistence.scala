@@ -37,5 +37,6 @@ abstract class ApersistenceInterface extends ASM {
 
   def main_area_LEBs(TOTAL: Ref[Int], FREE: Ref[Int]): Unit
   def is_block_eligible_for_gc(N: Int, ISELIGIBLE: Ref[Boolean]): Unit
-  def compute_stats(TOTAL_BYTES: Ref[Int], FREE_BYTES: Ref[Int], LEB_SIZE: Ref[Int])
+  def compute_stats(TOTAL_BYTES: Ref[Int], FREE_BYTES: Ref[Int], LEB_SIZE: Ref[Int]): Unit
+  def is_gc_easy(N: Int, ISEASY: Ref[Boolean]): Unit
 }

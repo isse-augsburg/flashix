@@ -35,8 +35,9 @@ abstract class AubifsCoreInterface extends ASM {
   def orphans_remove(KEY: key)
   def recover(DOSYNC: Boolean, AX: address_list, KS: key_set, ERR: Ref[error])
 
-  def main_area_LEBs(TOTAL: Ref[Int], FREE: Ref[Int])
-  def get_gc_block(N: Ref[Int], ERR: Ref[error])
-  def is_block_eligible_for_gc(N: Int, ISELIGIBLE: Ref[Boolean])
+  def main_area_LEBs(TOTAL: Ref[Int], FREE: Ref[Int]): Unit
+  def get_gc_block(N: Ref[Int], ERR: Ref[error]): Unit
+  def is_block_eligible_for_gc(N: Int, ISELIGIBLE: Ref[Boolean]): Unit
   def compute_stats(TOTAL_BYTES: Ref[Int], FREE_BYTES: Ref[Int], LEB_SIZE: Ref[Int]): Unit
+  def is_gc_easy(N: Int, ISEASY: Ref[Boolean]): Unit
 }

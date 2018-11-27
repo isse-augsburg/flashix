@@ -440,11 +440,9 @@ class Persistence(val FREELIST : nat_list, val GCHEAP : binheap, val Gcarray : g
 
   override def is_block_eligible_for_gc(N: Int, ISELIGIBLE: Ref[Boolean]): Unit = {
     val lp = LPT(N)
-    val LEB_SIZE = Ref[Int](0)
-    awbuf.get_leb_size(LEB_SIZE)
 
     // from: integration/Flashix isBlockEligibleForGC
-    ISELIGIBLE := (lp.ref_size < LEB_SIZE.get - 2 * VFS_PAGE_SIZE)
+    ISELIGIBLE := (lp.ref_size < LEBSIZE - 2 * VFS_PAGE_SIZE)
   }
 
   // adapted from: integration/Flashix computeStats
@@ -474,8 +472,14 @@ class Persistence(val FREELIST : nat_list, val GCHEAP : binheap, val Gcarray : g
       }
     }
 
-    TOTAL_BYTES.set(avail.get * LEBSIZE)
-    FREE_BYTES.set(TOTAL_BYTES.get - used_bytes)
-    LEB_SIZE.set(LEBSIZE)
+    TOTAL_BYTES := (avail.get * LEBSIZE)
+    FREE_BYTES := (TOTAL_BYTES.get - used_bytes)
+    LEB_SIZE := LEBSIZE
+  }
+
+  override def is_gc_easy(N: Int, ISEASY: Ref[Boolean]): Unit = {
+    val lp = LPT(N)
+
+    ISEASY := (lp.ref_size < percent_of(30, LEBSIZE))
   }
 }

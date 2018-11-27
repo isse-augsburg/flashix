@@ -4,27 +4,24 @@
 
 package visualization
 
-import asm._
 import types._
 import types.error._
 import helpers.scala._
 import integration._
 import java.io._
 import _root_.fuse._
-import scala.swing.event._
 import scala.swing._
 import visualization.Toolkit._
 import visualization.models._
 import scala.swing.TabbedPane.Page
-import java.awt.GridLayout
-import integration.fuse.FilesystemAdapter
+import test.TestGC
 
 trait Tab extends Component with Observer[Flashix] {
   def page: Page
 }
 
 object Visualization {
-  def printHelp {
+  def printHelp(): Unit = {
     println("usage:")
     println("  flashix [-caching=none/wbuf/afs] [-odebug] [-obig_writes] <mountpoint>")
   }
@@ -32,8 +29,8 @@ object Visualization {
   def main(initialArgs: Array[String]) {
     val err = new Ref(error.uninit)
 
-    if (initialArgs.size <= 0) {
-      printHelp
+    if (initialArgs.length <= 0) {
+      printHelp()
       System.exit(1)
     }
 
@@ -47,14 +44,16 @@ object Visualization {
     val spare_pebs = 5
     val doFormat = !deviceFile.exists()
     val doSync = false
+    val testGC = new TestGC(args.last, page_size, pages_per_peb / 2)
+    var testGCThread: Thread = null
 
     // Create MTD simulation
     val mtd = MTDSimulation(deviceFile, pebs, pages_per_peb, page_size)
-    implicit val algebraic = new Algebraic(mtd)
-    implicit val procedures = new Procedures()
+    implicit val algebraic: Algebraic = new Algebraic(mtd)
+    implicit val procedures: Procedures = new Procedures()
 
     object observable extends Observable[Flashix]
-    def update0(flashix: Flashix) = {
+    def update0(flashix: Flashix): Unit = {
       flashix synchronized {
         observable update flashix
       }
@@ -65,8 +64,7 @@ object Visualization {
     val refresh = check("Refresh", true, { if (_) update() })
 
     val filesystem = new fuse.FilesystemAdapter(flashix) {
-
-      override def checked[A](operation: Ref[error] => A) = {
+      override def checked[A](operation: Ref[error] => A): A = {
         flashix synchronized { super.checked(operation) }
       }
       override def _run(force: Boolean, operation: Ref[error] => Unit): Int = {
@@ -89,7 +87,7 @@ object Visualization {
         flashix.vfs.format(pebs - spare_pebs, doSync, (pages_per_peb - 2) * page_size, rootmeta, err)
         flashix.startConcurrentOps
       }
-      if (err != ESUCCESS)
+      if (err.get != ESUCCESS)
         println(s"vfs: format failed with error code ${err.get}")
     }
 
@@ -99,7 +97,7 @@ object Visualization {
         flashix.vfs.recover(doSync, err)
         flashix.startConcurrentOps
       }
-      if (err != ESUCCESS)
+      if (err.get != ESUCCESS)
         println(s"vfs: recovery failed with error code ${err.get}")
     }
 
@@ -107,7 +105,7 @@ object Visualization {
       flashix synchronized {
         flashix.journal.commit(err)
       }
-      if (err != ESUCCESS)
+      if (err.get != ESUCCESS)
         println(s"vfs: commit failed with error code ${err.get}")
     }
 
@@ -115,7 +113,22 @@ object Visualization {
       filesystem.doGC("user", err, -1)
     }
 
+    def toggleTestGC(): Unit = {
+      if (testGCThread != null && testGCThread.isAlive) {
+        testGC.stop()
+        testGCThread.join()
+        testGCThread = null
+      } else {
+        testGCThread = new Thread(testGC)
+        testGCThread.start()
+      }
+    }
+
     def unmount() {
+      if (testGCThread != null && testGCThread.isAlive) {
+        testGC.stop()
+        testGCThread.join()
+      }
       Unmount.main(Array("-z", args.last))
       mtd.close
       System.exit(0)
@@ -127,6 +140,7 @@ object Visualization {
     val rec = button("Recover", { recover(); update() })
     val cm = button("Commit", { commit(); update() })
     val gc = button("GC", { dogc(); update() })
+    val btnTestGC = button("TestGC Start/Stop", { toggleTestGC(); update() })
     val sync = button("Sync", { dosync(); update() })
     val quit = button("Quit", { unmount() })
 
@@ -134,7 +148,7 @@ object Visualization {
 
     val pages = about :: vis.map(_.page)
     val main = tabs(pages: _*)
-    val side = vbox(refresh, sync, cm, gc, rec, fmt, quit, Swing.VGlue)
+    val side = vbox(refresh, sync, cm, gc, btnTestGC, rec, fmt, quit, Swing.VGlue)
     // side.peer.setLayout(new GridLayout(0,1))
 
     val window = frame("Flashix",
@@ -149,7 +163,7 @@ object Visualization {
       recover()
     }
 
-    if (err != ESUCCESS)
+    if (err.get != ESUCCESS)
       System.exit(1)
 
     vis foreach { observable += _ }

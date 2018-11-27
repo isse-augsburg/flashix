@@ -150,14 +150,17 @@ class Aubifs(var DoGc: Condition, var Lock: ReentrantReadWriteLock, val aubifs_c
     aubifs_core.get_gc_block(N, ERR)
 
     if (ERR.get == error.ESUCCESS) {
-      val isEasy = false // lp.ref_size < percent_of(30, LEB_SIZE)
+      val isEasy = Ref[Boolean](false)
       val eligible = Ref[Boolean](false)
+
       aubifs_core.is_block_eligible_for_gc(N.get, eligible)
+      aubifs_core.is_gc_easy(N.get, isEasy)
 
       if (!eligible.get) {
-        if (isCritical) gc_critical(tryCommit, free.get, log, ERR)
-      } else if (isEasy || isCritical) {
-        do_gc(isEasy, ERR, free.get)
+        if (isCritical)
+          gc_critical(tryCommit, free.get, log, ERR)
+      } else if (isEasy.get || isCritical) {
+        do_gc(isEasy.get, ERR, free.get)
         if (ERR.get == error.ESUCCESS)
           gc_loop(tryCommit, log, ERR)
       }
