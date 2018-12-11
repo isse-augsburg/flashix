@@ -250,7 +250,10 @@ class Aubifs(var DoGc: Condition, var Lock: ReentrantReadWriteLock, val aubifs_c
 
   override def mkdir(MD: metadata, P_INODE: inode, C_INODE: inode, DENT: Ref[dentry], ERR: Ref[error]): Unit = {
     val KEY3 = Ref[key](types.key.uninit)
+
+    Lock.writeLock().lock()
     aubifs_core.index_newino(KEY3)
+
     val KEY1: key = types.key.inodekey(P_INODE.ino)
     val KEY2: key = types.key.dentrykey(P_INODE.ino, DENT.get.name)
     val ND1: node = types.node.inodenode(KEY1, P_INODE.meta, P_INODE.directory, P_INODE.nlink, P_INODE.nsubdirs + 1, P_INODE.size + 1)
@@ -260,7 +263,6 @@ class Aubifs(var DoGc: Condition, var Lock: ReentrantReadWriteLock, val aubifs_c
     val ADR2 = Ref[address](types.address.uninit)
     val ADR3 = Ref[address](types.address.uninit)
 
-    Lock.writeLock().lock()
     aubifs_core.journal_add3(ND1, ND2, ND3, ADR1, ADR2, ADR3, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       aubifs_core.index_store(KEY1, ADR1.get)
