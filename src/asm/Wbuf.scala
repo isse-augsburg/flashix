@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2018 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2019 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package asm
@@ -92,8 +92,8 @@ class Wbuf(var BUFLEB : bufleb, var PAGESIZE : Int, var ROFS : Boolean, val WBUF
   override def read_buf(LNUM: Int, OFFSET: Int, N: Int, BUF: buffer, ERR: Ref[error]): Unit = {
     apersistence_io.read(LNUM, OFFSET, 0, N, BUF, ERR)
     if (ERR.get == types.error.ESUCCESS && (types.bufleb.buffered(LNUM) == BUFLEB && (OFFSET <= WBUF.offset + WBUF.nbytes && WBUF.offset <= OFFSET + N))) {
-      val BEGINWBUF: Int = if (OFFSET <= WBUF.offset) 0 else OFFSET - WBUF.offset
       val BEGINBUF: Int = if (OFFSET <= WBUF.offset) WBUF.offset - OFFSET else 0
+      val BEGINWBUF: Int = if (OFFSET <= WBUF.offset) 0 else OFFSET - WBUF.offset
       BUF.copy(WBUF.content, BEGINWBUF, BEGINBUF, min(N - BEGINBUF, WBUF.nbytes - BEGINWBUF))
     }
   }

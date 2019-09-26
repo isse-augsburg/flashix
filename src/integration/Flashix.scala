@@ -6,7 +6,8 @@ import types.error._
 import helpers.scala._
 import visualization.Observable
 
-class Flashix(cachingStrategy: Flashix.CachingStrategy, concurrentUpdate: Flashix => Unit, mtd: MtdInterface)(implicit val ops: algebraic.Algebraic, val procs: proc.Procedures) {
+class Flashix(cachingStrategy: Flashix.CachingStrategy, concurrencyStrategy: Flashix.ConcurrencyStrategy, concurrentUpdate: Flashix => Unit, mtd: MtdInterface)
+             (implicit val ops: algebraic.Algebraic, val procs: proc.Procedures) {
   import ops._
   import procs._
 
@@ -21,7 +22,7 @@ class Flashix(cachingStrategy: Flashix.CachingStrategy, concurrentUpdate: Flashi
     mtd.get_peb_size(lebsize)
     lebsize.get - 2 * EB_PAGE_SIZE
   }
-
+  
   val ubiio = new UbiIoAsm(0, mtd)
   val ubiwl = new UbiCwl(new nat_set(), new wlarray(), new FreeTreeInterface with WearLevelingTree, new UsedTreeInterface with WearLevelingTree, ubiio)
   val ubi = new Cubi(null, null, new queue(), 0, null, 0, 0, new volume_locks(), new volumes(), 0, ubiwl)
@@ -155,9 +156,17 @@ object Flashix {
   case object NoCaching extends CachingStrategy
   case object WbufCaching extends CachingStrategy
   case object AfsCaching extends CachingStrategy
+  
+  abstract class ConcurrencyStrategy
+  case object Sequential extends ConcurrencyStrategy
+  case object WLConcurrent extends ConcurrencyStrategy
+  case object GCConcurrent extends ConcurrencyStrategy
+  case object ToplevelConcurrent extends ConcurrencyStrategy
 
-  def filterArgs(args: Array[String]): (Array[String], CachingStrategy) = {
+  def filterArgs(args: Array[String]): (Array[String], CachingStrategy, ConcurrencyStrategy) = {
     var cachingStrategy: CachingStrategy = WbufCaching
+    var concurrencyStrategy: ConcurrencyStrategy = Sequential
+    
     val remainingsArgs = args.filter {
       case "-caching=none" =>
         cachingStrategy = NoCaching
@@ -168,9 +177,21 @@ object Flashix {
       case "-caching=afs" =>
         cachingStrategy = AfsCaching
         false
+      case "-concurrency=none" =>
+        concurrencyStrategy = Sequential
+        false
+      case "-concurrency=wl" =>
+        concurrencyStrategy = WLConcurrent
+        false
+      case "-concurrency=gc" =>
+        // TODO
+        false
+      case "-concurrency=external" =>
+        // TODO
+        false
       case _ =>
         true
     }
-    (args, cachingStrategy)
+    (remainingsArgs, cachingStrategy, concurrencyStrategy)
   }
 }

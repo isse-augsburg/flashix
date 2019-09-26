@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2018 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2019 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package types
@@ -17,11 +17,11 @@ object icache_entry {
   /**
    * Functions for constructors
    */
-  def mkientry(dirty: Boolean, inode: inode): icache_entry = {
+  def I(dirty: Boolean, inode: inode): icache_entry = {
     icache_entry(dirty, inode)
   }
 
-  def uninit = mkientry(helpers.scala.Boolean.uninit, types.inode.uninit)
+  def uninit = I(helpers.scala.Boolean.uninit, types.inode.uninit)
 
   implicit object Randomizer extends helpers.scala.Randomizer[icache_entry] {
     override def random(): icache_entry = icache_entry(helpers.scala.Random[Boolean], helpers.scala.Random[inode])

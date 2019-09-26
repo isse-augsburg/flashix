@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2018 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2019 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package asm
@@ -282,8 +282,8 @@ class Gjournal(var DOSYNC : Boolean, var JMAXINO : Int, val JRO : nat_set, var J
       val N = Ref[Int](0)
       index.get_gblock_refsize(LNUM.get, N)
       if (N.get != 0) {
-        val ADRLIST: address_list = new address_list()
         val GNDLIST: group_node_list = new group_node_list()
+        val ADRLIST: address_list = new address_list()
         index.read_gblock_nodes(LNUM.get, ADRLIST, GNDLIST, ERR)
         val NDLIST: node_list = new node_list()
         if (ERR.get != types.error.ESUCCESS) {

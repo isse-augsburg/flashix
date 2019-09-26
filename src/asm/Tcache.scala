@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2018 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2019 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package asm
@@ -14,10 +14,10 @@ import types.error.error
 abstract class TcacheInterface extends ASM {
   def delete(INO: Int)
   def format(ERR: Ref[error])
-  def get(INO: Int, TRUNC_SIZE: Ref[Int], HIT: Ref[Boolean])
+  def get(INO: Int, MIN_TRUNC_SIZE: Ref[Int], LAST_TRUNC_SIZE: Ref[Int], MINUP_EXISTS: Ref[Boolean], HIT: Ref[Boolean])
   def recovery(ERR: Ref[error])
-  def update(INO: Int, TRUNC_SIZE: Int, ERR: Ref[error])
-  def update_old(INO: Int, SIZE: Int, TRUNC_SIZE: Int, ERR: Ref[error])
+  def update(INO: Int, TRUNC_SIZE: Int, FSIZE: Int, ERR: Ref[error])
+  def write_begin(INO: Int, SIZE: Int)
 }
 
 class Tcache(val TCACHE : tcache)(implicit _algebraic_implicit: algebraic.Algebraic) extends TcacheInterface {
@@ -32,10 +32,12 @@ class Tcache(val TCACHE : tcache)(implicit _algebraic_implicit: algebraic.Algebr
     ERR := types.error.ESUCCESS
   }
 
-  def get(INO: Int, TRUNC_SIZE: Ref[Int], HIT: Ref[Boolean]): Unit = {
+  def get(INO: Int, MIN_TRUNC_SIZE: Ref[Int], LAST_TRUNC_SIZE: Ref[Int], MINUP_EXISTS: Ref[Boolean], HIT: Ref[Boolean]): Unit = {
     HIT := TCACHE.contains(INO)
     if (HIT.get) {
-      TRUNC_SIZE := TCACHE(INO)
+      LAST_TRUNC_SIZE := last(TCACHE(INO))
+      MINUP_EXISTS := TCACHE(INO).isInstanceOf[types.tcache_entry.T]
+      MIN_TRUNC_SIZE := min(TCACHE(INO))
     }
   }
 
@@ -44,19 +46,13 @@ class Tcache(val TCACHE : tcache)(implicit _algebraic_implicit: algebraic.Algebr
     ERR := types.error.ESUCCESS
   }
 
-  def update(INO: Int, TRUNC_SIZE: Int, ERR: Ref[error]): Unit = {
-    if (! TCACHE.contains(INO) || TCACHE.contains(INO) && TRUNC_SIZE < TCACHE(INO)) {
-      TCACHE(INO) = TRUNC_SIZE
-    }
+  def update(INO: Int, TRUNC_SIZE: Int, FSIZE: Int, ERR: Ref[error]): Unit = {
+    TCACHE := _algebraic_implicit.update(TCACHE, INO, TRUNC_SIZE, FSIZE).deepCopy
     ERR := types.error.ESUCCESS
   }
 
-  def update_old(INO: Int, SIZE: Int, TRUNC_SIZE: Int, ERR: Ref[error]): Unit = {
-    val NEW_TRUNC_SIZE: Int = min(SIZE, TRUNC_SIZE)
-    if (! TCACHE.contains(INO) || TCACHE.contains(INO) && NEW_TRUNC_SIZE < TCACHE(INO)) {
-      TCACHE(INO) = NEW_TRUNC_SIZE
-    }
-    ERR := types.error.ESUCCESS
+  def write_begin(INO: Int, SIZE: Int): Unit = {
+    TCACHE := _algebraic_implicit.update(TCACHE, INO, SIZE, SIZE).deepCopy
   }
 
 }

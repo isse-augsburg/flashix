@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2018 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2019 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 import helpers.scala._
@@ -54,16 +54,16 @@ package object types {
   implicit object dcacheRandomizer extends helpers.scala.Random.MapWrapperRandomizer[key, dentry]
   type icache = helpers.scala.MapWrapperDeep[Int, icache_entry]
   implicit object icacheRandomizer extends helpers.scala.Random.MapWrapperDeepRandomizer[Int, icache_entry]
-  type mscache = helpers.scala.MapWrapper[Int, meta_size]
-  implicit object mscacheRandomizer extends helpers.scala.Random.MapWrapperRandomizer[Int, meta_size]
+  type mscache = helpers.scala.MapWrapper[Int, mscache_entry]
+  implicit object mscacheRandomizer extends helpers.scala.Random.MapWrapperRandomizer[Int, mscache_entry]
   type open_files = helpers.scala.MapWrapperDeep[Int, file]
   implicit object open_filesRandomizer extends helpers.scala.Random.MapWrapperDeepRandomizer[Int, file]
   type pcache = helpers.scala.MapWrapperDeep[key, pcache_entry]
   implicit object pcacheRandomizer extends helpers.scala.Random.MapWrapperDeepRandomizer[key, pcache_entry]
   type recoveryentries = helpers.scala.MapWrapper[lebadress, recoveryentry]
   implicit object recoveryentriesRandomizer extends helpers.scala.Random.MapWrapperRandomizer[lebadress, recoveryentry]
-  type tcache = helpers.scala.MapWrapper[Int, Int]
-  implicit object tcacheRandomizer extends helpers.scala.Random.MapWrapperRandomizer[Int, Int]
+  type tcache = helpers.scala.MapWrapper[Int, tcache_entry]
+  implicit object tcacheRandomizer extends helpers.scala.Random.MapWrapperRandomizer[Int, tcache_entry]
   type volume_locks = helpers.scala.MapWrapperDeep[Byte, rwlock_array]
   implicit object volume_locksRandomizer extends helpers.scala.Random.MapWrapperDeepRandomizer[Byte, rwlock_array]
   type volumes = helpers.scala.MapWrapperDeep[Byte, ebatbl]

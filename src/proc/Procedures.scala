@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2018 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2019 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package proc
@@ -25,8 +25,8 @@ trait Procedures {
     import _algebraic_implicit._
     var m: Int = n
     while (2 * m + 1 < bh.size && (bh.ar(2 * m + 1).key < bh.ar(m).key || 2 * m + 2 < bh.size && bh.ar(2 * m + 2).key < bh.ar(m).key)) {
-      val ki: keyindex = bh.ar(m).deepCopy
       val ki0: keyindex = bh.ar(2 * m + 1).deepCopy
+      val ki: keyindex = bh.ar(m).deepCopy
       if (2 * m + 2 < bh.size && bh.ar(2 * m + 2).key < ki0.key) {
         val ki1: keyindex = bh.ar(2 * m + 2).deepCopy
         bh.ar(m) = ki1.deepCopy
@@ -47,8 +47,8 @@ trait Procedures {
     import _algebraic_implicit._
     var m: Int = n
     while (m != 0 && bh.ar(m).key < bh.ar((m - 1) / 2).key) {
-      val ki: keyindex = bh.ar(m).deepCopy
       val ki0: keyindex = bh.ar((m - 1) / 2).deepCopy
+      val ki: keyindex = bh.ar(m).deepCopy
       bh.ar(m) = ki0.deepCopy
       ar(ki0.idx) = m
       m = (m - 1) / 2
@@ -480,8 +480,8 @@ trait Procedures {
     ERR := types.error.ESUCCESS
     BUF.allocate(flashsize(NODELIST), 0.toByte)
     ADRLIST.clear
-    var IDX: Int = 0
     var OFFSET: Int = 0
+    var IDX: Int = 0
     while (ERR.get == types.error.ESUCCESS && IDX < NODELIST.length) {
       val SIZE = Ref[Int](0)
       encode_group_node(NODELIST(IDX), OFFSET, SIZE, BUF, ERR)
@@ -534,5 +534,49 @@ trait Procedures {
     } else {
       boolvar := false
     }
+  }
+  def vfs_aligned(N: Int, ALIGNED: Ref[Boolean])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    ALIGNED := (N % VFS_PAGE_SIZE == 0)
+  }
+  def vfs_block_boundaries(CURRENT_POS: Int, PAGENO: Ref[Int], OFFSET: Ref[Int], REST: Ref[Int])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    vfs_pageno(CURRENT_POS, PAGENO)
+    vfs_page_offset(CURRENT_POS, OFFSET)
+    vfs_page_rest(CURRENT_POS, REST)
+    if (REST.get == 0) {
+      REST := VFS_PAGE_SIZE
+    }
+  }
+  def vfs_page_offset(N: Int, OFFSET: Ref[Int])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    OFFSET := N % VFS_PAGE_SIZE
+  }
+  def vfs_page_rest(N: Int, REST: Ref[Int])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    if (N % VFS_PAGE_SIZE == 0) {
+      REST := 0
+    } else {
+      REST := VFS_PAGE_SIZE - N % VFS_PAGE_SIZE
+    }
+  }
+  def vfs_page_truncate(N: Int, BUF: buffer, MODIFIED: Ref[Boolean])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    val OFFSET = Ref[Int](0)
+    vfs_page_offset(N, OFFSET)
+    MODIFIED := (OFFSET.get != 0)
+    if (MODIFIED.get) {
+      val REST = Ref[Int](0)
+      vfs_page_rest(N, REST)
+      BUF.fill(zero, OFFSET.get, REST.get)
+    }
+  }
+  def vfs_pageno(N: Int, PAGENO: Ref[Int])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    PAGENO := N / VFS_PAGE_SIZE
+  }
+  def vfs_pos(PAGENO: Int, N: Ref[Int])  (implicit _algebraic_implicit: algebraic.Algebraic): Unit = {
+    import _algebraic_implicit._
+    N := PAGENO * VFS_PAGE_SIZE
   }
 }

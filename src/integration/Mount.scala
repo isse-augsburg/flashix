@@ -17,7 +17,7 @@ object Mount {
 
   def printHelp {
     println("usage:")
-    println("  flashix [-caching=none/wbuf/afs] [-odebug] [-obig_writes] <mountpoint>")
+    println("  flashix [-caching=none/wbuf/afs] [-concurrency=none/wl] [-odebug] [-obig_writes] <mountpoint>")
   }
 
   def main(initialArgs: Array[String]) {
@@ -27,7 +27,7 @@ object Mount {
       System.exit(1)
     }
 
-    val (args, cachingStrategy) = Flashix.filterArgs(initialArgs)
+    val (args, cachingStrategy, concurrencyStrategy) = Flashix.filterArgs(initialArgs)
 
     // Implicit configuration options
     val deviceFile = new File("flash-device")
@@ -39,11 +39,12 @@ object Mount {
 
     // Create MTD simulation
     val mtd = MTDSimulation(deviceFile, pebs, pages_per_peb, page_size)
+      
     implicit val algebraic = new Algebraic(mtd)
     implicit val procedures = new Procedures()
 
     // Format/Recover Flashix File System
-    val flashix = new Flashix(cachingStrategy, {flashix => }, mtd)
+    val flashix = new Flashix(cachingStrategy, concurrencyStrategy, {flashix => }, mtd)
     val dosync = false
     val err = new Ref(error.uninit)
     if (format) {

@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2018 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2019 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package asm
@@ -46,8 +46,8 @@ class Cache(var READ_ONLY_MODE : Boolean, var SYNC : Boolean, val tcache : Tcach
     get_flash_inode(INODE, INODE0)
     afs.evict(INODE0, ERR)
     if (ERR.get == types.error.ESUCCESS && INODE.nlink == 0) {
-      icache.delete(INODE.ino, ERR)
       icache.delete_old(INODE.ino)
+      icache.delete(INODE.ino, ERR)
       tcache.delete(INODE.ino)
       if (ERR.get == types.error.ESUCCESS && DIRP != true) {
         pcache.evict(INODE.ino, ERR)
@@ -83,7 +83,7 @@ class Cache(var READ_ONLY_MODE : Boolean, var SYNC : Boolean, val tcache : Tcach
       if (SYNC != true) {
         fsync_trunc(INODE0, ERR)
         if (ERR.get == types.error.ESUCCESS) {
-          fsync_pages(INODE0, INODE.size, ERR)
+          fsync_pages(INODE0, ERR)
         }
         if (ERR.get == types.error.ESUCCESS) {
           fsync_inode(INODE0, ERR)
@@ -126,48 +126,58 @@ class Cache(var READ_ONLY_MODE : Boolean, var SYNC : Boolean, val tcache : Tcach
     }
   }
 
-  def fsync_page(INODE0: inode, N: Int, ERR: Ref[error]): Unit = {
+  def fsync_page(INODE0: inode, PAGENO: Int, ERR: Ref[error]): Unit = {
+    val PBUF: buffer = vfspage
+    val HIT = Ref[Boolean](false)
     val INO: Int = INODE0.ino
-    val PBUF: buffer = new buffer()
-    val HIT = Ref[Boolean](helpers.scala.Boolean.uninit)
-    val DIRTY = Ref[Boolean](helpers.scala.Boolean.uninit)
-    pcache.get(INO, N, PBUF, DIRTY, HIT, ERR)
+    val DIRTY = Ref[Boolean](false)
+    pcache.get(INO, PAGENO, PBUF, DIRTY, HIT, ERR)
     if (ERR.get == types.error.ESUCCESS && (HIT.get && DIRTY.get)) {
-      afs.writepage(INODE0, N, PBUF, ERR)
+      afs.writepage(INODE0, PAGENO, PBUF, ERR)
       if (ERR.get == types.error.ESUCCESS) {
         afs.check_commit(ERR)
       }
       if (ERR.get == types.error.ESUCCESS) {
         DIRTY := false
-        pcache.set_status(INO, N, DIRTY.get, ERR)
+        pcache.set_status(INO, PAGENO, DIRTY.get, ERR)
       }
     }
   }
 
-  def fsync_pages(INODE0: inode, SIZE: Int, ERR: Ref[error]): Unit = {
-    val ERR0 = Ref[error](types.error.ESUCCESS)
-    var N: Int = 0
-    while (N * VFS_PAGE_SIZE < SIZE && ERR0.get == types.error.ESUCCESS) {
-      fsync_page(INODE0, N, ERR0)
-      N = N + 1
+  def fsync_pages(INODE0: inode, ERR: Ref[error]): Unit = {
+    ERR := types.error.ESUCCESS
+    val MAX_PAGENO = Ref[Int](0)
+    pcache.get_max_pageno(INODE0.ino, MAX_PAGENO)
+    var PAGENO: Int = 0
+    while (PAGENO <= MAX_PAGENO.get && ERR.get == types.error.ESUCCESS) {
+      fsync_page(INODE0, PAGENO, ERR)
+      PAGENO = PAGENO + 1
     }
-    ERR := ERR0.get
   }
 
   def fsync_trunc(INODE0: inode, ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
     val INO: Int = INODE0.ino
     val HIT = Ref[Boolean](helpers.scala.Boolean.uninit)
-    val N = Ref[Int](0)
-    tcache.get(INO, N, HIT)
+    val MINUP_EXISTS = Ref[Boolean](helpers.scala.Boolean.uninit)
+    val LAST_TRUNC_SIZE = Ref[Int](0)
+    val MIN_TRUNC_SIZE = Ref[Int](0)
+    tcache.get(INO, MIN_TRUNC_SIZE, LAST_TRUNC_SIZE, MINUP_EXISTS, HIT)
     if (HIT.get) {
-      val PAGENO: Int = INODE0.size / VFS_PAGE_SIZE
       val PBUF_OPT = Ref[buffer_opt](types.buffer_opt.none)
-      afs.truncate(N.get, PAGENO, PBUF_OPT, INODE0, ERR)
+      afs.truncate(MIN_TRUNC_SIZE.get, INODE0, PBUF_OPT, ERR)
       if (ERR.get == types.error.ESUCCESS) {
-        tcache.delete(INO)
         val ERR0 = Ref[error](types.error.uninit)
         icache.set_old(INODE0, ERR0)
+      }
+      if (ERR.get == types.error.ESUCCESS && MINUP_EXISTS.get) {
+        afs.truncate(LAST_TRUNC_SIZE.get, INODE0, PBUF_OPT, ERR)
+        if (ERR.get == types.error.ESUCCESS) {
+          icache.set_old(INODE0, ERR)
+        }
+      }
+      if (ERR.get == types.error.ESUCCESS) {
+        tcache.delete(INO)
       }
     }
   }
@@ -231,8 +241,8 @@ class Cache(var READ_ONLY_MODE : Boolean, var SYNC : Boolean, val tcache : Tcach
   }
 
   override def lookup(P_INO: Int, DENT: Ref[dentry], ERR: Ref[error]): Unit = {
-    val HIT = Ref[Boolean](false)
     val NAME: String = DENT.get.name
+    val HIT = Ref[Boolean](false)
     dcache.get(P_INO, NAME, DENT, HIT, ERR)
     if (HIT.get != true || ERR.get != types.error.ESUCCESS) {
       afs.lookup(P_INO, DENT, ERR)
@@ -267,8 +277,8 @@ class Cache(var READ_ONLY_MODE : Boolean, var SYNC : Boolean, val tcache : Tcach
   }
 
   override def readpage(INODE: inode, PAGENO: Int, PBUF: buffer, EXISTS: Ref[Boolean], ERR: Ref[error]): Unit = {
-    val HIT = Ref[Boolean](false)
     val INO: Int = INODE.ino
+    val HIT = Ref[Boolean](false)
     val DIRTY = Ref[Boolean](false)
     pcache.get(INO, PAGENO, PBUF, DIRTY, HIT, ERR)
     if (HIT.get && ERR.get == types.error.ESUCCESS) {
@@ -276,32 +286,37 @@ class Cache(var READ_ONLY_MODE : Boolean, var SYNC : Boolean, val tcache : Tcach
     } else {
       val INODE0: inode = types.inode.uninit
       get_flash_inode(INODE, INODE0)
-      val TRUNC_SIZE = Ref[Int](0)
-      tcache.get(INO, TRUNC_SIZE, HIT)
-      var DELETED: Boolean = false
+      val MINUP_EXISTS = Ref[Boolean](false)
+      val MIN_TRUNC_SIZE = Ref[Int](0)
+      val LAST_TRUNC_SIZE = Ref[Int](0)
+      tcache.get(INO, MIN_TRUNC_SIZE, LAST_TRUNC_SIZE, MINUP_EXISTS, HIT)
       var SIZE: Int = 0
+      var DELETED: Boolean = false
       if (HIT.get) {
-        SIZE = min(INODE0.size, TRUNC_SIZE.get)
-        DELETED = SIZE <= PAGENO * VFS_PAGE_SIZE
+        SIZE = min(INODE0.size, MIN_TRUNC_SIZE.get)
+        val POSITION = Ref[Int](0)
+        vfs_pos(PAGENO, POSITION)
+        DELETED = SIZE <= POSITION.get
       } else {
         SIZE = INODE0.size
       }
       if (DELETED) {
         PBUF := zeropage
-        EXISTS := false
         ERR := types.error.ESUCCESS
+        EXISTS := false
       } else {
         afs.readpage(INODE0, PAGENO, PBUF, EXISTS, ERR)
         if (ERR.get == types.error.ESUCCESS && EXISTS.get) {
-          if (HIT.get) {
-            var MODIFIED: Boolean = false
-            val OFFSET: Int = 0
-            val PAD_PAGE: Int = INODE0.size / VFS_PAGE_SIZE
-            MODIFIED = PAGENO == PAD_PAGE && (OFFSET != 0 && INODE0.size <= TRUNC_SIZE.get)
-            if (MODIFIED) {
-              PBUF.fill(zero, OFFSET, VFS_PAGE_SIZE - OFFSET)
+          if (HIT.get && (MINUP_EXISTS.get || INODE0.size <= MIN_TRUNC_SIZE.get)) {
+            val PAD_PAGE = Ref[Int](0)
+            vfs_pageno(INODE0.size, PAD_PAGE)
+            if (PAGENO == PAD_PAGE.get && INODE0.size <= MIN_TRUNC_SIZE.get) {
+              val IS_MODIFIED = Ref[Boolean](false)
+              vfs_page_truncate(INODE0.size, PBUF, IS_MODIFIED)
             }
-            DIRTY := (PAGENO == SIZE / VFS_PAGE_SIZE)
+            val ACTUAL_PAGENO = Ref[Int](0)
+            vfs_pageno(SIZE, ACTUAL_PAGENO)
+            DIRTY := (PAGENO == ACTUAL_PAGENO.get)
           } else {
             DIRTY := false
           }
@@ -391,11 +406,11 @@ class Cache(var READ_ONLY_MODE : Boolean, var SYNC : Boolean, val tcache : Tcach
   }
 
   def set_flash_inode(INODE: inode): Unit = {
-    val HIT = Ref[Boolean](helpers.scala.Boolean.uninit)
-    val OLD_DIRTY = Ref[Boolean](helpers.scala.Boolean.uninit)
+    val OLD_DIRTY = Ref[Boolean](false)
+    val HIT = Ref[Boolean](false)
     icache.get_status(INODE.ino, OLD_DIRTY, HIT)
     if (HIT.get && OLD_DIRTY.get != true || HIT.get != true) {
-      val ERR = Ref[error](types.error.uninit)
+      val ERR = Ref[error](types.error.ESUCCESS)
       icache.set_old(INODE, ERR)
     }
   }
@@ -404,41 +419,42 @@ class Cache(var READ_ONLY_MODE : Boolean, var SYNC : Boolean, val tcache : Tcach
     afs.sync(ERR)
   }
 
-  override def truncate(N: Int, PAGENO: Int, PBUF_OPT: Ref[buffer_opt], INODE: inode, ERR: Ref[error]): Unit = {
+  override def truncate(N: Int, INODE: inode, PBUF_OPT: Ref[buffer_opt], ERR: Ref[error]): Unit = {
     if (READ_ONLY_MODE) {
       ERR := types.error.EROFS
+      PBUF_OPT := types.buffer_opt.none
     } else {
+      PBUF_OPT := types.buffer_opt.none
       ERR := types.error.ESUCCESS
+      val SIZE: Int = INODE.size
+      val PAGENO = Ref[Int](0)
+      vfs_pageno(SIZE, PAGENO)
       val INO: Int = INODE.ino
       val INODE0: inode = INODE.deepCopy
-      val SIZE: Int = INODE.size
-      val OFFSET: Int = INODE.size % VFS_PAGE_SIZE
-      val MODIFIED: Boolean = SIZE <= N && OFFSET != 0
-      val PBUF_OPT0 = Ref[buffer_opt](PBUF_OPT.get.deepCopy)
-      val EXISTS = Ref[Boolean](helpers.scala.Boolean.uninit)
-      if (MODIFIED) {
-        truncate_prepare(INODE, PAGENO, N, PBUF_OPT0, EXISTS, ERR)
-      }
       val DIRTY: Boolean = SYNC != true
-      if (SYNC && ERR.get == types.error.ESUCCESS) {
-        afs.truncate(N, PAGENO, PBUF_OPT0, INODE, ERR)
-      }
-      if (SYNC != true && (ERR.get == types.error.ESUCCESS && (MODIFIED && EXISTS.get))) {
-        val buffer_variable0: buffer = PBUF_OPT0.get.buf.deepCopy
-        buffer_variable0.fill(zero, OFFSET, VFS_PAGE_SIZE - OFFSET)
-        PBUF_OPT0 := types.buffer_opt.some(buffer_variable0).deepCopy
+      if (SYNC) {
+        afs.truncate(N, INODE, PBUF_OPT, ERR)
+      } else       if (SIZE <= N) {
+        truncate_prepare(INODE, PAGENO.get, PBUF_OPT, ERR)
+        if (ERR.get == types.error.ESUCCESS && PBUF_OPT.get.isInstanceOf[types.buffer_opt.some]) {
+          val PBUF: buffer = PBUF_OPT.get.buf.deepCopy
+          val IS_MODIFIED = Ref[Boolean](false)
+          vfs_page_truncate(SIZE, PBUF, IS_MODIFIED)
+          if (IS_MODIFIED.get) {
+            PBUF_OPT := types.buffer_opt.some(PBUF).deepCopy
+          } else {
+            PBUF_OPT := types.buffer_opt.none
+          }
+        }
       }
       if (ERR.get == types.error.ESUCCESS) {
         pcache.truncate(INO, SIZE, N, ERR)
       }
-      if (ERR.get == types.error.ESUCCESS && (N < SIZE && DIRTY)) {
-        pcache.set_status_nofail(INO, N / VFS_PAGE_SIZE, DIRTY)
-      }
-      if (ERR.get == types.error.ESUCCESS && (MODIFIED && EXISTS.get)) {
-        pcache.set(INO, PAGENO, PBUF_OPT0.get.buf, DIRTY, ERR)
+      if (ERR.get == types.error.ESUCCESS && PBUF_OPT.get.isInstanceOf[types.buffer_opt.some]) {
+        pcache.set(INO, PAGENO.get, PBUF_OPT.get.buf, DIRTY, ERR)
       }
       if (ERR.get == types.error.ESUCCESS && DIRTY) {
-        tcache.update(INO, N, ERR)
+        tcache.update(INO, N, SIZE, ERR)
       }
       if (ERR.get == types.error.ESUCCESS) {
         if (DIRTY) {
@@ -449,41 +465,35 @@ class Cache(var READ_ONLY_MODE : Boolean, var SYNC : Boolean, val tcache : Tcach
       }
       if (ERR.get == types.error.ESUCCESS) {
         INODE := INODE0
-        if (MODIFIED && EXISTS.get) {
-          PBUF_OPT := PBUF_OPT0.get
-        }
       }
     }
   }
 
-  def truncate_prepare(INODE: inode, PAGENO: Int, N: Int, PBUF_OPT: Ref[buffer_opt], EXISTS: Ref[Boolean], ERR: Ref[error]): Unit = {
+  def truncate_prepare(INODE: inode, PAGENO: Int, PBUF_OPT: Ref[buffer_opt], ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
-    val HIT = Ref[Boolean](helpers.scala.Boolean.uninit)
-    val PBUF: buffer = new buffer(VFS_PAGE_SIZE).fill(0.toByte)
-    if (PBUF_OPT.get.isInstanceOf[types.buffer_opt.some]) {
-      EXISTS := true
+    val HIT = Ref[Boolean](false)
+    val PBUF: buffer = vfspage
+    val DIRTY = Ref[Boolean](false)
+    pcache.get(INODE.ino, PAGENO, PBUF, DIRTY, HIT, ERR)
+    if (ERR.get == types.error.ESUCCESS && HIT.get) {
+      PBUF_OPT := types.buffer_opt.some(PBUF).deepCopy
     } else {
-      val DIRTY = Ref[Boolean](helpers.scala.Boolean.uninit)
-      pcache.get(INODE.ino, PAGENO, PBUF, DIRTY, HIT, ERR)
-      if (ERR.get == types.error.ESUCCESS && HIT.get) {
-        PBUF_OPT := types.buffer_opt.some(PBUF).deepCopy
-        EXISTS := true
-      }
+      PBUF_OPT := types.buffer_opt.none
     }
     if (PBUF_OPT.get == types.buffer_opt.none && ERR.get == types.error.ESUCCESS) {
-      val N0 = Ref[Int](0)
-      tcache.get(INODE.ino, N0, HIT)
-      val INODE0: inode = types.inode.uninit
+      val INODE0: inode = INODE.deepCopy
+      val MIN_TRUNC_SIZE = Ref[Int](0)
+      val LAST_TRUNC_SIZE = Ref[Int](0)
+      val MINUP_EXISTS = Ref[Boolean](false)
+      tcache.get(INODE.ino, MIN_TRUNC_SIZE, LAST_TRUNC_SIZE, MINUP_EXISTS, HIT)
       get_flash_inode(INODE, INODE0)
-      val EXISTS0 = Ref[Boolean](helpers.scala.Boolean.uninit)
-      afs.readpage(INODE0, PAGENO, PBUF, EXISTS0, ERR)
-      EXISTS := (EXISTS0.get && ! (HIT.get && min(N0.get, INODE0.size) <= VFS_PAGE_SIZE * PAGENO))
-      if (ERR.get == types.error.ESUCCESS && EXISTS.get) {
-        PBUF_OPT := types.buffer_opt.some(PBUF).deepCopy
+      if (HIT.get != true || VFS_PAGE_SIZE * PAGENO < min(MIN_TRUNC_SIZE.get, INODE0.size)) {
+        val EXISTS = Ref[Boolean](false)
+        afs.readpage(INODE0, PAGENO, PBUF, EXISTS, ERR)
+        if (ERR.get == types.error.ESUCCESS && EXISTS.get) {
+          PBUF_OPT := types.buffer_opt.some(PBUF).deepCopy
+        }
       }
-    }
-    if (PBUF_OPT.get == types.buffer_opt.none) {
-      EXISTS := false
     }
   }
 
@@ -505,6 +515,34 @@ class Cache(var READ_ONLY_MODE : Boolean, var SYNC : Boolean, val tcache : Tcach
         }
         if (ERR.get == types.error.ESUCCESS) {
           dcache.delete(P_INODE.ino, DENT.get.name, ERR)
+        }
+      }
+    }
+  }
+
+  override def write_begin(INODE: inode, ERR: Ref[error]): Unit = {
+    if (READ_ONLY_MODE) {
+      ERR := types.error.EROFS
+    } else     if (SYNC) {
+      afs.write_begin(INODE, ERR)
+    } else {
+      ERR := types.error.ESUCCESS
+      val SIZE: Int = INODE.size
+      val INO: Int = INODE.ino
+      pcache.write_begin(INO, SIZE)
+      tcache.write_begin(INO, SIZE)
+      val ALIGNED = Ref[Boolean](false)
+      vfs_aligned(SIZE, ALIGNED)
+      if (ALIGNED.get != true) {
+        val PAGENO = Ref[Int](0)
+        vfs_pageno(SIZE, PAGENO)
+        val PBUF_OPT = Ref[buffer_opt](types.buffer_opt.none)
+        truncate_prepare(INODE, PAGENO.get, PBUF_OPT, ERR)
+        if (ERR.get == types.error.ESUCCESS && PBUF_OPT.get.isInstanceOf[types.buffer_opt.some]) {
+          val PBUF: buffer = PBUF_OPT.get.buf.deepCopy
+          val IS_MODIFIED = Ref[Boolean](false)
+          vfs_page_truncate(SIZE, PBUF, IS_MODIFIED)
+          pcache.set(INO, PAGENO.get, PBUF, true, ERR)
         }
       }
     }

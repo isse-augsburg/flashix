@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2018 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2019 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package asm
@@ -48,9 +48,9 @@ class UbiCwl(val Bflips : nat_set, val Wl : wlarray, val free_tree : FreeTreeInt
   }
 
   override def get_free_peb(PNUM: Ref[Int], ERR: Ref[error]): Unit = {
-    val IsEmpty = Ref[Boolean](helpers.scala.Boolean.uninit)
-    free_tree.is_empty(IsEmpty)
-    if (IsEmpty.get) {
+    val TIsEmpty = Ref[Boolean](helpers.scala.Boolean.uninit)
+    free_tree.is_empty(TIsEmpty)
+    if (TIsEmpty.get) {
       ERR := types.error.ENOSPC
     } else {
       val Counter = Ref[Int](0)
@@ -84,9 +84,9 @@ class UbiCwl(val Bflips : nat_set, val Wl : wlarray, val free_tree : FreeTreeInt
   override def get_pebs_for_wl(TO: Ref[Int], FROM: Ref[Int], VALID: Ref[Boolean], IsWl: Ref[Boolean]): Unit = {
     IsWl := false
     VALID := false
-    val IsEmpty = Ref[Boolean](helpers.scala.Boolean.uninit)
-    free_tree.is_empty(IsEmpty)
-    if (IsEmpty.get != true) {
+    val TIsEmpty = Ref[Boolean](helpers.scala.Boolean.uninit)
+    free_tree.is_empty(TIsEmpty)
+    if (TIsEmpty.get != true) {
       val Counter = Ref[Int](0)
       val Index = Ref[Int](0)
       free_tree.get_min(Index, Counter)
@@ -98,8 +98,8 @@ class UbiCwl(val Bflips : nat_set, val Wl : wlarray, val free_tree : FreeTreeInt
         VALID := true
         IsWl := false
       } else {
-        used_tree.is_empty(IsEmpty)
-        if (IsEmpty.get != true) {
+        used_tree.is_empty(TIsEmpty)
+        if (TIsEmpty.get != true) {
           val FromCounter = Ref[Int](0)
           used_tree.get_min(FROM, FromCounter)
           if (Wl(TO.get).ec >= Wl(FROM.get).ec + WL_THRESHOLD) {

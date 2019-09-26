@@ -11,14 +11,14 @@ import java.util.concurrent.locks._
 import types._
 import types.error.error
 
-abstract class MtdInterface extends ASM {
-  def erase(Pnum: Int, Err: Ref[error])
+abstract class MtdSasmInterface extends ASM {
+  def erase(PNUM: Int, ERR: Ref[error])
   def get_blockcount(N: Ref[Int])
   def get_page_size(N: Ref[Int])
   def get_peb_size(N: Ref[Int])
-  def init(Err: Ref[error])
-  def isbad(Pnum: Int, Isbad: Ref[Boolean], Err: Ref[error])
-  def markbad(Pnum: Int, Err: Ref[error])
-  def read(Pnum: Int, Offset: Int, N0: Int, N: Int, Buf: buffer, Bitflips: Ref[Boolean], Err: Ref[error])
-  def write(Pnum: Int, Offset: Int, N0: Int, N: Int, Buf: buffer, Err: Ref[error])
+  def init(ERR: Ref[error])
+  def isbad(PNUM: Int, ISBAD: Ref[Boolean], ERR: Ref[error])
+  def markbad(PNUM: Int, ERR: Ref[error])
+  def read(PNUM: Int, OFFSET: Int, N0: Int, N: Int, BUF: buffer, BITFLIPS: Ref[Boolean], ERR: Ref[error])
+  def write(PNUM: Int, OFFSET: Int, N0: Int, N: Int, BUF: buffer, ERR: Ref[error])
 }

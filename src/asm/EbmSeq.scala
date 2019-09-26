@@ -11,9 +11,11 @@ import java.util.concurrent.locks._
 import types._
 import types.error.error
 
-abstract class EbmInterface extends ASM {
+abstract class EbmSeqInterface extends ASM {
   def change(VOLID: Byte, LNUM: Int, N: Int, BUF: buffer, ERR: Ref[error])
-  def format(VOLID: Byte, N: Int, ERR: Ref[error])
+  def create_volume(VOLID: Byte, N: Int, ERR: Ref[error])
+  def erase(VOLID: Byte, LNUM: Int, ERR: Ref[error])
+  def format(ERR: Ref[error])
   def get_leb_size(N: Ref[Int])
   def get_page_size(N: Ref[Int])
   def get_volume_size(VOLID: Byte, N: Ref[Int])

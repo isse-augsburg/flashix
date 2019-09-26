@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2018 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2019 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package asm
@@ -28,8 +28,9 @@ abstract class AfsInterface extends ASM {
   def rename(OLD_CHILD_INODE: inode, OLD_PARENT_INODE: inode, NEW_PARENT_INODE: inode, NEW_CHILD_INODE: inode, OLD_DENT: Ref[dentry], NEW_DENT: Ref[dentry], ERR: Ref[error])
   def rmdir(P_INODE: inode, C_INODE: inode, DENT: Ref[dentry], ERR: Ref[error])
   def sync(ERR: Ref[error])
-  def truncate(N: Int, PAGENO: Int, PBUF_OPT: Ref[buffer_opt], INODE: inode, ERR: Ref[error])
+  def truncate(N: Int, INODE: inode, PBUF_OPT: Ref[buffer_opt], ERR: Ref[error])
   def unlink(P_INODE: inode, C_INODE: inode, DENT: Ref[dentry], ERR: Ref[error])
+  def write_begin(INODE: inode, ERR: Ref[error])
   def write_meta(INODE: inode, MD: metadata, ERR: Ref[error])
   def write_size(INODE: inode, SIZE: Int, ERR: Ref[error])
   def writepage(INODE: inode, PAGENO: Int, PBUF: buffer, ERR: Ref[error])

@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2018 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2019 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package asm
@@ -8,15 +8,17 @@ import helpers.scala._
 import helpers.scala.Encoding._
 import helpers.scala.Random._
 import java.util.concurrent.locks._
+import proc._
 import types._
 import types.error.error
 import types.file_mode.file_mode
 import types.seekflag.seekflag
 
-class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implicit _algebraic_implicit: algebraic.Algebraic) extends PosixInterface {
+class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implicit _algebraic_implicit: algebraic.Algebraic, _procedures_implicit: proc.Procedures) extends PosixInterface {
   import _algebraic_implicit._
+  import _procedures_implicit._
 
-  override def close(FD: Int, USER: Byte, ERR: Ref[error]): Unit = {
+  override def close(FD: Int, USER: Int, ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
     if (! OF.contains(FD)) {
       ERR := types.error.EBADFD
@@ -31,14 +33,14 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
     }
   }
 
-  override def create(PATH: path, MD: metadata, USER: Byte, ERR: Ref[error]): Unit = {
+  override def create(PATH: path, MD: metadata, USER: Int, ERR: Ref[error]): Unit = {
     if (PATH.isEmpty) {
       ERR := types.error.EEXISTS
     } else {
       val INO = Ref[Int](ROOT_INO)
+      val PATH0: path = PATH.init
+      walk(PATH0, USER, INO, ERR)
       val DENT = Ref[dentry](types.dentry.negdentry(PATH.last))
-      val path_variable0: path = PATH.init
-      walk(path_variable0, USER, INO, ERR)
       val INODE: inode = types.inode.uninit
       if (ERR.get == types.error.ESUCCESS) {
         may_create(INO.get, DENT.get, USER, INODE, ERR)
@@ -59,7 +61,7 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
     afs.format(N, DOSYNC, SIZE, MD, ERR)
   }
 
-  override def fsync(FD: Int, ISDATASYNC: Boolean, USER: Byte, ERR: Ref[error]): Unit = {
+  override def fsync(FD: Int, ISDATASYNC: Boolean, USER: Int, ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
     if (! OF.contains(FD)) {
       ERR := types.error.EBADFD
@@ -73,14 +75,11 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
         if (ERR.get == types.error.ESUCCESS) {
           afs.fsync(INODE, ISDATASYNC, ERR)
         }
-        if (ERR.get == types.error.ESUCCESS) {
-          afs.sync(ERR)
-        }
       }
     }
   }
 
-  override def fsyncdir(PATH: path, ISDATASYNC: Boolean, USER: Byte, ERR: Ref[error]): Unit = {
+  override def fsyncdir(PATH: path, ISDATASYNC: Boolean, USER: Int, ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
     val INO = Ref[Int](ROOT_INO)
     walk(PATH, USER, INO, ERR)
@@ -90,44 +89,46 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
       val ISDIR: Boolean = true
       may_open(INO.get, ISDIR, MODE, USER, INODE, ERR)
     }
-    val NAMES: stringset = new stringset()
     if (ERR.get == types.error.ESUCCESS) {
-      afs.readdir(INODE, NAMES, ERR)
+      fsyncdir_rec(INODE, USER, ISDATASYNC, new nat_set(), ERR)
     }
-    val C_INODE: inode = types.inode.uninit
+  }
+
+  def fsyncdir_rec(INODE: inode, USER: Int, ISDATASYNC: Boolean, SYNCED_INOS: nat_set, ERR: Ref[error]): Unit = {
+    ERR := types.error.ESUCCESS
+    val NAMES: stringset = new stringset()
+    afs.readdir(INODE, NAMES, ERR)
     while (! NAMES.isEmpty && ERR.get == types.error.ESUCCESS) {
       val NAME: String = NAMES.head
       val DENT = Ref[dentry](types.dentry.negdentry(NAME))
       afs.lookup(INODE.ino, DENT, ERR)
+      val C_INODE: inode = types.inode.uninit
       if (ERR.get == types.error.ESUCCESS) {
-        afs.iget(DENT.get.ino, C_INODE, ERR)
+        val ISDIR: Boolean = true
+        may_open(DENT.get.ino, ISDIR, types.file_mode.MODE_R, USER, C_INODE, ERR)
       }
-      if (ERR.get == types.error.ESUCCESS) {
-        if (C_INODE.directory) {
-          val PATH_ : path = PATH :+ NAME
-          fsyncdir(PATH_, ISDATASYNC, USER, ERR)
-        } else {
-          afs.fsync(C_INODE, ISDATASYNC, ERR)
-        }
+      if (ERR.get == types.error.ESUCCESS && ! SYNCED_INOS.contains(C_INODE.ino)) {
+        val nat_set_variable0: nat_set = SYNCED_INOS.deepCopy
+        nat_set_variable0 += INODE.ino
+        fsyncdir_rec(C_INODE, USER, ISDATASYNC, nat_set_variable0, ERR)
+      } else       if (ERR.get == types.error.ENOTDIR) {
+        afs.fsync(C_INODE, ISDATASYNC, ERR)
       }
       NAMES -= NAME
     }
-    if (ERR.get == types.error.ESUCCESS) {
-      afs.sync(ERR)
-    }
   }
 
-  override def link(PATH: path, PATH_ : path, USER: Byte, ERR: Ref[error]): Unit = {
+  override def link(PATH: path, PATH_ : path, USER: Int, ERR: Ref[error]): Unit = {
     if (PATH.isEmpty || PATH_.isEmpty) {
       ERR := types.error.EISDIR
     } else {
       var OLD_DENT: dentry = types.dentry.uninit
       val INODE: inode = types.inode.uninit
       val C_INODE: inode = types.inode.uninit
-      val DENT1 = Ref[dentry](types.dentry.negdentry(PATH.last))
       val INO1 = Ref[Int](ROOT_INO)
       val PATH1: path = PATH.init
       walk(PATH1, USER, INO1, ERR)
+      val DENT1 = Ref[dentry](types.dentry.negdentry(PATH.last))
       if (ERR.get == types.error.ESUCCESS) {
         may_link(INO1.get, USER, INODE, DENT1, ERR)
       }
@@ -136,10 +137,10 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
       val NEW_DENT = Ref[dentry](types.dentry.uninit)
       val NEW_INODE: inode = types.inode.uninit
       if (ERR.get == types.error.ESUCCESS) {
-        val DENT: dentry = types.dentry.negdentry(PATH_.last)
         val INO = Ref[Int](ROOT_INO)
-        val PATH: path = PATH_.init
-        walk(PATH, USER, INO, ERR)
+        val PATH0: path = PATH_.init
+        walk(PATH0, USER, INO, ERR)
+        val DENT: dentry = types.dentry.negdentry(PATH_.last)
         if (ERR.get == types.error.ESUCCESS) {
           may_create(INO.get, DENT, USER, INODE, ERR)
         }
@@ -155,7 +156,7 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
     }
   }
 
-  def may_create(INO: Int, DENT1: dentry, USER: Byte, INODE: inode, ERR: Ref[error]): Unit = {
+  def may_create(INO: Int, DENT1: dentry, USER: Int, INODE: inode, ERR: Ref[error]): Unit = {
     val DENT = Ref[dentry](DENT1)
     afs.iget(INO, INODE, ERR)
     if (ERR.get == types.error.ESUCCESS) {
@@ -174,7 +175,7 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
     }
   }
 
-  def may_delete(INO: Int, ISRENAME: Boolean, USER: Byte, INODE: inode, DENT: Ref[dentry], DENT_INODE: inode, ISDIR: Ref[Boolean], ERR: Ref[error]): Unit = {
+  def may_delete(INO: Int, ISRENAME: Boolean, USER: Int, INODE: inode, DENT: Ref[dentry], DENT_INODE: inode, ISDIR: Ref[Boolean], ERR: Ref[error]): Unit = {
     afs.iget(INO, INODE, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       if (! INODE.directory) {
@@ -202,7 +203,7 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
     }
   }
 
-  def may_delete_check(INO: Int, USER: Byte, INODE: inode, ISDIR: Ref[Boolean], DENT: Ref[dentry], DENT_INODE: inode, ERR: Ref[error]): Unit = {
+  def may_delete_check(INO: Int, USER: Int, INODE: inode, ISDIR: Ref[Boolean], DENT: Ref[dentry], DENT_INODE: inode, ERR: Ref[error]): Unit = {
     val ISDIR0: Boolean = ISDIR.get
     val ISRENAME: Boolean = false
     may_delete(INO, ISRENAME, USER, INODE, DENT, DENT_INODE, ISDIR, ERR)
@@ -214,7 +215,7 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
     }
   }
 
-  def may_link(INO: Int, USER: Byte, INODE: inode, DENT: Ref[dentry], ERR: Ref[error]): Unit = {
+  def may_link(INO: Int, USER: Int, INODE: inode, DENT: Ref[dentry], ERR: Ref[error]): Unit = {
     afs.iget(INO, INODE, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       if (! INODE.directory) {
@@ -233,7 +234,7 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
     }
   }
 
-  def may_lookup(INO: Int, USER: Byte, INODE: inode, ERR: Ref[error]): Unit = {
+  def may_lookup(INO: Int, USER: Int, INODE: inode, ERR: Ref[error]): Unit = {
     afs.iget(INO, INODE, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       if (! INODE.directory) {
@@ -244,7 +245,7 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
     }
   }
 
-  def may_open(INO: Int, ISDIR: Boolean, MODE: file_mode, USER: Byte, INODE: inode, ERR: Ref[error]): Unit = {
+  def may_open(INO: Int, ISDIR: Boolean, MODE: file_mode, USER: Int, INODE: inode, ERR: Ref[error]): Unit = {
     afs.iget(INO, INODE, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       if (! (INODE.directory == ISDIR)) {
@@ -255,14 +256,14 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
     }
   }
 
-  override def mkdir(PATH: path, MD: metadata, USER: Byte, ERR: Ref[error]): Unit = {
+  override def mkdir(PATH: path, MD: metadata, USER: Int, ERR: Ref[error]): Unit = {
     if (PATH.isEmpty) {
       ERR := types.error.EEXISTS
     } else {
       val INO = Ref[Int](ROOT_INO)
+      val PATH0: path = PATH.init
+      walk(PATH0, USER, INO, ERR)
       val DENT = Ref[dentry](types.dentry.negdentry(PATH.last))
-      val path_variable0: path = PATH.init
-      walk(path_variable0, USER, INO, ERR)
       val INODE: inode = types.inode.uninit
       if (ERR.get == types.error.ESUCCESS) {
         may_create(INO.get, DENT.get, USER, INODE, ERR)
@@ -277,7 +278,7 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
     }
   }
 
-  override def open(PATH: path, MODE: file_mode, USER: Byte, FD: Ref[Int], ERR: Ref[error]): Unit = {
+  override def open(PATH: path, MODE: file_mode, USER: Int, FD: Ref[Int], ERR: Ref[error]): Unit = {
     val INO = Ref[Int](ROOT_INO)
     walk(PATH, USER, INO, ERR)
     if (ERR.get == types.error.ESUCCESS) {
@@ -298,7 +299,7 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
     }
   }
 
-  override def read(FD: Int, USER: Byte, BUF: buffer, N: Ref[Int], ERR: Ref[error]): Unit = {
+  override def read(FD: Int, USER: Int, BUF: buffer, N: Ref[Int], ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
     if (! OF.contains(FD)) {
       ERR := types.error.EBADFD
@@ -311,12 +312,11 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
         if (INODE.directory) {
           ERR := types.error.EISDIR
         } else {
-          val START: Int = OF(FD).pos
+          val TOTAL = Ref[Int](0)
           val END: Int = OF(FD).pos + N.get
-          if (START <= INODE.size) {
-            val TOTAL = Ref[Int](0)
-            val DONE: Boolean = false
-            read_loop(START, END, INODE, DONE, BUF, TOTAL, ERR)
+          val START: Int = OF(FD).pos
+          if (START <= INODE.size && START < END) {
+            read_loop(INODE, START, END, BUF, TOTAL, ERR)
             if (TOTAL.get != 0) {
               ERR := types.error.ESUCCESS
             }
@@ -330,37 +330,39 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
     }
   }
 
-  def read_block(START: Int, END: Int, INODE: inode, BUF: buffer, TOTAL: Ref[Int], DONE: Ref[Boolean], ERR: Ref[error]): Unit = {
-    val PAGENO: Int = (START + TOTAL.get) / VFS_PAGE_SIZE
-    val OFFSET: Int = (START + TOTAL.get) % VFS_PAGE_SIZE
-    val N: Int = min(END - (START + TOTAL.get), VFS_PAGE_SIZE - OFFSET, INODE.size - (START + TOTAL.get))
-    if (N != 0) {
-      val PBUF: buffer = new buffer(VFS_PAGE_SIZE).fill(0.toByte)
-      val EXISTS = Ref[Boolean](helpers.scala.Boolean.uninit)
-      afs.readpage(INODE, PAGENO, PBUF, EXISTS, ERR)
-      if (ERR.get == types.error.ESUCCESS) {
-        BUF.copy(PBUF, OFFSET, TOTAL.get, N)
-        TOTAL := TOTAL.get + N
-      }
-    } else {
-      DONE := true
+  def read_block(INODE: inode, START: Int, END: Int, BUF: buffer, TOTAL: Ref[Int], DONE: Ref[Boolean], ERR: Ref[error]): Unit = {
+    val CURRENT_POS: Int = START + TOTAL.get
+    val OFFSET = Ref[Int](0)
+    val REST = Ref[Int](0)
+    val PAGENO = Ref[Int](0)
+    vfs_block_boundaries(CURRENT_POS, PAGENO, OFFSET, REST)
+    val PBUF: buffer = vfspage
+    val N: Int = min(END - CURRENT_POS, REST.get, INODE.size - CURRENT_POS)
+    val EXISTS = Ref[Boolean](false)
+    afs.readpage(INODE, PAGENO.get, PBUF, EXISTS, ERR)
+    if (ERR.get == types.error.ESUCCESS) {
+      BUF.copy(PBUF, OFFSET.get, TOTAL.get, N)
+      TOTAL := TOTAL.get + N
     }
+    DONE := (START + TOTAL.get == END || START + TOTAL.get == INODE.size)
   }
 
-  def read_loop(START: Int, END: Int, INODE: inode, DONE1: Boolean, BUF: buffer, TOTAL: Ref[Int], ERR: Ref[error]): Unit = {
-    val DONE = Ref[Boolean](DONE1)
+  def read_loop(INODE: inode, START: Int, END: Int, BUF: buffer, TOTAL: Ref[Int], ERR: Ref[error]): Unit = {
+    TOTAL := 0
+    ERR := types.error.ESUCCESS
+    val DONE = Ref[Boolean](START == INODE.size)
     while (ERR.get == types.error.ESUCCESS && DONE.get != true) {
-      read_block(START, END, INODE, BUF, TOTAL, DONE, ERR)
+      read_block(INODE, START, END, BUF, TOTAL, DONE, ERR)
     }
   }
 
-  override def readdir(PATH: path, USER: Byte, NAMES: stringset, ERR: Ref[error]): Unit = {
+  override def readdir(PATH: path, USER: Int, NAMES: stringset, ERR: Ref[error]): Unit = {
     val INO = Ref[Int](ROOT_INO)
     walk(PATH, USER, INO, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       val INODE: inode = types.inode.uninit
-      val ISDIR: Boolean = true
       val MODE: file_mode = types.file_mode.MODE_R
+      val ISDIR: Boolean = true
       may_open(INO.get, ISDIR, MODE, USER, INODE, ERR)
       if (ERR.get == types.error.ESUCCESS) {
         afs.readdir(INODE, NAMES, ERR)
@@ -368,7 +370,7 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
     }
   }
 
-  override def readmeta(PATH: path, USER: Byte, MD: Ref[metadata], NLINK: Ref[Int], SIZE: Ref[Int], ERR: Ref[error]): Unit = {
+  override def readmeta(PATH: path, USER: Int, MD: Ref[metadata], NLINK: Ref[Int], SIZE: Ref[Int], ERR: Ref[error]): Unit = {
     val INO = Ref[Int](ROOT_INO)
     walk(PATH, USER, INO, ERR)
     if (ERR.get == types.error.ESUCCESS) {
@@ -376,8 +378,8 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
       afs.iget(INO.get, INODE, ERR)
       if (ERR.get == types.error.ESUCCESS) {
         if (pr(USER, INODE.meta)) {
-          MD := INODE.meta
           SIZE := INODE.size
+          MD := INODE.meta
           if (INODE.directory) {
             if (PATH.isEmpty) {
               NLINK := INODE.nsubdirs + 1
@@ -400,7 +402,7 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
     afs.recovery(DOSYNC, ERR)
   }
 
-  override def rename(PATH: path, PATH_ : path, USER: Byte, ERR: Ref[error]): Unit = {
+  override def rename(PATH: path, PATH_ : path, USER: Int, ERR: Ref[error]): Unit = {
     if (PATH.isEmpty || (PATH_.isEmpty || ⊑(PATH, PATH_))) {
       ERR := types.error.EACCESS
     } else {
@@ -409,10 +411,10 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
       val INODE: inode = types.inode.uninit
       val DEL_INODE: inode = types.inode.uninit
       val ISDIR = Ref[Boolean](helpers.scala.Boolean.uninit)
-      val DENT1 = Ref[dentry](types.dentry.negdentry(PATH.last))
       val INO1 = Ref[Int](ROOT_INO)
       val PATH1: path = PATH.init
       walk(PATH1, USER, INO1, ERR)
+      val DENT1 = Ref[dentry](types.dentry.negdentry(PATH.last))
       if (ERR.get == types.error.ESUCCESS) {
         val ISRENAME: Boolean = true
         may_delete(INO1.get, ISRENAME, USER, INODE, DENT1, DEL_INODE, ISDIR, ERR)
@@ -424,13 +426,13 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
       val NEW_DENT_INODE: inode = types.inode.uninit
       val NEW_INODE: inode = types.inode.uninit
       if (ERR.get == types.error.ESUCCESS) {
-        val DENT = Ref[dentry](types.dentry.negdentry(PATH_.last))
         val INO = Ref[Int](ROOT_INO)
-        val PATH: path = PATH_.init
-        walk(PATH, USER, INO, ERR)
+        val PATH0: path = PATH_.init
+        walk(PATH0, USER, INO, ERR)
         if (ERR.get == types.error.ESUCCESS) {
           may_lookup(INO.get, USER, INODE, ERR)
         }
+        val DENT = Ref[dentry](types.dentry.negdentry(PATH_.last))
         if (ERR.get == types.error.ESUCCESS) {
           afs.lookup(INO.get, DENT, ERR)
           if (ERR.get == types.error.ENOENT) {
@@ -456,14 +458,14 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
     }
   }
 
-  override def rmdir(PATH: path, USER: Byte, ERR: Ref[error]): Unit = {
+  override def rmdir(PATH: path, USER: Int, ERR: Ref[error]): Unit = {
     if (PATH.isEmpty) {
       ERR := types.error.EACCESS
     } else {
       val INO = Ref[Int](ROOT_INO)
+      val PATH0: path = PATH.init
+      walk(PATH0, USER, INO, ERR)
       val DENT = Ref[dentry](types.dentry.negdentry(PATH.last))
-      val path_variable0: path = PATH.init
-      walk(path_variable0, USER, INO, ERR)
       val DEL_INODE: inode = types.inode.uninit
       val INODE: inode = types.inode.uninit
       if (ERR.get == types.error.ESUCCESS) {
@@ -480,7 +482,7 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
     }
   }
 
-  override def seek(FD: Int, WHENCE: seekflag, USER: Byte, N: Ref[Int], ERR: Ref[error]): Unit = {
+  override def seek(FD: Int, WHENCE: seekflag, USER: Int, N: Ref[Int], ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
     if (! OF.contains(FD)) {
       ERR := types.error.EBADFD
@@ -504,7 +506,7 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
     afs.sync(ERR)
   }
 
-  override def truncate(PATH: path, N: Int, USER: Byte, ERR: Ref[error]): Unit = {
+  override def truncate(PATH: path, N: Int, USER: Int, ERR: Ref[error]): Unit = {
     val INO = Ref[Int](ROOT_INO)
     walk(PATH, USER, INO, ERR)
     val INODE: inode = types.inode.uninit
@@ -516,24 +518,20 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
     if (ERR.get == types.error.ESUCCESS) {
       afs.check_commit(ERR)
     }
-    var PAGENO: Int = 0
-    if (ERR.get == types.error.ESUCCESS) {
-      PAGENO = INODE.size / VFS_PAGE_SIZE
-    }
     if (ERR.get == types.error.ESUCCESS) {
       val PBUF_OPT = Ref[buffer_opt](types.buffer_opt.none)
-      afs.truncate(N, PAGENO, PBUF_OPT, INODE, ERR)
+      afs.truncate(N, INODE, PBUF_OPT, ERR)
     }
   }
 
-  override def unlink(PATH: path, USER: Byte, ERR: Ref[error]): Unit = {
+  override def unlink(PATH: path, USER: Int, ERR: Ref[error]): Unit = {
     if (PATH.isEmpty) {
       ERR := types.error.EACCESS
     } else {
       val INO = Ref[Int](ROOT_INO)
+      val PATH0: path = PATH.init
+      walk(PATH0, USER, INO, ERR)
       val DENT = Ref[dentry](types.dentry.negdentry(PATH.last))
-      val path_variable0: path = PATH.init
-      walk(path_variable0, USER, INO, ERR)
       val DEL_INODE: inode = types.inode.uninit
       val INODE: inode = types.inode.uninit
       if (ERR.get == types.error.ESUCCESS) {
@@ -550,24 +548,24 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
     }
   }
 
-  def walk(PATH: path, USER: Byte, INO: Ref[Int], ERR: Ref[error]): Unit = {
+  def walk(PATH1: path, USER: Int, INO: Ref[Int], ERR: Ref[error]): Unit = {
+    var PATH: path = PATH1
     ERR := types.error.ESUCCESS
-    var path_variable0: path = PATH
-    while (! path_variable0.isEmpty && ERR.get == types.error.ESUCCESS) {
+    while (! PATH.isEmpty && ERR.get == types.error.ESUCCESS) {
       val INODE: inode = types.inode.uninit
       may_lookup(INO.get, USER, INODE, ERR)
       if (ERR.get == types.error.ESUCCESS) {
-        val DENT = Ref[dentry](types.dentry.negdentry(path_variable0.head))
+        val DENT = Ref[dentry](types.dentry.negdentry(PATH.head))
         afs.lookup(INO.get, DENT, ERR)
         if (ERR.get == types.error.ESUCCESS) {
           INO := DENT.get.ino
-          path_variable0 = path_variable0.tail
+          PATH = PATH.tail
         }
       }
     }
   }
 
-  override def write(FD: Int, BUF: buffer, USER: Byte, N: Ref[Int], ERR: Ref[error]): Unit = {
+  override def write(FD: Int, BUF: buffer, USER: Int, N: Ref[Int], ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
     if (! OF.contains(FD)) {
       ERR := types.error.EBADFD
@@ -580,36 +578,33 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
         if (INODE.directory) {
           ERR := types.error.EISDIR
         } else {
-          var PAGENO: Int = 0
-          if (ERR.get == types.error.ESUCCESS) {
-            PAGENO = INODE.size / VFS_PAGE_SIZE
-          }
           if (ERR.get == types.error.ESUCCESS) {
             val PBUF_OPT = Ref[buffer_opt](types.buffer_opt.none)
-            afs.truncate(INODE.size, PAGENO, PBUF_OPT, INODE, ERR)
+            afs.truncate(INODE.size, INODE, PBUF_OPT, ERR)
           }
-          val START: Int = OF(FD).pos
+          val WRITTEN = Ref[Int](0)
           var END: Int = OF(FD).pos + N.get
-          val TOTAL = Ref[Int](0)
+          val START: Int = OF(FD).pos
           if (ERR.get == types.error.ESUCCESS) {
-            write_loop(START, INODE, END, BUF, TOTAL, ERR)
-          }
-          if (TOTAL.get != 0) {
-            ERR := types.error.ESUCCESS
+            write_loop(INODE, START, END, BUF, WRITTEN, ERR)
+            if (WRITTEN.get != 0) {
+              ERR := types.error.ESUCCESS
+            }
           }
           if (ERR.get == types.error.ESUCCESS) {
-            N := TOTAL.get
-            END = START + TOTAL.get
+            END = START + WRITTEN.get
             val SIZE: Int = INODE.size
-            if (TOTAL.get != 0 && SIZE < END) {
+            if (SIZE < END) {
               afs.check_commit(ERR)
               if (ERR.get == types.error.ESUCCESS) {
                 afs.write_size(INODE, END, ERR)
               }
             }
-            if (ERR.get != types.error.ESUCCESS) {
-              N := (if (START <= SIZE) SIZE - START else 0)
+            if (ERR.get == types.error.ESUCCESS) {
+              N := WRITTEN.get
+            } else {
               ERR := types.error.ESUCCESS
+              N := (if (START <= SIZE) SIZE - START else 0)
             }
             OF(FD).pos = START + N.get
           }
@@ -618,28 +613,30 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
     }
   }
 
-  def write_block(START: Int, INODE: inode, BUF: buffer, END: Int, TOTAL: Ref[Int], DONE: Ref[Boolean], ERR: Ref[error]): Unit = {
-    val PAGENO: Int = (START + TOTAL.get) / VFS_PAGE_SIZE
-    val OFFSET: Int = (START + TOTAL.get) % VFS_PAGE_SIZE
-    val N: Int = min(END - (START + TOTAL.get), VFS_PAGE_SIZE - OFFSET)
-    if (N != 0) {
-      writepage(INODE, PAGENO, BUF, TOTAL.get, OFFSET, N, ERR)
-      if (ERR.get == types.error.ESUCCESS) {
-        TOTAL := TOTAL.get + N
-      }
-    } else {
-      DONE := true
+  def write_block(INODE: inode, START: Int, END: Int, BUF: buffer, WRITTEN: Ref[Int], DONE: Ref[Boolean], ERR: Ref[error]): Unit = {
+    val OFFSET = Ref[Int](0)
+    val REST = Ref[Int](0)
+    val PAGENO = Ref[Int](0)
+    val CURRENT_POS: Int = START + WRITTEN.get
+    vfs_block_boundaries(CURRENT_POS, PAGENO, OFFSET, REST)
+    val N: Int = min(END - CURRENT_POS, REST.get)
+    writepage(INODE, PAGENO.get, BUF, WRITTEN.get, OFFSET.get, N, ERR)
+    if (ERR.get == types.error.ESUCCESS) {
+      WRITTEN := WRITTEN.get + N
     }
+    DONE := (START + WRITTEN.get == END)
   }
 
-  def write_loop(START: Int, INODE: inode, END: Int, BUF: buffer, TOTAL: Ref[Int], ERR: Ref[error]): Unit = {
+  def write_loop(INODE: inode, START: Int, END: Int, BUF: buffer, WRITTEN: Ref[Int], ERR: Ref[error]): Unit = {
+    WRITTEN := 0
+    ERR := types.error.ESUCCESS
     val DONE = Ref[Boolean](false)
     while (ERR.get == types.error.ESUCCESS && DONE.get != true) {
-      write_block(START, INODE, BUF, END, TOTAL, DONE, ERR)
+      write_block(INODE, START, END, BUF, WRITTEN, DONE, ERR)
     }
   }
 
-  override def writemeta(PATH: path, MD: metadata, USER: Byte, ERR: Ref[error]): Unit = {
+  override def writemeta(PATH: path, MD: metadata, USER: Int, ERR: Ref[error]): Unit = {
     val INO = Ref[Int](ROOT_INO)
     walk(PATH, USER, INO, ERR)
     if (ERR.get == types.error.ESUCCESS) {
@@ -659,8 +656,9 @@ class Vfs(var MAXINO : Int, val OF : open_files, val afs : AfsInterface)(implici
   }
 
   def writepage(INODE: inode, PAGENO: Int, BUF: buffer, TOTAL: Int, OFFSET: Int, N: Int, ERR: Ref[error]): Unit = {
-    val PBUF: buffer = new buffer(VFS_PAGE_SIZE).fill(0.toByte)
-    val EXISTS = Ref[Boolean](helpers.scala.Boolean.uninit)
+    ERR := types.error.ESUCCESS
+    val PBUF: buffer = vfspage
+    val EXISTS = Ref[Boolean](false)
     afs.readpage(INODE, PAGENO, PBUF, EXISTS, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       afs.check_commit(ERR)

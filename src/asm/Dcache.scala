@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2018 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2019 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package asm
@@ -23,8 +23,7 @@ class Dcache(val DCACHE : dcache)(implicit _algebraic_implicit: algebraic.Algebr
   import _algebraic_implicit._
 
   def delete(P_INO: Int, NAME: String, ERR: Ref[error]): Unit = {
-    val KEY: key = types.key.dentrykey(P_INO, NAME)
-    DCACHE -= KEY
+    DCACHE -= types.key.dentrykey(P_INO, NAME)
     ERR := types.error.ESUCCESS
   }
 
@@ -35,11 +34,9 @@ class Dcache(val DCACHE : dcache)(implicit _algebraic_implicit: algebraic.Algebr
 
   def get(P_INO: Int, NAME: String, DENT: Ref[dentry], HIT: Ref[Boolean], ERR: Ref[error]): Unit = {
     val KEY: key = types.key.dentrykey(P_INO, NAME)
-    if (DCACHE.contains(KEY)) {
+    HIT := DCACHE.contains(KEY)
+    if (HIT.get) {
       DENT := DCACHE(KEY)
-      HIT := true
-    } else {
-      HIT := false
     }
     ERR := types.error.ESUCCESS
   }
@@ -50,8 +47,7 @@ class Dcache(val DCACHE : dcache)(implicit _algebraic_implicit: algebraic.Algebr
   }
 
   def set(P_INO: Int, NAME: String, DENT: dentry, ERR: Ref[error]): Unit = {
-    val KEY: key = types.key.dentrykey(P_INO, NAME)
-    DCACHE(KEY) = DENT
+    DCACHE(types.key.dentrykey(P_INO, NAME)) = DENT
     ERR := types.error.ESUCCESS
   }
 

@@ -11,7 +11,7 @@ import java.util.concurrent.locks._
 import types._
 import types.error.error
 
-abstract class EbmAvolInterface extends ASM {
+abstract class EbmSavolInterface extends ASM {
   def change(LNUM: Int, N: Int, BUF: buffer, ERR: Ref[error])
   def format(VOLSIZE: Int, ERR: Ref[error])
   def get_leb_size(N: Ref[Int])

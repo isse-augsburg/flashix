@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2018 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2019 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package asm
@@ -26,8 +26,8 @@ class Btree(var ADRT : address, var RT : znode, val apersistence : ApersistenceI
 
   override def commit(MAXINO0: Int, OS0: nat_set, ERR: Ref[error]): Unit = {
     ERR := types.error.ESUCCESS
-    val ADR = Ref[address](ADRT)
     var DONE: Boolean = false
+    val ADR = Ref[address](ADRT)
     if (RT != null && RT.dirty) {
       apersistence.allocate_ind(ERR)
       if (ERR.get == types.error.ESUCCESS) {
@@ -91,8 +91,8 @@ class Btree(var ADRT : address, var RT : znode, val apersistence : ApersistenceI
         val N = Ref[Int](0)
         io_scan(KEY, 1, R.get, N)
         while (N.get < R.get.usedsize && DONE.get != true) {
-          val RC = Ref[znode](R.get.zbranches(N.get).child)
           val ADRC: address = R.get.zbranches(N.get).adr
+          val RC = Ref[znode](R.get.zbranches(N.get).child)
           entries(KEY, R.get, ADRC, RC, DONE, NAMES, ERR)
           N := N.get + 1
         }
@@ -186,8 +186,8 @@ class Btree(var ADRT : address, var RT : znode, val apersistence : ApersistenceI
   }
 
   override def index_truncate(KEY: key, N: Int, AS: address_set): Unit = {
-    val DIRTY = Ref[Boolean](false)
     val DONE = Ref[Boolean](false)
+    val DIRTY = Ref[Boolean](false)
     val ERR = Ref[error](types.error.uninit)
     
     {
@@ -285,11 +285,11 @@ class Btree(var ADRT : address, var RT : znode, val apersistence : ApersistenceI
 
   def io_split(POSITION: Int, R: znode, RL: Ref[znode], RR: Ref[znode], ERR: Ref[error]): Unit = {
     val NUSED: Int = R.usedsize
-    val LEFT: Int = POSITION
-    val RIGHT: Int = NUSED - POSITION
     val RP: znode = R.parent
     val LEAF: Boolean = R.leaf
     val DIRTY: Boolean = R.dirty
+    val LEFT: Int = POSITION
+    val RIGHT: Int = NUSED - POSITION
     val R0 = Ref(types.znode.uninit)
     R0.get = types.znode.mkznode(RP, new zbranch_array(BRANCH_SIZE).fill(types.zbranch.uninit), LEAF, DIRTY, RIGHT)
     RR := R0.get
@@ -378,8 +378,8 @@ class Btree(var ADRT : address, var RT : znode, val apersistence : ApersistenceI
       } else {
         val N = Ref[Int](0)
         io_scan(MOD.key, 1, R.get, N)
-        val RC = Ref[znode](R.get.zbranches(N.get).child)
         val ADRC: address = R.get.zbranches(N.get).adr
+        val RC = Ref[znode](R.get.zbranches(N.get).child)
         traverse(MOD, R.get, ADRC, RC, DIRTY, EXISTS, ADR, ERR)
         if (ERR.get == types.error.ESUCCESS) {
           if (RC.get.usedsize == BRANCH_SIZE) {
@@ -417,8 +417,8 @@ class Btree(var ADRT : address, var RT : znode, val apersistence : ApersistenceI
     }
     if (ERR.get == types.error.ESUCCESS) {
       if (RT.usedsize == BRANCH_SIZE) {
-        val RL = Ref[znode](null)
         val RR = Ref[znode](null)
+        val RL = Ref[znode](null)
         val POSITION: Int = MIN_SIZE
         io_split(POSITION, RT, RL, RR, ERR)
         val R = Ref(types.znode.uninit)
@@ -438,9 +438,9 @@ class Btree(var ADRT : address, var RT : znode, val apersistence : ApersistenceI
     io_load(RP, ADR0, R, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       if (R.get.leaf) {
+        var N: Int = 0
         val POSITION = Ref[Int](0)
         io_scan(KEY, 0, R.get, POSITION)
-        var N: Int = 0
         while (POSITION.get + N < R.get.usedsize && (KEY.ino == R.get.zbranches(POSITION.get + N).key.ino && R.get.zbranches(POSITION.get + N).key.isInstanceOf[types.key.datakey])) {
           if (R.get.zbranches(POSITION.get + N).isInstanceOf[types.zbranch.mkzentry]) {
             AS += R.get.zbranches(POSITION.get + N).adr
@@ -455,8 +455,8 @@ class Btree(var ADRT : address, var RT : znode, val apersistence : ApersistenceI
         val N = Ref[Int](0)
         io_scan(KEY, 1, R.get, N)
         while (N.get < R.get.usedsize && DONE.get != true) {
-          val RC = Ref[znode](R.get.zbranches(N.get).child)
           val ADRC: address = R.get.zbranches(N.get).adr
+          val RC = Ref[znode](R.get.zbranches(N.get).child)
           truncate(KEY, R.get, ADRC, RC, DIRTY, DONE, AS, ERR)
           R.get.zbranches(N.get) = R.get.zbranches(N.get).updated_child(RC.get)
           if (RC.get.usedsize == 0 && R.get.usedsize != 0) {

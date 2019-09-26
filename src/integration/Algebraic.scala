@@ -49,9 +49,9 @@ final class Algebraic(val mtd: MTDSimulation) extends algebraic.Algebraic {
   }
   override def checksum(param0: buffer, param1: Int): Int = 0
   override def is_open(ino: Int, of: open_files): Boolean = of.map.exists { _._2.ino == ino }
-  override def pr(param0: Byte, param1: metadata): Boolean = true
-  override def pw(param0: Byte, param1: metadata): Boolean = true
-  override def px(param0: Byte, param1: metadata): Boolean = true
+  override def pr(param0: Int, param1: metadata): Boolean = true
+  override def pw(param0: Int, param1: metadata): Boolean = true
+  override def px(param0: Int, param1: metadata): Boolean = true
 /*
   override def to_vtbl(param0: volumes): vtbl = {
     val vtbl = new vtbl()
@@ -98,4 +98,42 @@ final class Algebraic(val mtd: MTDSimulation) extends algebraic.Algebraic {
     }
     pcache
   }
+  
+  override def keys(param0: pcache, param1: Int): nat_set = {
+    val pcache = param0
+    val keys = new nat_set()
+    for (key <- pcache.keys) {
+      key match {
+        case datakey(ino, pageno) => if(ino == param1) keys += pageno
+        case _ => 
+      }
+    }
+    keys
+  }
+  
+  override def update(param0: tcache, param1: Int, param2: Int, param3: Int): tcache = {
+    import tcache_entry._
+    val (tcache, ino, m, fsize) = (param0, param1, param2, param3)
+    if(!tcache.contains(ino)) {
+      tcache += (ino, T0(m))
+    } else {
+      val te = tcache(ino) match {
+        case T0(n) =>
+          if ((m < fsize) && (m / VFS_PAGE_SIZE == fsize / VFS_PAGE_SIZE))
+            T(fsize, m)
+          else
+            T0(m)
+        case T(minup, n) =>
+          if(m / VFS_PAGE_SIZE < minup / VFS_PAGE_SIZE)
+            T0(m)
+          else if (n <= m)
+            T(min(n, minup), m)
+          else
+            T(minup, m)
+      }
+      tcache.update(ino, te)
+    }
+    tcache
+  }
+    
 }

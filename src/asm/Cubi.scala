@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2018 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2019 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package asm
@@ -25,9 +25,7 @@ class Cubi(var DoErase : Condition, var DoWl : Condition, val Eraseq : queue, va
     val M = Ref[Int](0)
     next_sqnum(M)
     var AVHDR: avidheader = types.avidheader.avidhdr(VOLID, LNUM, M.get, N0.get, 0)
-    if (N0.get != 0) {
-      AVHDR = AVHDR.updated_checksum(checksum(BUF, N0.get))
-    }
+    AVHDR = AVHDR.updated_checksum(checksum(BUF, N0.get))
     ubi_awl.write_vidhdr(TO, AVHDR, ERR)
     if (ERR.get == types.error.ESUCCESS && N0.get > 0) {
       ubi_awl.write_data_wl(TO, alignUp(N0.get, PAGESIZE), BUF, ERR)
@@ -64,8 +62,7 @@ class Cubi(var DoErase : Condition, var DoWl : Condition, val Eraseq : queue, va
 
   def erase_worker(): Unit = {
     Lock.lock
-    if (Eraseq.isEmpty)
-      DoErase.await
+    DoErase.await
     val ERR = Ref[error](types.error.ESUCCESS)
     while (! Eraseq.isEmpty && ERR.get == types.error.ESUCCESS) {
       val EQENT: erasequeueentry = Eraseq.head
@@ -110,78 +107,83 @@ class Cubi(var DoErase : Condition, var DoWl : Condition, val Eraseq : queue, va
   }
 
   override def format(VOLID: Byte, N: Int, ERR: Ref[error]): Unit = {
-    ubi_awl.format(ERR)
-    
-    {
-      val nat_variable0: Ref[Int] = Ref[Int](LEBSIZE)
-      ubi_awl.get_leb_size(nat_variable0)
-      LEBSIZE = nat_variable0.get
-    }
-    
-    {
-      val nat_variable0: Ref[Int] = Ref[Int](PAGESIZE)
-      ubi_awl.get_page_size(nat_variable0)
-      PAGESIZE = nat_variable0.get
-    }
-    Lock = new ReentrantLock()
-    DoErase = Lock.newCondition()
-    DoWl = Lock.newCondition()
-    if (ERR.get != types.error.ESUCCESS) {
-      debug("ubi: ubi-io format failed")
+    if (VOLID == VTBL_VOLID) {
+      ERR := types.error.EINVAL
     } else {
-      val N = Ref[Int](0)
-      ubi_awl.get_blockcount(N)
-      ERR := types.error.ESUCCESS
-      var PNUM: Int = 0
-      while (PNUM < N.get && ERR.get == types.error.ESUCCESS) {
-        val ISBAD = Ref[Boolean](helpers.scala.Boolean.uninit)
-        ubi_awl.isbad(PNUM, ISBAD, ERR)
-        if (ERR.get == types.error.ESUCCESS) {
-          if (ISBAD.get != true) {
-            val AEHDR = Ref[aecheader](types.aecheader.uninit)
-            val BITFLIPS = Ref[Boolean](helpers.scala.Boolean.uninit)
-            ubi_awl.read_echdr(PNUM, AEHDR, BITFLIPS, ERR)
-            if (ERR.get == types.error.ESUCCESS && AEHDR.get.isInstanceOf[types.aecheader.aechdr]) {
-              ubi_awl.set_ec(PNUM, AEHDR.get.ec)
-              ubi_awl.set_peb_free(PNUM)
-            }
-          } else {
-            ubi_awl.set_ec(PNUM, 0)
-            ubi_awl.set_status(PNUM, types.wlstatus.erroneous)
-          }
-        }
-        PNUM = PNUM + 1
-      }
-    }
-    if (ERR.get == types.error.ESUCCESS) {
+      ubi_awl.format(ERR)
       
       {
-        val nat_variable0: Ref[Int] = Ref[Int](VtblPnum)
-        ubi_awl.get_free_peb(nat_variable0, ERR)
-        VtblPnum = nat_variable0.get
+        val nat_variable0: Ref[Int] = Ref[Int](LEBSIZE)
+        ubi_awl.get_leb_size(nat_variable0)
+        LEBSIZE = nat_variable0.get
       }
-      if (ERR.get == types.error.ESUCCESS) {
-        ubi_awl.write_vidhdr(VtblPnum, types.avidheader.avidhdr(VTBL_VOLID, VTBL_LNUM, 0, 0, 0), ERR)
-        if (ERR.get == types.error.ESUCCESS) {
-          if (ENCODED_NAT_SIZE + (ENCODED_VOLID_SIZE + ENCODED_NAT_SIZE) > LEBSIZE) {
-            ERR := types.error.ENOSPC
-          } else {
-            val BUF: buffer = new buffer(LEBSIZE).fill(0.toByte)
-            val VTBL: vtbl = new vtbl()
-            VTBL(VOLID) = N
-            encode_vtbl(VTBL, BUF, ERR)
-            if (ERR.get == types.error.ESUCCESS) {
-              ubi_awl.write_data(VtblPnum, 0, 0, LEBSIZE, BUF, ERR)
+      
+      {
+        val nat_variable0: Ref[Int] = Ref[Int](PAGESIZE)
+        ubi_awl.get_page_size(nat_variable0)
+        PAGESIZE = nat_variable0.get
+      }
+      Lock = new ReentrantLock()
+      DoErase = Lock.newCondition()
+      DoWl = Lock.newCondition()
+      if (ERR.get != types.error.ESUCCESS) {
+        debug("ubi: ubi-io format failed")
+      } else {
+        val N = Ref[Int](0)
+        ubi_awl.get_blockcount(N)
+        ERR := types.error.ESUCCESS
+        var PNUM: Int = 0
+        while (PNUM < N.get && ERR.get == types.error.ESUCCESS) {
+          val ISBAD = Ref[Boolean](helpers.scala.Boolean.uninit)
+          ubi_awl.isbad(PNUM, ISBAD, ERR)
+          if (ERR.get == types.error.ESUCCESS) {
+            if (ISBAD.get != true) {
+              val AEHDR = Ref[aecheader](types.aecheader.uninit)
+              val BITFLIPS = Ref[Boolean](helpers.scala.Boolean.uninit)
+              ubi_awl.read_echdr(PNUM, AEHDR, BITFLIPS, ERR)
+              if (ERR.get == types.error.ESUCCESS && AEHDR.get.isInstanceOf[types.aecheader.aechdr]) {
+                ubi_awl.set_ec(PNUM, AEHDR.get.ec)
+                ubi_awl.set_peb_free(PNUM)
+              }
+            } else {
+              ubi_awl.set_ec(PNUM, 0)
+              ubi_awl.set_status(PNUM, types.wlstatus.erroneous)
             }
           }
+          PNUM = PNUM + 1
         }
-        ubi_awl.set_status(VtblPnum, types.wlstatus.used)
-        Vols.clear
-        Vols(VOLID) = new ebatbl(N)
-        Vols(VOLID).fill(types.ebaentry.unmapped)
-        VolLocks.clear
-        init_vollocks(VOLID, N)
-        Eraseq.clear
+      }
+      if (ERR.get == types.error.ESUCCESS) {
+        
+        {
+          val nat_variable0: Ref[Int] = Ref[Int](VtblPnum)
+          ubi_awl.get_free_peb(nat_variable0, ERR)
+          VtblPnum = nat_variable0.get
+        }
+        if (ERR.get == types.error.ESUCCESS) {
+          ubi_awl.write_vidhdr(VtblPnum, types.avidheader.avidhdr(VTBL_VOLID, VTBL_LNUM, 0, 0, 0), ERR)
+          if (ERR.get == types.error.ESUCCESS) {
+            if (ENCODED_NAT_SIZE + (ENCODED_VOLID_SIZE + ENCODED_NAT_SIZE) > LEBSIZE) {
+              ERR := types.error.ENOSPC
+            } else {
+              val BUF: buffer = new buffer(LEBSIZE).fill(0.toByte)
+              val VTBL: vtbl = new vtbl()
+              VTBL(VOLID) = N
+              encode_vtbl(VTBL, BUF, ERR)
+              if (ERR.get == types.error.ESUCCESS) {
+                ubi_awl.write_data(VtblPnum, 0, 0, LEBSIZE, BUF, ERR)
+              }
+            }
+          }
+          ubi_awl.set_status(VtblPnum, types.wlstatus.used)
+          Vols.clear
+          Vols(VOLID) = new ebatbl(N)
+          Vols(VOLID).fill(types.ebaentry.unmapped)
+          VolLocks.clear
+          init_vollocks(VOLID, N)
+          Eraseq.clear
+          Sqnum = 1
+        }
       }
     }
   }
@@ -224,6 +226,7 @@ class Cubi(var DoErase : Condition, var DoWl : Condition, val Eraseq : queue, va
 
   def init_vols_sizes(RECS: recoveryentries, VTBL: vtbl): Unit = {
     Vols.clear
+    VolLocks.clear
     while (! VTBL.isEmpty) {
       val VOLID: Byte = VTBL.headKey
       Vols(VOLID) = new ebatbl(VTBL(VOLID))
@@ -279,9 +282,9 @@ class Cubi(var DoErase : Condition, var DoWl : Condition, val Eraseq : queue, va
     Lock = new ReentrantLock()
     DoErase = Lock.newCondition()
     DoWl = Lock.newCondition()
-    val RECS: recoveryentries = new recoveryentries()
-    val INVALIDECS: nat_list = new nat_list()
     val VALIDCOUNT = Ref[Int](0)
+    val INVALIDECS: nat_list = new nat_list()
+    val RECS: recoveryentries = new recoveryentries()
     val VALIDECSUM = Ref[Int](0)
     scan_all(RECS, VALIDCOUNT, VALIDECSUM, INVALIDECS, ERR)
     if (ERR.get == types.error.ESUCCESS && ! RECS.contains(types.lebadress.×(VTBL_VOLID, VTBL_LNUM))) {
@@ -388,9 +391,6 @@ class Cubi(var DoErase : Condition, var DoWl : Condition, val Eraseq : queue, va
           }
         }
       }
-      if (ERR.get != types.error.ESUCCESS) {
-        
-      }
       PNUM = PNUM + 1
     }
   }
@@ -414,8 +414,8 @@ class Cubi(var DoErase : Condition, var DoWl : Condition, val Eraseq : queue, va
   }
 
   def wear_leveling_worker(ERR: Ref[error], IsWl: Ref[Boolean]): Unit = {
-    ERR := types.error.ESUCCESS
     IsWl := false
+    ERR := types.error.ESUCCESS
     Lock.lock
     DoWl.await
     val AVHDR = Ref[avidheader](types.avidheader.uninit)
@@ -441,20 +441,21 @@ class Cubi(var DoErase : Condition, var DoWl : Condition, val Eraseq : queue, va
       }
       VolLocks(AVHDR.get.vol)(AVHDR.get.leb).writeLock().unlock()
       Lock.unlock
-    } else     if (VALID.get && (AVHDR.get.isInstanceOf[types.avidheader.avidhdr] && (AVHDR.get.vol == VTBL_VOLID && (AVHDR.get.leb == VTBL_LNUM && FROM.get == VtblPnum)))) {
-      val PNUM = Ref[Int](0)
+    } else     if (VALID.get && (AVHDR.get.isInstanceOf[types.avidheader.avidhdr] && (AVHDR.get.vol == VTBL_VOLID && AVHDR.get.leb == VTBL_LNUM))) {
+      Lock.lock
       val TO = Ref[Int](0)
-      ubi_awl.get_pebs_for_wl(TO, PNUM, VALID, IsWl)
-      if (PNUM.get == FROM.get && VALID.get) {
+      ubi_awl.get_pebs_for_wl(TO, FROM, VALID, IsWl)
+      if (FROM.get == VtblPnum && VALID.get) {
         val BUF: buffer = new buffer(LEBSIZE).fill(0.toByte)
         ubi_awl.read_data(FROM.get, 0, 0, LEBSIZE, BUF, BITFLIPS, ERR)
         if (ERR.get == types.error.ESUCCESS) {
           atomic_leb_change(AVHDR.get.vol, AVHDR.get.leb, TO.get, LEBSIZE, BUF, ERR)
         }
       }
+      Lock.unlock
     } else {
-      ERR := types.error.ENOSPC
       IsWl := false
+      ERR := types.error.ENOSPC
     }
   }
 

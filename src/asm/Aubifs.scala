@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2018 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2019 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package asm
@@ -8,11 +8,13 @@ import helpers.scala._
 import helpers.scala.Encoding._
 import helpers.scala.Random._
 import java.util.concurrent.locks._
+import proc._
 import types._
 import types.error.error
 
-class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit: algebraic.Algebraic) extends AfsInterface {
+class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit: algebraic.Algebraic, _procedures_implicit: proc.Procedures) extends AfsInterface {
   import _algebraic_implicit._
+  import _procedures_implicit._
 
   override def check_commit(ERR: Ref[error]): Unit = {
     aubifs_core.check_commit(ERR)
@@ -42,7 +44,7 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
 
   override def evict(INODE: inode, ERR: Ref[error]): Unit = {
     val KEY: key = types.key.inodekey(INODE.ino)
-    val EXISTS = Ref[Boolean](helpers.scala.Boolean.uninit)
+    val EXISTS = Ref[Boolean](false)
     aubifs_core.orphans_contains(KEY, EXISTS)
     if (EXISTS.get) {
       aubifs_core.index_truncate(KEY, 0)
@@ -69,11 +71,11 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
   }
 
   override def fsync(INODE: inode, ISDATASYNC: Boolean, ERR: Ref[error]): Unit = {
-    ERR := types.error.ESUCCESS
+    aubifs_core.journal_sync(ERR)
   }
 
   override def fsyncdir(INODE: inode, ISDATASYNC: Boolean, ERR: Ref[error]): Unit = {
-    ERR := types.error.ESUCCESS
+    aubifs_core.journal_sync(ERR)
   }
 
   def gc(): Unit = {
@@ -190,9 +192,9 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
   }
 
   override def rename(OLD_CHILD_INODE: inode, OLD_PARENT_INODE: inode, NEW_PARENT_INODE: inode, NEW_CHILD_INODE: inode, OLD_DENT: Ref[dentry], NEW_DENT: Ref[dentry], ERR: Ref[error]): Unit = {
-    val OVERWRITE: Boolean = NEW_DENT.get.isInstanceOf[types.dentry.mkdentry]
     val REPARENT: Boolean = OLD_PARENT_INODE.ino != NEW_PARENT_INODE.ino
     val IS_DIR: Boolean = OLD_CHILD_INODE.directory
+    val OVERWRITE: Boolean = NEW_DENT.get.isInstanceOf[types.dentry.mkdentry]
     if (REPARENT) {
       if (OVERWRITE) {
         rename_overwrite_reparent(IS_DIR, OLD_CHILD_INODE, OLD_PARENT_INODE, NEW_PARENT_INODE, NEW_CHILD_INODE, OLD_DENT, NEW_DENT, ERR)
@@ -410,34 +412,35 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
     aubifs_core.journal_sync(ERR)
   }
 
-  override def truncate(N: Int, PAGENO: Int, PBUF_OPT: Ref[buffer_opt], INODE: inode, ERR: Ref[error]): Unit = {
-    val EXISTS = Ref[Boolean](helpers.scala.Boolean.uninit)
+  override def truncate(N: Int, INODE: inode, PBUF_OPT: Ref[buffer_opt], ERR: Ref[error]): Unit = {
+    PBUF_OPT := types.buffer_opt.none
+    ERR := types.error.ESUCCESS
+    val SIZE: Int = INODE.size
+    val PAGENO = Ref[Int](0)
+    vfs_pageno(SIZE, PAGENO)
+    val ALIGNED = Ref[Boolean](false)
+    vfs_aligned(SIZE, ALIGNED)
     val ADR3 = Ref[address](types.address.uninit)
     val ADR2 = Ref[address](types.address.uninit)
     val ADR1 = Ref[address](types.address.uninit)
-    val KEY1: key = types.key.inodekey(INODE.ino)
-    val KEY2: key = types.key.inodekey(INODE.ino)
-    val OFFSET: Int = INODE.size % VFS_PAGE_SIZE
-    val SIZE: Int = min(N, INODE.size)
-    val KEY3: key = types.key.datakey(INODE.ino, PAGENO)
+    val INO: Int = INODE.ino
+    val EXISTS = Ref[Boolean](false)
+    val KEY3: key = types.key.datakey(INO, PAGENO.get)
+    val KEY2: key = types.key.inodekey(INO)
+    val KEY1: key = types.key.inodekey(INO)
+    val TRUNC_SIZE: Int = min(N, SIZE)
     val ND2: node = types.node.inodenode(KEY2, INODE.meta, INODE.directory, INODE.nlink, INODE.nsubdirs, N)
     val ND3 = Ref[node](types.node.uninit)
-    if (INODE.size <= N && OFFSET != 0) {
-      if (PBUF_OPT.get.isInstanceOf[types.buffer_opt.some]) {
-        ND3 := types.node.datanode(KEY3, PBUF_OPT.get.buf).deepCopy
-        EXISTS := true
-        ERR := types.error.ESUCCESS
-      } else {
-        aubifs_core.index_lookup(KEY3, EXISTS, ND3, ERR)
-      }
-    } else {
-      EXISTS := false
-      ERR := types.error.ESUCCESS
+    if (SIZE <= N && ALIGNED.get != true) {
+      aubifs_core.index_lookup(KEY3, EXISTS, ND3, ERR)
     }
-    val ND1: node = types.node.truncnode(KEY1, SIZE)
+    val ND1: node = types.node.truncnode(KEY1, TRUNC_SIZE)
     if (ERR.get == types.error.ESUCCESS) {
       if (EXISTS.get) {
-        ND3.get.data.fill(zero, OFFSET, VFS_PAGE_SIZE - OFFSET)
+        val PBUF: buffer = ND3.get.data.deepCopy
+        val MODIFIED = Ref[Boolean](false)
+        vfs_page_truncate(SIZE, PBUF, MODIFIED)
+        ND3 := ND3.get.updated_data(PBUF).deepCopy
         aubifs_core.journal_add3(ND1, ND2, ND3.get, ADR1, ADR2, ADR3, ERR)
         if (ERR.get == types.error.ESUCCESS) {
           aubifs_core.index_store(KEY3, ADR3.get)
@@ -448,8 +451,8 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
     }
     if (ERR.get == types.error.ESUCCESS) {
       aubifs_core.index_store(KEY2, ADR2.get)
-      aubifs_core.index_truncate(KEY1, SIZE)
-      INODE := types.inode.mkinode(INODE.ino, ND2.meta, ND2.directory, ND2.nlink, ND2.nsubdirs, ND2.size)
+      aubifs_core.index_truncate(KEY1, TRUNC_SIZE)
+      INODE := types.inode.mkinode(INODE.ino, ND2.meta, ND2.directory, ND2.nlink, ND2.nsubdirs, N)
       if (EXISTS.get) {
         PBUF_OPT := types.buffer_opt.some(ND3.get.data).deepCopy
       }
@@ -481,10 +484,50 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
     }
   }
 
+  override def write_begin(INODE: inode, ERR: Ref[error]): Unit = {
+    val INO: Int = INODE.ino
+    val INODE_KEY: key = types.key.inodekey(INODE.ino)
+    val EXISTS = Ref[Boolean](false)
+    val INODE_ND = Ref[node](types.node.uninit)
+    aubifs_core.index_lookup(INODE_KEY, EXISTS, INODE_ND, ERR)
+    if (ERR.get == types.error.ESUCCESS && EXISTS.get) {
+      val SIZE: Int = INODE_ND.get.size
+      val PAGENO = Ref[Int](0)
+      vfs_pageno(SIZE, PAGENO)
+      val ALIGNED = Ref[Boolean](false)
+      vfs_aligned(SIZE, ALIGNED)
+      val TRUNC_ADR = Ref[address](types.address.uninit)
+      val TRUNC_ND: node = types.node.truncnode(INODE_KEY, SIZE)
+      if (ALIGNED.get) {
+        aubifs_core.journal_add1(TRUNC_ND, TRUNC_ADR, ERR)
+      } else {
+        val DATA_KEY: key = types.key.datakey(INO, PAGENO.get)
+        val DATA_ND = Ref[node](types.node.uninit)
+        aubifs_core.index_lookup(DATA_KEY, EXISTS, DATA_ND, ERR)
+        if (ERR.get == types.error.ESUCCESS && EXISTS.get) {
+          val DATA_ADR = Ref[address](types.address.uninit)
+          val PBUF: buffer = DATA_ND.get.data.deepCopy
+          val MODIFIED = Ref[Boolean](false)
+          vfs_page_truncate(SIZE, PBUF, MODIFIED)
+          DATA_ND := DATA_ND.get.updated_data(PBUF).deepCopy
+          aubifs_core.journal_add2(TRUNC_ND, DATA_ND.get, TRUNC_ADR, DATA_ADR, ERR)
+          if (ERR.get == types.error.ESUCCESS) {
+            aubifs_core.index_store(DATA_KEY, DATA_ADR.get)
+          }
+        } else         if (ERR.get == types.error.ESUCCESS) {
+          aubifs_core.journal_add1(TRUNC_ND, TRUNC_ADR, ERR)
+        }
+      }
+      if (ERR.get == types.error.ESUCCESS) {
+        aubifs_core.index_truncate(INODE_KEY, SIZE)
+      }
+    }
+  }
+
   override def write_meta(INODE: inode, MD: metadata, ERR: Ref[error]): Unit = {
     val KEY: key = types.key.inodekey(INODE.ino)
-    val ADR = Ref[address](types.address.uninit)
     val ND: node = types.node.inodenode(KEY, MD, INODE.directory, INODE.nlink, INODE.nsubdirs, INODE.size)
+    val ADR = Ref[address](types.address.uninit)
     aubifs_core.journal_add1(ND, ADR, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       aubifs_core.index_store(KEY, ADR.get)
@@ -493,8 +536,8 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
 
   override def write_size(INODE: inode, SIZE: Int, ERR: Ref[error]): Unit = {
     val KEY: key = types.key.inodekey(INODE.ino)
-    val ADR = Ref[address](types.address.uninit)
     val ND: node = types.node.inodenode(KEY, INODE.meta, INODE.directory, INODE.nlink, INODE.nsubdirs, SIZE)
+    val ADR = Ref[address](types.address.uninit)
     aubifs_core.journal_add1(ND, ADR, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       aubifs_core.index_store(KEY, ADR.get)
@@ -502,19 +545,12 @@ class Aubifs(val aubifs_core : AubifsCoreInterface)(implicit _algebraic_implicit
   }
 
   override def writepage(INODE: inode, PAGENO: Int, PBUF: buffer, ERR: Ref[error]): Unit = {
-    var KEY1: key = types.key.uninit
-    val INO: Int = INODE.ino
-    KEY1 = types.key.datakey(INO, PAGENO)
+    val KEY1: key = types.key.datakey(INODE.ino, PAGENO)
     val ND1: node = types.node.datanode(KEY1, PBUF).deepCopy
     val ADR1 = Ref[address](types.address.uninit)
     aubifs_core.journal_add1(ND1, ADR1, ERR)
     if (ERR.get == types.error.ESUCCESS) {
       aubifs_core.index_store(KEY1, ADR1.get)
-    } else {
-      val EXISTS: Boolean = true
-      if (EXISTS != true) {
-        aubifs_core.index_remove(KEY1)
-      }
     }
   }
 

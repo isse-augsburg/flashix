@@ -1,5 +1,5 @@
 // Flashix: a verified file system for flash memory
-// (c) 2015-2018 Institute for Software & Systems Engineering <http://isse.de/flashix>
+// (c) 2015-2019 Institute for Software & Systems Engineering <http://isse.de/flashix>
 // This code is licensed under MIT license (see LICENSE for details)
 
 package algebraic
@@ -34,6 +34,7 @@ trait Algebraic {
   def SB_LOG: Int = 1
   def SB_LPT: Int = 5
   def SB_ORPH: Int = 3
+  def vfspage: buffer = new buffer(VFS_PAGE_SIZE).fill(0.toByte)
   def zeropage: buffer = mkzbuf(VFS_PAGE_SIZE)
 
   def alignedsize(nd: group_node): Int = {
@@ -59,6 +60,19 @@ trait Algebraic {
       val key_set_variable0: key_set = keys(nat_set_variable0.tail).deepCopy
       key_set_variable0 += types.key.inodekey(nat_set_variable0.head)
       return key_set_variable0
+    }
+  }
+
+  def last(te: tcache_entry): Int = {
+    return te.lasttrunc
+  }
+
+  def min(tcache_entry_variable0: tcache_entry): Int = {
+    tcache_entry_variable0 match {
+      case types.tcache_entry.T0(lasttrunc) =>
+        return lasttrunc
+      case types.tcache_entry.T(minup, lasttrunc) =>
+        return min(minup, lasttrunc)
     }
   }
 
@@ -99,6 +113,13 @@ trait Algebraic {
 
   def lptsize(mainareasize: Int, n: Int): Int = {
     return alignUp(mainareasize * ENCODED_LPROPS_SIZE, n)
+  }
+
+  def max(nat_set_variable0: nat_set): Int = {
+    if (nat_set_variable0.isEmpty)
+      return 0
+    else
+      return max(nat_set_variable0.head, max(nat_set_variable0.tail))
   }
 
   def max(n: Int, m: Int): Int = {
@@ -169,14 +190,16 @@ trait Algebraic {
 
   def flashsize(param0: group_node_list): Int
   def flashsize(param0: node): Int
+  def keys(param0: pcache, param1: Int): nat_set
   def toStr(param0: Int): String
+  def update(param0: tcache, param1: Int, param2: Int, param3: Int): tcache
   def <(param0: key, param1: key): Boolean
   def checksum(param0: buffer, param1: Int): Int
   def evict(param0: Int, param1: pcache): pcache
   def is_open(param0: Int, param1: open_files): Boolean
-  def pr(param0: Byte, param1: metadata): Boolean
-  def pw(param0: Byte, param1: metadata): Boolean
-  def px(param0: Byte, param1: metadata): Boolean
+  def pr(param0: Int, param1: metadata): Boolean
+  def pw(param0: Int, param1: metadata): Boolean
+  def px(param0: Int, param1: metadata): Boolean
   def truncate(param0: Int, param1: Int, param2: pcache): pcache
   def ⊑(param0: path, param1: path): Boolean
 }
