@@ -26,7 +26,7 @@ trait Tab extends Component with Observer[Flashix] {
 object Visualization {
   def printHelp {
     println("usage:")
-    println("  flashix [-caching=none/wbuf/afs] [-concurrency=none/wl] [-odebug] [-obig_writes] <mountpoint>")
+    println("  flashix [-caching=none/wbuf/afs] [-concurrency=none/wl] [-sync/-async] [-odebug] [-obig_writes] <mountpoint>")
   }
 
   def main(initialArgs: Array[String]) {
@@ -37,7 +37,7 @@ object Visualization {
       System.exit(1)
     }
 
-    val (args, cachingStrategy, concurrencyStrategy) = Flashix.filterArgs(initialArgs)
+    val (args, doSync, cachingStrategy, concurrencyStrategy) = Flashix.filterArgs(initialArgs)
 
     // Implicit configuration options
     val deviceFile = new File("flash-device")
@@ -46,7 +46,6 @@ object Visualization {
     val page_size = 2048
     val spare_pebs = 5
     val doFormat = !deviceFile.exists()
-    val doSync = false
 
     // Create MTD simulation
     val mtd = MTDSimulation(deviceFile, pebs, pages_per_peb, page_size)

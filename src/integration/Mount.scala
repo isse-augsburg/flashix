@@ -17,7 +17,7 @@ object Mount {
 
   def printHelp {
     println("usage:")
-    println("  flashix [-caching=none/wbuf/afs] [-concurrency=none/wl] [-odebug] [-obig_writes] <mountpoint>")
+    println("  flashix [-caching=none/wbuf/afs] [-concurrency=none/wl] [-sync/-async] [-odebug] [-obig_writes] <mountpoint>")
   }
 
   def main(initialArgs: Array[String]) {
@@ -27,7 +27,7 @@ object Mount {
       System.exit(1)
     }
 
-    val (args, cachingStrategy, concurrencyStrategy) = Flashix.filterArgs(initialArgs)
+    val (args, dosync, cachingStrategy, concurrencyStrategy) = Flashix.filterArgs(initialArgs)
 
     // Implicit configuration options
     val deviceFile = new File("flash-device")
@@ -45,7 +45,6 @@ object Mount {
 
     // Format/Recover Flashix File System
     val flashix = new Flashix(cachingStrategy, concurrencyStrategy, {flashix => }, mtd)
-    val dosync = false
     val err = new Ref(error.uninit)
     if (format) {
       val rootmeta = fuse.DirMetadata()

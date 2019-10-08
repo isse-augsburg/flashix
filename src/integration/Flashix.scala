@@ -163,11 +163,18 @@ object Flashix {
   case object GCConcurrent extends ConcurrencyStrategy
   case object ToplevelConcurrent extends ConcurrencyStrategy
 
-  def filterArgs(args: Array[String]): (Array[String], CachingStrategy, ConcurrencyStrategy) = {
+  def filterArgs(args: Array[String]): (Array[String], Boolean, CachingStrategy, ConcurrencyStrategy) = {
     var cachingStrategy: CachingStrategy = WbufCaching
     var concurrencyStrategy: ConcurrencyStrategy = Sequential
+    var dosync = true
     
     val remainingsArgs = args.filter {
+      case "-sync" =>
+        dosync = true
+        false
+      case "-async" =>
+        dosync = false
+        false
       case "-caching=none" =>
         cachingStrategy = NoCaching
         false
@@ -192,6 +199,6 @@ object Flashix {
       case _ =>
         true
     }
-    (remainingsArgs, cachingStrategy, concurrencyStrategy)
+    (remainingsArgs, dosync, cachingStrategy, concurrencyStrategy)
   }
 }
