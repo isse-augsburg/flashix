@@ -21,7 +21,7 @@ Please read the documentation provided below and make sure you understand the
 background of this work and its assumptions.**
 
 See the [technical documentation](https://swt.informatik.uni-augsburg.de/swt/projects-v8/flash.html)
-for an overview of the concepts realized and a list of [publications](http://isse.de/flashix/publications).
+for an overview of the concepts realized and a list of [publications](https://www.uni-augsburg.de/en/fakultaet/fai/isse/projects/flashix/#publications).
 
 ## Quick Start
 
